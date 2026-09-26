@@ -15,22 +15,15 @@
   padding: 10px 12px;
   overflow: hidden; /* Contain the background pattern */
   gap: 8px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  backdrop-filter: blur(4px);
-  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--bt-color-hairline);
+  border-radius: var(--bt-radius);
+  background: rgb(255 254 250 / 97%);
   box-shadow:
-    0 10px 15px -3px rgba(0, 0, 0, 0.08),
-    0 4px 6px -2px rgba(0, 0, 0, 0.04);
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
+    0.375rem 0.375rem 0 rgb(22 21 15 / 8%),
+    0 0.125rem 0.375rem rgb(22 21 15 / 10%);
+  font-family: var(--bt-font-sans);
   text-align: left;
-  animation: slideIn 0.2s ease;
+  animation: slideIn 0.2s var(--bt-ease);
   pointer-events: auto;
 }
 
@@ -45,18 +38,14 @@
   left: 30%;
   width: 100%;
   height: 4rem;
-  background: linear-gradient(
-    to bottom,
-    var(--bt-color-primary-background),
-    transparent
-  );
+  background: linear-gradient(to bottom, var(--bt-color-sun), transparent);
   content: "";
   mask-image: radial-gradient(
     farthest-side at top,
     var(--bt-color-white),
     #0000
   );
-  opacity: 0.3;
+  opacity: 0.35;
   pointer-events: none;
 }
 
@@ -76,7 +65,7 @@
 
 .bt-suggestion-text {
   flex: 1;
-  color: #1f2937;
+  color: var(--bt-color-ink);
   font-weight: 500;
   font-size: 14px;
   line-height: 1.5;
@@ -88,15 +77,16 @@
   display: inline-block;
   flex-shrink: 0;
   margin-left: 8px;
-  padding: 3px 8px;
-  border: 1px solid rgba(0, 0, 0, 0.2);
+  padding: 2px 7px;
+  border: 1px solid var(--bt-color-ink-soft);
+  border-bottom-width: 2px;
   border-radius: 4px;
-  background: transparent;
-  color: rgba(0, 0, 0, 0.4);
-  font-weight: 500;
-  font-size: 11px;
-  font-family: monospace;
-  opacity: 0.8;
+  background: var(--bt-color-paper-deep);
+  color: var(--bt-color-ink-soft);
+  font-weight: 600;
+  font-size: 10px;
+  font-family: var(--bt-font-mono);
+  letter-spacing: 0.05em;
 }
 
 .bt-suggestion-footer {
@@ -105,25 +95,21 @@
   justify-content: center;
   margin-top: 2px;
   padding-top: 8px;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid var(--bt-color-hairline);
 }
 
 .bt-model-tag {
   padding: 2px 6px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--bt-color-hairline);
   border-radius: 4px;
-  background: #f3f4f6;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
-  color: #4b5563;
+  background: var(--bt-color-paper-deep);
+  box-shadow: 0 1px 0 rgb(22 21 15 / 6%);
+  color: var(--bt-color-ink-soft);
   font-weight: 600;
-  font-size: 11px;
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
+  font-size: 10px;
+  font-family: var(--bt-font-mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -135,9 +121,12 @@
 }
 
 .bt-suggestion-provider-label {
-  color: #9ca3af;
+  color: var(--bt-color-ink-soft);
   font-weight: 600;
-  font-size: 11px;
+  font-size: 10px;
+  font-family: var(--bt-font-mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .bt-suggestion-provider-select {
