@@ -1,6 +1,6 @@
 # Task 02 — Messaging plumbing + common modules
 
-Status: pending
+Status: done
 
 ## Outcome
 Background service worker, offscreen document, and shared common modules are ported
@@ -37,4 +37,18 @@ verbatim so the content↔SW↔offscreen translation pipeline works end to end.
 - Artifacts: ephemeral
 
 ## Receipt
-<!-- Fill only after execution; see canonical form below. -->
+
+Verification: PASS
+Command: npx eslint extension/src/background.js extension/src/offscreen.js extension/src/common/
+Exit: 0
+Base: 089eb29
+Head: 4f2eb41
+```text
+$ npx eslint extension/src/background.js extension/src/offscreen.js extension/src/common/
+EXIT=0
+```
+Note: donor code did not pass its own lint config — fixed 4 no-unused-vars
+(removed dead `nativeLanguageCode`/`providerType`/`activeProvider`/`useAutoDetect`/`e`)
+and 1 no-dupe-keys (dropped stale English `popup.uniqueMode` inside `vi` — later
+Vietnamese key already won at runtime). All are behavior-preserving cleanups;
+prettier --fix applied for formatting.
