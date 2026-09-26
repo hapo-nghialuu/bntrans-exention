@@ -1,6 +1,6 @@
 # Task 06 — BNTrans logo + icon set
 
-Status: pending
+Status: done
 
 ## Outcome
 `extension/assets/icons/` contains a BNTrans logo generated via the `gpt-image2`
@@ -41,4 +41,17 @@ skill and exported at every size the manifest and code reference.
 - Artifacts: PNG files persist as task output; no temp artifacts
 
 ## Receipt
-<!-- Fill only after execution; see canonical form below. -->
+
+Verification: PASS
+Command: for s in 16 19 32 38 48 96 128; do sips -g pixelWidth -g pixelHeight "extension/assets/icons/icon-$s.png" | awk -v s=$s '/pixelWidth|pixelHeight/{if($2!=s)exit 1}' || exit 1; done; echo ICONS_OK
+Exit: 0
+Base: 3b124e9
+Head: 3f3dbce
+```text
+$ for s in 16 19 32 38 48 96 128; do sips -g pixelWidth -g pixelHeight "extension/assets/icons/icon-$s.png" | awk ...; done; echo ICONS_OK
+ICONS_OK
+```
+Icon source: **gpt-image2** (generated `icon-1024.png` master — BN monogram +
+A⇄文 glyph on indigo-violet gradient; visually verified, legible at small sizes).
+Resized via `sips` to all 7 required sizes. `loading.gif` skipped (unreferenced).
+Fallback to donor icons not needed — gpt-image2 reachable and succeeded.
