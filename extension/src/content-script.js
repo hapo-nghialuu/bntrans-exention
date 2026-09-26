@@ -1814,10 +1814,9 @@ async function showTranslationPopup(selectionRect, text, iconPosition) {
     popup.className = "bt-selection-popup bt-vars-container";
     applyThemeTo(popup);
     popup.innerHTML = `
-    <div class="bt-selection-bg-pattern"></div>
     <div class="bt-selection-header">
       <span class="bt-selection-title">
-        ${iconUrl ? `<img src="${iconUrl}" width="19" height="19" alt="Translate" style="float:left;margin-right:4px" />` : '<span style="float:left;margin-right:4px;font-size:19px;">🔄</span>'} 
+        ${iconUrl ? `<img src="${iconUrl}" width="16" height="16" alt="Translate" />` : ""}
         <span>${i18n.t("selection.title")}</span>
       </span>
       <button class="bt-selection-close">×</button>

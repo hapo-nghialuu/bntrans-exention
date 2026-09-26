@@ -159,7 +159,7 @@ export const locales = {
     "selection.translate": "Translate",
     "selection.copy": "Copy",
     "selection.copied": "Copied!",
-    "selection.settings": "⚙️ Settings",
+    "selection.settings": "Settings",
 
     // Inline Suggestion
     "suggestion.hint": "<kbd>Tab</kbd> to apply • <kbd>Esc</kbd> to dismiss",
@@ -346,7 +346,7 @@ export const locales = {
     "selection.translate": "Kết quả dịch",
     "selection.copy": "Sao chép",
     "selection.copied": "Đã sao chép!",
-    "selection.settings": "⚙️ Cài đặt",
+    "selection.settings": "Cài đặt",
 
     // Inline Suggestion
     "suggestion.hint": "<kbd>Tab</kbd> để áp dụng • <kbd>Esc</kbd> để đóng",
