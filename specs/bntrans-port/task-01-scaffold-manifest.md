@@ -1,6 +1,6 @@
 # Task 01 — Scaffold + BNTrans manifest
 
-Status: pending
+Status: done
 
 ## Outcome
 The repo has npm tooling and an MV3 manifest that installs as "BNTrans" once the
@@ -44,4 +44,20 @@ remaining source files land in later tasks.
 - Artifacts: ephemeral console output only
 
 ## Receipt
-<!-- Fill only after execution; see canonical form below. -->
+
+Verification: PASS
+Command: node -e "const m=JSON.parse(require('fs').readFileSync('extension/manifest.json','utf8'));if(m.manifest_version!==3||!/BNTrans/i.test(m.name)||!m.permissions.includes('offscreen'))process.exit(1);for(const f of m.content_scripts[0].css.concat(m.content_scripts[0].js).concat([m.background.service_worker,m.action.default_popup]))console.log(f)"
+Exit: 0
+Base: dc706ed
+Head: 3a887fb
+```text
+$ node -e "const m=JSON.parse(...)"
+assets/styles/inline-suggestion.css
+assets/styles/selection.css
+assets/styles/hover-translate.css
+src/content-script-granularity.js
+src/content-script.js
+src/background.js
+pages/popup.html
+```
+Note: `npm install` also ran — 102 packages added, exit 0 (acceptance: deps installable).
