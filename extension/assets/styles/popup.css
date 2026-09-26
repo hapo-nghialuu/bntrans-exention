@@ -301,6 +301,105 @@ select {
   gap: var(--bt-space-medium);
 }
 
+/* Toggle row — label left, switch right (settings row pattern) */
+.bt-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 0;
+  gap: var(--bt-space-medium);
+}
+
+.bt-toggle-row > label[for] {
+  font-size: var(--bt-font-size-medium);
+  cursor: pointer;
+}
+
+.bt-toggle-row .bt-switch {
+  flex: none;
+  margin: 0;
+}
+
+/* Muted hint text under fields */
+.bt-hint {
+  color: var(--bt-color-text-muted);
+  font-size: var(--bt-font-size-small);
+}
+
+/* Shortcut editor — modifier keys as chips */
+.bt-shortcut-modifiers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.bt-shortcut-modifiers label {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border: var(--bt-border-width) solid var(--bt-color-border-default);
+  border-radius: 6px;
+  color: var(--bt-color-text-muted);
+  font-weight: 600;
+  font-size: 10px;
+  font-family: var(--bt-font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--bt-transition-duration) var(--bt-ease);
+}
+
+.bt-shortcut-modifiers label:hover {
+  border-color: var(--bt-color-border-hover);
+  color: var(--bt-color-text-default);
+}
+
+.bt-shortcut-modifiers label:has(input:checked) {
+  border-color: var(--bt-color-ink);
+  background: var(--bt-color-ink);
+  color: var(--bt-color-paper-bright);
+}
+
+.bt-shortcut-modifiers label input {
+  display: none;
+}
+
+.bt-shortcut-plus {
+  margin: 0 2px;
+  color: var(--bt-color-text-muted);
+}
+
+.bt-shortcut-modifiers .bt-input {
+  width: 46px;
+  padding: 4px 0;
+  font-family: var(--bt-font-mono);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.bt-shortcut-preview {
+  margin-top: 6px;
+}
+
+/* Transient autosave indicator (options sidebar) */
+.bt-save-status {
+  min-height: 14px;
+  padding: 8px 10px 0;
+  color: var(--bt-color-green);
+  font-weight: 600;
+  font-size: 9.5px;
+  font-family: var(--bt-font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.bt-save-status.visible {
+  opacity: 1;
+}
+
 .bt-field-row {
   display: flex;
   align-items: center;

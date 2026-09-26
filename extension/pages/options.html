@@ -106,6 +106,7 @@
             <span class="slider round"></span>
           </label>
         </div>
+        <div id="save-status" class="bt-save-status" aria-live="polite"></div>
       </aside>
 
       <main class="bt-main">
@@ -154,28 +155,24 @@
               </select>
             </div>
 
-            <div class="bt-field-row" style="justify-content: space-between">
-              <div style="display: flex; align-items: center; gap: 8px">
-                <label class="bt-switch">
-                  <input type="checkbox" id="auto-detect" />
-                  <span class="slider round"></span>
-                </label>
-                <label for="auto-detect" data-i18n="popup.useAutoDetect"
-                  >Auto-detect Source Language</label
-                >
-              </div>
+            <div class="bt-toggle-row">
+              <label for="auto-detect" data-i18n="popup.useAutoDetect"
+                >Auto-detect Source Language</label
+              >
+              <label class="bt-switch">
+                <input type="checkbox" id="auto-detect" />
+                <span class="slider round"></span>
+              </label>
             </div>
 
-            <div class="bt-field-row" style="justify-content: space-between">
-              <div style="display: flex; align-items: center; gap: 8px">
-                <label class="bt-switch">
-                  <input type="checkbox" id="confirm-modal" />
-                  <span class="slider round"></span>
-                </label>
-                <label for="confirm-modal" data-i18n="popup.showConfirmModal"
-                  >Show Confirm Modal</label
-                >
-              </div>
+            <div class="bt-toggle-row">
+              <label for="confirm-modal" data-i18n="popup.showConfirmModal"
+                >Show Confirm Modal</label
+              >
+              <label class="bt-switch">
+                <input type="checkbox" id="confirm-modal" />
+                <span class="slider round"></span>
+              </label>
             </div>
 
             <div class="bt-group-label" data-i18n="popup.groupAliases">
@@ -216,18 +213,16 @@
             <div class="bt-group-label" data-i18n="popup.groupInstant">
               Instant Mode
             </div>
-            <div class="bt-field-row" style="justify-content: space-between">
-              <div style="display: flex; align-items: center; gap: 8px">
-                <label class="bt-switch">
-                  <input type="checkbox" id="instant-translate-enabled" />
-                  <span class="slider round"></span>
-                </label>
-                <label
-                  for="instant-translate-enabled"
-                  data-i18n="popup.enableInstant"
-                  >Enable Instant Translate for specific domains</label
-                >
-              </div>
+            <div class="bt-toggle-row">
+              <label
+                for="instant-translate-enabled"
+                data-i18n="popup.enableInstant"
+                >Enable Instant Translate for specific domains</label
+              >
+              <label class="bt-switch">
+                <input type="checkbox" id="instant-translate-enabled" />
+                <span class="slider round"></span>
+              </label>
             </div>
 
             <div id="instant-settings" class="bt-instant-settings" hidden>
@@ -279,22 +274,17 @@
                       <input type="checkbox" id="shortcut-alt" />
                       <span data-i18n="popup.shortcutAlt">Alt</span>
                     </label>
-                    <span style="margin: 0 8px; color: #888">+</span>
+                    <span class="bt-shortcut-plus">+</span>
                     <input
                       type="text"
                       id="shortcut-key"
                       class="bt-input"
                       maxlength="1"
                       value="I"
-                      style="
-                        width: 50px;
-                        text-align: center;
-                        text-transform: uppercase;
-                      "
                     />
                   </div>
                   <div class="bt-shortcut-preview">
-                    <small id="shortcut-preview" style="color: #888"
+                    <small id="shortcut-preview" class="bt-hint"
                       >Ctrl+Shift+I (Cmd+Shift+I on Mac)</small
                     >
                   </div>
@@ -307,18 +297,14 @@
             </div>
 
             <!-- Hover to Translate Section -->
-            <div class="bt-field-row" style="justify-content: space-between">
-              <div style="display: flex; align-items: center; gap: 8px">
-                <label class="bt-switch">
-                  <input type="checkbox" id="hover-translate-enabled" />
-                  <span class="slider round"></span>
-                </label>
-                <label
-                  for="hover-translate-enabled"
-                  data-i18n="popup.enableHover"
-                  >Enable Hover to Translate</label
-                >
-              </div>
+            <div class="bt-toggle-row">
+              <label for="hover-translate-enabled" data-i18n="popup.enableHover"
+                >Enable Hover to Translate</label
+              >
+              <label class="bt-switch">
+                <input type="checkbox" id="hover-translate-enabled" />
+                <span class="slider round"></span>
+              </label>
             </div>
 
             <div id="hover-settings" class="bt-hover-settings" hidden>
@@ -334,7 +320,7 @@
                     Replace Original
                   </option>
                 </select>
-                <small style="color: #666" data-i18n="popup.hoverModeHint"
+                <small class="bt-hint" data-i18n="popup.hoverModeHint"
                   >Inject adds translation below. Replace swaps text.</small
                 >
               </div>
@@ -359,23 +345,19 @@
                     Sentence by Sentence
                   </option>
                 </select>
-                <small
-                  style="color: #666"
-                  data-i18n="popup.hoverGranularityHint"
+                <small class="bt-hint" data-i18n="popup.hoverGranularityHint"
                   >Line-by-line works best for chat apps like Discord.</small
                 >
               </div>
 
-              <div class="bt-field-row" style="justify-content: space-between">
-                <div style="display: flex; align-items: center; gap: 8px">
-                  <label class="bt-switch">
-                    <input type="checkbox" id="hover-unique-mode" checked />
-                    <span class="slider round"></span>
-                  </label>
-                  <label for="hover-unique-mode" data-i18n="popup.uniqueMode"
-                    >Unique Mode</label
-                  >
-                </div>
+              <div class="bt-toggle-row">
+                <label for="hover-unique-mode" data-i18n="popup.uniqueMode"
+                  >Unique Mode</label
+                >
+                <label class="bt-switch">
+                  <input type="checkbox" id="hover-unique-mode" checked />
+                  <span class="slider round"></span>
+                </label>
               </div>
 
               <div class="bt-field">
@@ -409,22 +391,17 @@
                       <input type="checkbox" id="hover-shortcut-alt" />
                       <span data-i18n="popup.shortcutAlt">Alt</span>
                     </label>
-                    <span style="margin: 0 8px; color: #888">+</span>
+                    <span class="bt-shortcut-plus">+</span>
                     <input
                       type="text"
                       id="hover-shortcut-key"
                       class="bt-input"
                       maxlength="1"
                       value="O"
-                      style="
-                        width: 50px;
-                        text-align: center;
-                        text-transform: uppercase;
-                      "
                     />
                   </div>
                   <div class="bt-shortcut-preview">
-                    <small id="hover-shortcut-preview" style="color: #888"
+                    <small id="hover-shortcut-preview" class="bt-hint"
                       >Ctrl+Shift+O (Cmd+Shift+O on Mac)</small
                     >
                   </div>
@@ -468,34 +445,24 @@
                     </div>
                   </div>
 
-                  <div
-                    class="bt-field-row"
-                    style="justify-content: space-between; margin-top: 12px"
-                  >
-                    <div style="display: flex; align-items: center; gap: 8px">
-                      <label class="bt-switch">
-                        <input type="checkbox" id="hover-show-icon" checked />
-                        <span class="slider round"></span>
-                      </label>
-                      <label for="hover-show-icon" data-i18n="popup.showIcon"
-                        >Show Translation Icon</label
-                      >
-                    </div>
+                  <div class="bt-toggle-row">
+                    <label for="hover-show-icon" data-i18n="popup.showIcon"
+                      >Show Translation Icon</label
+                    >
+                    <label class="bt-switch">
+                      <input type="checkbox" id="hover-show-icon" checked />
+                      <span class="slider round"></span>
+                    </label>
                   </div>
 
-                  <div
-                    class="bt-field-row"
-                    style="justify-content: space-between"
-                  >
-                    <div style="display: flex; align-items: center; gap: 8px">
-                      <label class="bt-switch">
-                        <input type="checkbox" id="hover-underline" />
-                        <span class="slider round"></span>
-                      </label>
-                      <label for="hover-underline" data-i18n="popup.underline"
-                        >Underline Translation</label
-                      >
-                    </div>
+                  <div class="bt-toggle-row">
+                    <label for="hover-underline" data-i18n="popup.underline"
+                      >Underline Translation</label
+                    >
+                    <label class="bt-switch">
+                      <input type="checkbox" id="hover-underline" />
+                      <span class="slider round"></span>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -504,8 +471,7 @@
                 <label data-i18n="popup.activeDomains">Active Domains</label>
                 <button
                   id="manage-hover-domains"
-                  class="bt-button bt-button-outline"
-                  style="width: 100%"
+                  class="bt-button bt-button-outline bt-w-full"
                 >
                   <span data-i18n="popup.manageDomains">Manage Domains</span>
                   (<span id="hover-domain-count">0</span>)
@@ -705,7 +671,7 @@
                   class="bt-input"
                   placeholder="https://api.tts.com?text={text}&lang={lang}"
                 />
-                <small style="color: #666"
+                <small class="bt-hint"
                   >Available variables: {text}, {lang}, {speed}</small
                 >
               </div>
@@ -870,16 +836,6 @@
                 </p>
               </div>
             </div>
-          </div>
-
-          <div class="bt-actions">
-            <button
-              id="save"
-              class="bt-button"
-              data-i18n="popup.savePreferences"
-            >
-              Save preferences
-            </button>
           </div>
         </div>
       </main>

@@ -102,16 +102,6 @@
   padding-bottom: var(--bt-space-large);
 }
 
-/* Save bar stays visible at the bottom of the content column */
-.bt-page .bt-settings-container > .bt-actions {
-  position: sticky;
-  bottom: 0;
-  margin: 12px -8px -28px;
-  padding: 12px 8px;
-  border-top: 1px solid var(--bt-color-border-default);
-  background: var(--bt-color-background-default);
-}
-
 /* Narrow windows: collapse to a single column */
 @media (max-width: 640px) {
   .bt-wrap.bt-page {

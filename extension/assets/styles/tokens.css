@@ -74,6 +74,7 @@
 
   --bt-color-text-default: var(--bt-color-ink);
   --bt-color-text-muted: var(--bt-color-ink-soft);
+  --bt-color-text-interactive: var(--bt-color-blue);
 
   --bt-color-primary-background: var(--bt-color-blue);
   --bt-color-primary-background-hover: var(--bt-color-blue-dark);

@@ -8,7 +8,7 @@ const targetSelect = document.querySelector("#target");
 
 const autoDetect = document.querySelector("#auto-detect");
 const confirmModal = document.querySelector("#confirm-modal");
-const saveBtn = document.querySelector("#save");
+const saveStatus = document.querySelector("#save-status");
 const aliasListEl = document.querySelector("#alias-list");
 const aliasKeyInput = document.querySelector("#alias-key");
 const aliasValueInput = document.querySelector("#alias-value");
@@ -131,12 +131,6 @@ function translateUI() {
     const key = el.getAttribute("data-i18n-placeholder");
     el.setAttribute("placeholder", i18n.t(key));
   });
-
-  if (saveBtn.textContent.includes("✅")) {
-    saveBtn.textContent = i18n.t("popup.saved");
-  } else {
-    saveBtn.textContent = i18n.t("popup.savePreferences");
-  }
 }
 
 // Display version in header
@@ -524,18 +518,12 @@ function openProviderForm(provider = null) {
 
   providerListEl.parentElement.hidden = true;
   providerForm.hidden = false;
-
-  // Hide main save button
-  saveBtn.style.display = "none";
 }
 
 function closeProviderForm() {
   providerForm.hidden = true;
   providerListEl.parentElement.hidden = false;
   editingProviderId = null;
-
-  // Show main save button
-  saveBtn.style.display = "block";
 }
 
 function saveProviderFromForm() {
@@ -681,14 +669,12 @@ function openTTSProviderForm(provider = null) {
 
   ttsProviderListEl.parentElement.hidden = true;
   ttsProviderForm.hidden = false;
-  saveBtn.style.display = "none";
 }
 
 function closeTTSProviderForm() {
   ttsProviderForm.hidden = true;
   ttsProviderListEl.parentElement.hidden = false;
   editingTTSProviderId = null;
-  saveBtn.style.display = "block";
 }
 
 function saveTTSProviderFromForm() {
@@ -997,11 +983,14 @@ async function saveSettings() {
     settings
   });
 
-  if (res?.ok) {
-    saveBtn.textContent = i18n.t("popup.saved");
-    setTimeout(() => {
-      saveBtn.textContent = i18n.t("popup.savePreferences");
-    }, 1800);
+  if (res?.ok && saveStatus) {
+    saveStatus.textContent = `✓ ${i18n.t("popup.saved")}`;
+    saveStatus.classList.add("visible");
+    clearTimeout(saveStatus._timer);
+    saveStatus._timer = setTimeout(
+      () => saveStatus.classList.remove("visible"),
+      1600
+    );
   }
 }
 
@@ -1128,20 +1117,8 @@ document.querySelectorAll(".bt-tab").forEach((tab) => {
     tab.classList.add("active");
     const contentId = "tab-" + tab.dataset.tab;
     document.getElementById(contentId).classList.add("active");
-
-    // Hide save button on help tab
-    if (tab.dataset.tab === "help") {
-      saveBtn.style.display = "none";
-    } else {
-      // Only show if not in provider form
-      if (providerForm.hidden && ttsProviderForm.hidden) {
-        saveBtn.style.display = "block";
-      }
-    }
   });
 });
-
-saveBtn.addEventListener("click", saveSettings);
 
 // Character counter for custom prompt
 function updateCharCounter() {
