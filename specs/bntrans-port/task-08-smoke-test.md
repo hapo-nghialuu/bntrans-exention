@@ -1,6 +1,6 @@
 # Task 08 — Live smoke test
 
-Status: pending
+Status: done
 
 ## Outcome
 `scripts/smoke-extension.mjs` loads the unpacked extension into real Chrome via
@@ -43,4 +43,21 @@ service worker registers and content stylesheets inject on a page.
 - Artifacts: temporary `--user-data-dir` under `/tmp`, cleaned by the script
 
 ## Receipt
-<!-- Fill only after execution; see canonical form below. -->
+
+Verification: PASS
+Command: node scripts/smoke-extension.mjs
+Exit: 0
+Base: a5bed57
+Head: 3f33cd5
+```text
+$ node scripts/smoke-extension.mjs
+Chrome: /Users/nghialuutrung/.cache/puppeteer/chrome/mac_arm-154.0.8037.57/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
+PASS service-worker — chrome-extension://fpahklahenfdfpkhpdlcbpckioddopnd/src/background.js
+PASS content-css — chrome-extension://fpahklahenfdfpkhpdlcbpckioddopnd/assets/styles/dialogs.css
+
+Smoke test passed.
+```
+Note: branded Google Chrome 152 refuses `--load-extension` outright
+(`extension_service.cc: "--load-extension is not allowed in Google Chrome,
+ignoring"`), so the launcher resolves Chrome for Testing from the puppeteer
+cache (`BNTRANS_CHROME` env var overrides).
