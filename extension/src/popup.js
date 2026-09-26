@@ -55,8 +55,8 @@ function displayVersion() {
 }
 
 function applyTheme(value) {
-  if (value === "auto") document.body.removeAttribute("data-theme");
-  else document.body.dataset.theme = value;
+  if (value === "auto") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.dataset.theme = value;
 }
 
 function populateLangs() {
