@@ -879,15 +879,30 @@ input:checked + .slider:before {
   opacity: 0.7;
 }
 
+/* Dashed variant — secondary "add/manage" actions, visually distinct
+   from content cards so it reads as an action, not a list item */
+.bt-button-dash {
+  border-style: dashed;
+  border-color: var(--bt-color-border-default);
+  color: var(--bt-color-text-muted);
+}
+
+.bt-button-dash:hover {
+  border-style: solid;
+  border-color: var(--bt-color-primary-border);
+  background: var(--bt-color-background-default);
+  color: var(--bt-color-primary-background);
+}
+
 /* Provider Form */
 .bt-provider-form {
   display: flex;
   flex-direction: column;
+  padding: var(--bt-space-medium) var(--bt-space-large);
   gap: var(--bt-space-medium);
-  background: var(--bt-color-background-default);
-  /* border: 1px solid var(--bt-color-border-default); */
-  /* padding: var(--bt-space-medium); */
-  /* border-radius: var(--bt-radius-small); */
+  border: 1px solid var(--bt-color-border-default);
+  border-radius: var(--bt-radius-small);
+  background: var(--bt-color-background-muted);
   animation: fadeIn 0.2s ease;
 }
 
