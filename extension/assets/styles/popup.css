@@ -469,7 +469,7 @@ em {
 }
 
 .bt-button-small {
-  height: 28px;
+  min-height: var(--bt-target-min-height);
   padding: 0 var(--bt-space-medium);
   border: 1px solid var(--bt-color-primary-border);
   border-radius: 4px;
