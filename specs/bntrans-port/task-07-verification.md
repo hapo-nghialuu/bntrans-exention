@@ -1,6 +1,6 @@
 # Task 07 — Verification harness + full lint
 
-Status: in_progress
+Status: done
 
 ## Outcome
 `scripts/verify-extension.mjs` statically proves the port is internally consistent
@@ -53,4 +53,23 @@ repo-wide.
 - Artifacts: `scripts/verify-extension.mjs` persists (reusable port verifier)
 
 ## Receipt
-<!-- Fill only after execution; see canonical form below. -->
+
+Verification: PASS
+Command: node scripts/verify-extension.mjs && npm run lint
+Exit: 0
+Base: 16df6ce
+Head: 57803c1
+```text
+$ node scripts/verify-extension.mjs && npm run lint
+PASS manifest-branding — name="BNTrans - Power Inline Translate Kit" v1.0.0
+PASS manifest-paths — 16 refs + 1 WAR groups
+PASS script-order — src/content-script-granularity.js -> src/content-script.js
+PASS resource-refs — 11 js + 2 html scanned
+PASS feature-markers — 20 markers
+PASS providers — 9 provider cases
+PASS i18n-keys — 69 data-i18n keys covered en+vi
+PASS product-name — title/alt/locales = BNTrans
+
+All probes passed.
+<npm run lint: eslint --fix clean, prettier wrote css/html/json formatting — exit 0>
+```
