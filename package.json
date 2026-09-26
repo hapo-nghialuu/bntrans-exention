@@ -1,0 +1,23 @@
+{
+  "name": "bntrans",
+  "version": "1.0.0",
+  "description": "Chrome extension for instant AI-powered translation on input fields.",
+  "author": {
+    "name": "BNTrans"
+  },
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "lint": "eslint extension --fix && prettier extension --write"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.3",
+    "@eslint/js": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "eslint": "^9.39.1",
+    "globals": "^16.5.0",
+    "prettier-plugin-css-order": "^2.1.2",
+    "prettier": "^3.7.4"
+  }
+}

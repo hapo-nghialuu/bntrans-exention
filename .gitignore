@@ -8,6 +8,7 @@ plans/*
 !plans/templates/**
 .cafekit-backup/
 .cafekit.lock
+node_modules/
 .claude/
 .codex/
 .omp/
