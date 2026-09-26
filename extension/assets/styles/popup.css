@@ -1007,3 +1007,105 @@ textarea.bt-input:focus {
     box-shadow: var(--bt-shadow-interactive);
   }
 }
+
+/* Quick Translate */
+.bt-quick-input {
+  min-height: 96px;
+  font-size: var(--bt-font-size-medium);
+  line-height: 1.5;
+  font-family: var(--bt-font-sans);
+  resize: vertical;
+}
+
+.bt-quick-langs {
+  display: flex;
+  align-items: center;
+  gap: var(--bt-space-small);
+}
+
+.bt-quick-langs .bt-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.bt-quick-swap {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--bt-color-border-default);
+  border-radius: var(--bt-radius-small);
+  background: var(--bt-color-background-muted);
+  color: var(--bt-color-text-muted);
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bt-quick-swap:hover {
+  border-color: var(--bt-color-border-interactive);
+  color: var(--bt-color-text-default);
+}
+
+.bt-quick-translate {
+  justify-content: center;
+  width: 100%;
+}
+
+.bt-quick-result {
+  overflow: hidden;
+  border: 1px solid var(--bt-color-border-default);
+  border-radius: var(--bt-radius);
+  background: var(--bt-color-background-default);
+}
+
+.bt-quick-result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--bt-color-border-default);
+  background: var(--bt-color-background-muted);
+}
+
+.bt-provider-tag {
+  font-family: var(--bt-font-mono);
+  font-size: var(--bt-font-size-code);
+  color: var(--bt-color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.bt-quick-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.bt-quick-action {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--bt-radius-small);
+  background: transparent;
+  color: var(--bt-color-text-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.bt-quick-action:hover {
+  background: var(--bt-color-border-default);
+  color: var(--bt-color-text-default);
+}
+
+.bt-quick-result-text {
+  max-height: 160px;
+  padding: 10px 12px;
+  overflow-y: auto;
+  color: var(--bt-color-text-default);
+  font-size: var(--bt-font-size-medium);
+  line-height: 1.55;
+  word-break: break-word;
+}

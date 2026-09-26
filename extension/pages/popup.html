@@ -35,7 +35,20 @@
       </div>
 
       <nav class="bt-tabs">
-        <div class="bt-tab active" data-tab="general">
+        <div class="bt-tab active" data-tab="translate">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M4 7h11m0 0-3-3m3 3-3 3M20 17H9m0 0 3 3m-3-3 3-3" />
+          </svg>
+          <span data-i18n="popup.tabTranslate">Translate</span>
+        </div>
+        <div class="bt-tab" data-tab="general">
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -131,8 +144,77 @@
       </nav>
 
       <div id="settings-container" class="bt-settings-container">
+        <!-- Translate Tab Content -->
+        <div id="tab-translate" class="bt-tab-content active">
+          <div class="bt-pane-header">
+            <h2 class="bt-pane-title" data-i18n="popup.tabTranslate">
+              Translate
+            </h2>
+            <p class="bt-pane-desc" data-i18n="popup.descTranslate">
+              Paste text and translate instantly
+            </p>
+          </div>
+
+          <div class="bt-field">
+            <textarea
+              id="quick-input"
+              class="bt-input bt-quick-input"
+              rows="5"
+              data-i18n-placeholder="popup.quickPlaceholder"
+              placeholder="Type or paste text here..."
+            ></textarea>
+          </div>
+
+          <div class="bt-quick-langs">
+            <select id="quick-source" class="bt-input"></select>
+            <button
+              id="quick-swap"
+              class="bt-quick-swap"
+              title="Swap languages"
+              type="button"
+            >
+              ⇄
+            </button>
+            <select id="quick-target" class="bt-input"></select>
+          </div>
+
+          <button
+            id="quick-translate"
+            class="bt-button bt-quick-translate"
+            type="button"
+            data-i18n="popup.translateNow"
+          >
+            Translate
+          </button>
+
+          <div id="quick-result" class="bt-quick-result" hidden>
+            <div class="bt-quick-result-head">
+              <span id="quick-provider" class="bt-provider-tag"></span>
+              <div class="bt-quick-actions">
+                <button
+                  id="quick-copy"
+                  class="bt-quick-action"
+                  type="button"
+                  title="Copy"
+                >
+                  ⧉
+                </button>
+                <button
+                  id="quick-speak"
+                  class="bt-quick-action"
+                  type="button"
+                  title="Listen"
+                >
+                  🔊
+                </button>
+              </div>
+            </div>
+            <div id="quick-result-text" class="bt-quick-result-text"></div>
+          </div>
+        </div>
+
         <!-- General Tab Content -->
-        <div id="tab-general" class="bt-tab-content active">
+        <div id="tab-general" class="bt-tab-content">
           <div class="bt-pane-header">
             <h2 class="bt-pane-title" data-i18n="popup.tabGeneral">General</h2>
             <p class="bt-pane-desc" data-i18n="popup.descGeneral">

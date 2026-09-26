@@ -1,4 +1,5 @@
 import { i18n } from "./common/i18n.js";
+import { tts } from "./services/tts.js";
 
 const enabledCheckbox = document.querySelector("#enabled");
 const settingsContainer = document.querySelector("#settings-container");
@@ -15,6 +16,18 @@ const addAliasBtn = document.querySelector("#add-alias");
 
 // Theme element
 const themeSelect = document.querySelector("#theme-select");
+
+// Quick translate elements
+const quickInput = document.getElementById("quick-input");
+const quickSource = document.getElementById("quick-source");
+const quickTarget = document.getElementById("quick-target");
+const quickSwap = document.getElementById("quick-swap");
+const quickTranslateBtn = document.getElementById("quick-translate");
+const quickResult = document.getElementById("quick-result");
+const quickResultText = document.getElementById("quick-result-text");
+const quickProvider = document.getElementById("quick-provider");
+const quickCopy = document.getElementById("quick-copy");
+const quickSpeak = document.getElementById("quick-speak");
 
 // Instant translate elements
 const instantEnabledCheckbox = document.querySelector(
@@ -150,6 +163,8 @@ function applyTheme(value) {
 function populateSelects() {
   const currentNative = nativeSelect.value;
   const currentTarget = targetSelect.value;
+  const currentQuickSource = quickSource?.value;
+  const currentQuickTarget = quickTarget?.value;
 
   const options = LANGUAGES.map(
     (l) =>
@@ -158,6 +173,17 @@ function populateSelects() {
 
   nativeSelect.innerHTML = options;
   targetSelect.innerHTML = options;
+
+  if (quickSource) {
+    quickSource.innerHTML =
+      `<option value="auto">${i18n.t("popup.autoDetectOption")}</option>` +
+      options;
+    if (currentQuickSource) quickSource.value = currentQuickSource;
+  }
+  if (quickTarget) {
+    quickTarget.innerHTML = options;
+    if (currentQuickTarget) quickTarget.value = currentQuickTarget;
+  }
 
   if (currentNative) nativeSelect.value = currentNative;
   if (currentTarget) targetSelect.value = currentTarget;
@@ -762,6 +788,10 @@ async function loadSettings() {
     populateSelects();
     translateUI();
 
+    if (quickTarget) {
+      quickTarget.value = res.settings.targetLanguageCode || "en";
+    }
+
     if (instantEnabledCheckbox) {
       instantEnabledCheckbox.checked =
         res.settings.instantTranslateEnabled || false;
@@ -1248,6 +1278,76 @@ function renderHoverDomainList(domains) {
     });
   });
 }
+
+async function runQuickTranslate() {
+  const text = quickInput.value.trim();
+  if (!text) return;
+
+  quickTranslateBtn.disabled = true;
+  quickResult.hidden = false;
+  quickProvider.textContent = "";
+  quickResultText.textContent = i18n.t("dialog.translating");
+
+  try {
+    const res = await chrome.runtime.sendMessage({
+      type: "translate",
+      payload: {
+        text,
+        sourceLanguage:
+          quickSource.value === "auto" ? undefined : quickSource.value,
+        targetLanguage: quickTarget.value,
+        providerId: activeProviderId
+      }
+    });
+
+    if (res?.ok && res.result?.translation) {
+      quickResultText.innerHTML = res.result.translation;
+      quickProvider.textContent = res.result.providerName || "";
+    } else {
+      quickResultText.textContent = `${i18n.t("popup.translateFailed")}: ${res?.error || "Unknown error"}`;
+      quickProvider.textContent = "";
+    }
+  } catch (err) {
+    quickResultText.textContent = `${i18n.t("popup.translateFailed")}: ${err.message}`;
+    quickProvider.textContent = "";
+  } finally {
+    quickTranslateBtn.disabled = false;
+  }
+}
+
+quickTranslateBtn?.addEventListener("click", runQuickTranslate);
+
+quickInput?.addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+    e.preventDefault();
+    runQuickTranslate();
+  }
+});
+
+quickSwap?.addEventListener("click", () => {
+  if (quickSource.value === "auto") return;
+  const s = quickSource.value;
+  quickSource.value = quickTarget.value;
+  quickTarget.value = s;
+});
+
+quickCopy?.addEventListener("click", async () => {
+  const text = quickResultText.textContent;
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    quickCopy.textContent = "✓";
+    setTimeout(() => (quickCopy.textContent = "⧉"), 1200);
+  } catch {
+    // clipboard unavailable
+  }
+});
+
+quickSpeak?.addEventListener("click", async () => {
+  const text = quickResultText.textContent;
+  if (!text || text === i18n.t("dialog.translating")) return;
+  await tts.play(text, quickTarget.value);
+});
 
 loadSettings();
 displayVersion();
