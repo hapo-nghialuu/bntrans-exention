@@ -86,7 +86,7 @@ export const locales = {
     "popup.uniqueMode": "Unique Mode",
 
     // Help
-    "help.title": "How to use TransKit",
+    "help.title": "How to use BNTrans",
     "help.commands.title": "Command Translation",
     "help.commands.desc":
       "Type your text followed by a command to translate instantly.",
@@ -96,7 +96,7 @@ export const locales = {
       "Use <code>!!t</code> for your default target language.",
     "help.selection.title": "Select to Translate",
     "help.selection.desc":
-      "Highlight any text on a page and click the TransKit icon that appears.",
+      "Highlight any text on a page and click the BNTrans icon that appears.",
     "help.instant.title": "Instant Mode",
     "help.instant.desc":
       "On enabled domains, just type and wait. A suggestion will appear.",
@@ -125,7 +125,7 @@ export const locales = {
     "label.instant": "⚡ Instant",
 
     // Selection Popup
-    "selection.title": "TransKit Translation",
+    "selection.title": "BNTrans Translation",
     "selection.original": "Original",
     "selection.translate": "Translate",
     "selection.copy": "Copy",
@@ -244,7 +244,7 @@ export const locales = {
     "popup.uniqueMode": "Chỉ hiển thị 1 bản dịch trên trang",
 
     // Help
-    "help.title": "Hướng dẫn sử dụng TransKit",
+    "help.title": "Hướng dẫn sử dụng BNTrans",
     "help.commands.title": "Dịch bằng lệnh",
     "help.commands.desc": "Nhập văn bản kèm theo lệnh để dịch ngay lập tức.",
     "help.commands.example":
@@ -253,7 +253,7 @@ export const locales = {
       "Dùng <code>!!t</code> để dịch sang ngôn ngữ mặc định.",
     "help.selection.title": "Chọn để dịch",
     "help.selection.desc":
-      "Bôi đen văn bản trên trang và nhấn vào biểu tượng TransKit hiện ra.",
+      "Bôi đen văn bản trên trang và nhấn vào biểu tượng BNTrans hiện ra.",
     "help.instant.title": "Chế độ dịch nhanh",
     "help.instant.desc":
       "Trên các trang web đã bật, chỉ cần gõ và đợi gợi ý hiện ra.",
@@ -283,7 +283,7 @@ export const locales = {
     "label.instant": "Dịch nhanh",
 
     // Selection Popup
-    "selection.title": "Dịch với TransKit",
+    "selection.title": "Dịch với BNTrans",
     "selection.original": "Ngôn ngữ gốc",
     "selection.translate": "Kết quả dịch",
     "selection.copy": "Sao chép",

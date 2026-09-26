@@ -29,7 +29,7 @@ window.addEventListener("error", (event) => {
       event.error.message.includes("Could not establish connection") ||
       event.error.message.includes("receiving end does not exist"))
   ) {
-    console.log("TransKit: Caught global extension context invalidation error");
+    console.log("BNTrans: Caught global extension context invalidation error");
     cleanupExtensionElements();
     event.preventDefault(); // Prevent the error from being logged to console
   }
@@ -45,7 +45,7 @@ window.addEventListener("unhandledrejection", (event) => {
       event.reason.message.includes("receiving end does not exist"))
   ) {
     console.log(
-      "TransKit: Caught unhandled promise rejection for extension context invalidation"
+      "BNTrans: Caught unhandled promise rejection for extension context invalidation"
     );
     cleanupExtensionElements();
     event.preventDefault(); // Prevent the error from being logged to console
@@ -55,7 +55,7 @@ window.addEventListener("unhandledrejection", (event) => {
 (async function bootstrap() {
   try {
     if (!isExtensionContextValid()) {
-      console.log("TransKit: Extension context not available during bootstrap");
+      console.log("BNTrans: Extension context not available during bootstrap");
       return;
     }
 
@@ -75,7 +75,7 @@ window.addEventListener("unhandledrejection", (event) => {
         importError.message.includes("Extension context invalidated") ||
         importError.message.includes("Could not establish connection")
       ) {
-        console.log("TransKit: Extension context invalidated during import");
+        console.log("BNTrans: Extension context invalidated during import");
         cleanupExtensionElements();
         return;
       }
@@ -90,7 +90,7 @@ window.addEventListener("unhandledrejection", (event) => {
         }
       })
       .catch((err) => {
-        console.log("TransKit: Error initializing i18n:", err.message);
+        console.log("BNTrans: Error initializing i18n:", err.message);
       });
 
     // Listen for setting changes
@@ -105,7 +105,7 @@ window.addEventListener("unhandledrejection", (event) => {
       });
     } catch (storageError) {
       console.log(
-        "TransKit: Error setting up storage listener:",
+        "BNTrans: Error setting up storage listener:",
         storageError.message
       );
     }
@@ -119,7 +119,7 @@ window.addEventListener("unhandledrejection", (event) => {
     registerHoverTranslate();
     registerHoverToggleShortcut();
   } catch (error) {
-    console.log("TransKit: Bootstrap failed:", error.message);
+    console.log("BNTrans: Bootstrap failed:", error.message);
     if (
       error.message.includes("Extension context invalidated") ||
       error.message.includes("Could not establish connection")
@@ -144,7 +144,7 @@ function injectGlobalStylesheet() {
       document.head.appendChild(link);
     }
   } catch (error) {
-    console.log("TransKit: Error injecting stylesheet:", error.message);
+    console.log("BNTrans: Error injecting stylesheet:", error.message);
     if (
       error.message.includes("Extension context invalidated") ||
       error.message.includes("Could not establish connection")
@@ -236,7 +236,7 @@ async function getSettings() {
       return res.settings;
     }
   } catch (error) {
-    console.log("TransKit: Error getting settings:", error.message);
+    console.log("BNTrans: Error getting settings:", error.message);
     if (
       error.message.includes("Extension context invalidated") ||
       error.message.includes("Could not establish connection")
@@ -599,7 +599,7 @@ function setFieldText(element, text, options = {}) {
           element.dispatchEvent(new InputEvent("input", { bubbles: true }));
         }, 50);
       } catch (e) {
-        console.error("[TransKit] Insertion failed", e);
+        console.error("[BNTrans] Insertion failed", e);
       }
     };
 
@@ -732,13 +732,13 @@ function buildInlineSuggestion(
       ? chrome.runtime.getURL("assets/icons/icon-19.png")
       : "";
   } catch (error) {
-    console.log("TransKit: Error getting icon URL:", error.message);
+    console.log("BNTrans: Error getting icon URL:", error.message);
     iconUrl = "";
   }
 
   container.innerHTML = `
     <div class="bt-suggestion-content">
-      ${iconUrl ? `<img src="${iconUrl}" class="bt-suggestion-icon" alt="TransKit" />` : '<span class="bt-suggestion-icon">🔄</span>'}
+      ${iconUrl ? `<img src="${iconUrl}" class="bt-suggestion-icon" alt="BNTrans" />` : '<span class="bt-suggestion-icon">🔄</span>'}
       <span class="bt-suggestion-text">${translatedText}</span>
       <kbd class="bt-suggestion-tab-hint">Tab</kbd>
     </div>
@@ -1197,7 +1197,7 @@ async function toggleInstantDomainForCurrentUrl() {
           })
         );
       } catch (error) {
-        console.log("TransKit: Error saving settings:", error.message);
+        console.log("BNTrans: Error saving settings:", error.message);
         return;
       }
 
@@ -1221,7 +1221,7 @@ async function toggleInstantDomainForCurrentUrl() {
         })
       );
     } catch (error) {
-      console.log("TransKit: Error updating settings:", error.message);
+      console.log("BNTrans: Error updating settings:", error.message);
       return;
     }
 
@@ -1309,7 +1309,7 @@ function registerInstantLabelIndicator() {
       ? chrome.runtime.getURL("assets/icons/icon-19.png")
       : "";
   } catch (error) {
-    console.log("TransKit: Error getting icon URL for label:", error.message);
+    console.log("BNTrans: Error getting icon URL for label:", error.message);
     iconUrl = "";
   }
   const labelText = document.createElement("span");
@@ -1318,7 +1318,7 @@ function registerInstantLabelIndicator() {
   if (iconUrl) {
     const img = document.createElement("img");
     img.src = iconUrl;
-    img.alt = "TransKit";
+    img.alt = "BNTrans";
     img.style.cssText = "width: 14px; height: 14px; flex-shrink: 0;";
     label.appendChild(img);
   } else {
@@ -1450,7 +1450,7 @@ function showTranslateIcon(x, y, selection) {
   // Check if extension context is still valid
   if (!chrome.runtime?.id) {
     console.log(
-      "TransKit: Extension context invalidated, skipping icon creation"
+      "BNTrans: Extension context invalidated, skipping icon creation"
     );
     return;
   }
@@ -1470,7 +1470,7 @@ function showTranslateIcon(x, y, selection) {
         : "";
     } catch (error) {
       console.log(
-        "TransKit: Error getting icon URL for translate icon:",
+        "BNTrans: Error getting icon URL for translate icon:",
         error.message
       );
       iconUrl = "";
@@ -1510,7 +1510,7 @@ function showTranslateIcon(x, y, selection) {
     document.body.appendChild(icon);
     selectionIcon = icon;
   } catch (error) {
-    console.log("TransKit: Error creating translate icon:", error.message);
+    console.log("BNTrans: Error creating translate icon:", error.message);
     // Extension context might be invalidated, clean up
     if (error.message.includes("Extension context invalidated")) {
       cleanupExtensionElements();
@@ -1634,9 +1634,9 @@ function cleanupExtensionElements() {
     }
 
     // Clear any global timers
-    if (window.transkitCleanupTimer) {
-      clearTimeout(window.transkitCleanupTimer);
-      window.transkitCleanupTimer = null;
+    if (window.bntransCleanupTimer) {
+      clearTimeout(window.bntransCleanupTimer);
+      window.bntransCleanupTimer = null;
     }
 
     // Remove event listeners if they exist
@@ -1665,11 +1665,11 @@ function cleanupExtensionElements() {
     });
 
     console.log(
-      "TransKit: Cleaned up extension elements due to context invalidation"
+      "BNTrans: Cleaned up extension elements due to context invalidation"
     );
   } catch (error) {
     // Ignore cleanup errors - we're already in an error state
-    console.log("TransKit: Error during cleanup (ignored):", error.message);
+    console.log("BNTrans: Error during cleanup (ignored):", error.message);
   }
 }
 
@@ -1755,7 +1755,7 @@ function readjustPopupAfterContentLoad(popup, selectionRect) {
 async function showTranslationPopup(selectionRect, text, iconPosition) {
   // Check if extension context is still valid
   if (!isExtensionContextValid()) {
-    console.log("TransKit: Extension context invalidated, cannot show popup");
+    console.log("BNTrans: Extension context invalidated, cannot show popup");
     return;
   }
 
@@ -1772,7 +1772,7 @@ async function showTranslationPopup(selectionRect, text, iconPosition) {
         ? chrome.runtime.getURL("assets/icons/icon-19.png")
         : "";
     } catch (error) {
-      console.log("TransKit: Error getting icon URL for popup:", error.message);
+      console.log("BNTrans: Error getting icon URL for popup:", error.message);
       iconUrl = "";
     }
     popup.className = "bt-selection-popup bt-vars-container";
@@ -2010,7 +2010,7 @@ async function showTranslationPopup(selectionRect, text, iconPosition) {
           );
         } catch (error) {
           console.log(
-            "TransKit: Error saving source preference:",
+            "BNTrans: Error saving source preference:",
             error.message
           );
         }
@@ -2046,7 +2046,7 @@ async function showTranslationPopup(selectionRect, text, iconPosition) {
           );
         } catch (error) {
           console.log(
-            "TransKit: Error saving target preference:",
+            "BNTrans: Error saving target preference:",
             error.message
           );
         }
@@ -2090,7 +2090,7 @@ async function showTranslationPopup(selectionRect, text, iconPosition) {
             chrome.runtime.sendMessage({ type: "open-options" })
           );
         } catch (error) {
-          console.log("TransKit: Error opening options:", error.message);
+          console.log("BNTrans: Error opening options:", error.message);
         }
       });
 
@@ -2161,7 +2161,7 @@ async function showTranslationPopup(selectionRect, text, iconPosition) {
         }
       });
   } catch (error) {
-    console.log("TransKit: Error showing translation popup:", error.message);
+    console.log("BNTrans: Error showing translation popup:", error.message);
     // Extension context might be invalidated, clean up
     if (error.message.includes("Extension context invalidated")) {
       cleanupExtensionElements();
@@ -2887,7 +2887,7 @@ function createHoverPlaceholder(element, settings) {
     translationEl.classList.add("bt-hover-underline");
   }
 
-  // Add TransKit Icon at start (if enabled)
+  // Add BNTrans Icon at start (if enabled)
   if (style.showIcon !== false) {
     let iconSrc;
     try {
@@ -2895,7 +2895,7 @@ function createHoverPlaceholder(element, settings) {
         ? chrome.runtime.getURL("assets/icons/icon-19.png")
         : "";
     } catch (error) {
-      console.log("TransKit: Error getting icon URL for hover:", error.message);
+      console.log("BNTrans: Error getting icon URL for hover:", error.message);
       iconSrc = "";
     }
 
@@ -2942,7 +2942,7 @@ function createHoverPlaceholder(element, settings) {
 }
 
 function updateHoverContent(element, translation, settings, isError = false) {
-  // Keep the TransKit icon
+  // Keep the BNTrans icon
   const icon = element.querySelector(".bt-hover-icon");
 
   element.innerHTML = ""; // Clear content
@@ -2993,8 +2993,8 @@ function clearAllHoverTranslations() {
     .forEach((el) => el.remove());
 
   // 3. Cleanup Wrappers (Unwrap)
-  document.querySelectorAll("[data-transkit-wrapper]").forEach((wrapper) => {
-    const originalSpan = wrapper.querySelector("[data-transkit-original]");
+  document.querySelectorAll("[data-bntrans-wrapper]").forEach((wrapper) => {
+    const originalSpan = wrapper.querySelector("[data-bntrans-original]");
     if (originalSpan) {
       // Move original text nodes back to parent
       while (originalSpan.firstChild) {
@@ -3013,8 +3013,8 @@ function clearAllHoverTranslations() {
   });
 
   // 5. Cleanup granular mode markers
-  document.querySelectorAll("[data-transkit-translated]").forEach((el) => {
-    el.removeAttribute("data-transkit-translated");
+  document.querySelectorAll("[data-bntrans-translated]").forEach((el) => {
+    el.removeAttribute("data-bntrans-translated");
     el.classList.remove("bt-hover-translated");
   });
 
@@ -3126,7 +3126,7 @@ async function toggleHoverDomainForCurrentUrl() {
         );
       } catch (error) {
         console.log(
-          "TransKit: Error saving hover domain settings:",
+          "BNTrans: Error saving hover domain settings:",
           error.message
         );
         return;
@@ -3148,7 +3148,7 @@ async function toggleHoverDomainForCurrentUrl() {
       );
     } catch (error) {
       console.log(
-        "TransKit: Error updating hover domain settings:",
+        "BNTrans: Error updating hover domain settings:",
         error.message
       );
       return;

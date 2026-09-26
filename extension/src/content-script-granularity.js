@@ -77,7 +77,7 @@ function getTranslationUnits(root) {
     // Skip our own wrappers
     if (
       node.nodeType === Node.ELEMENT_NODE &&
-      (node.hasAttribute("data-transkit-wrapper") ||
+      (node.hasAttribute("data-bntrans-wrapper") ||
         node.classList.contains("bt-injected-content"))
     ) {
       continue;
@@ -315,7 +315,7 @@ async function handleLineByLineTranslate(
   cache
 ) {
   // 1. Check if already translated
-  if (element.hasAttribute("data-transkit-translated")) {
+  if (element.hasAttribute("data-bntrans-translated")) {
     return;
   }
 
@@ -337,14 +337,14 @@ async function handleLineByLineTranslate(
     if (!parent) continue;
 
     const wrapper = document.createElement("span");
-    wrapper.setAttribute("data-transkit-wrapper", "true");
+    wrapper.setAttribute("data-bntrans-wrapper", "true");
     wrapper.style.display = "inline";
 
     const originalSpan = document.createElement("span");
-    originalSpan.setAttribute("data-transkit-original", "true");
+    originalSpan.setAttribute("data-bntrans-original", "true");
 
     const translationSpan = document.createElement("span");
-    translationSpan.setAttribute("data-transkit-translation", "true");
+    translationSpan.setAttribute("data-bntrans-translation", "true");
     translationSpan.className = "bt-loading-indicator";
     // Use inline display with BR separator as requested
     translationSpan.style.display = "inline";
@@ -367,7 +367,7 @@ async function handleLineByLineTranslate(
   }
 
   // Mark element
-  element.setAttribute("data-transkit-translated", "line");
+  element.setAttribute("data-bntrans-translated", "line");
   element.classList.add("bt-hover-translated");
 
   // 4. Prepare text with Delimiters (Markdown conversion)

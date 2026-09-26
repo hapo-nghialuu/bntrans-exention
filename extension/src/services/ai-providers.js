@@ -277,8 +277,8 @@ class OpenRouterProvider extends TranslationProvider {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
-        "HTTP-Referer": "https://github.com/fernnguyen/transkit", // Required by OpenRouter
-        "X-Title": "TransKit Extension" // Optional
+        "HTTP-Referer": "https://github.com/hapo-nghialuu/bntrans-exention", // Required by OpenRouter
+        "X-Title": "BNTrans Extension" // Optional
       },
       body: JSON.stringify({
         model: model,
