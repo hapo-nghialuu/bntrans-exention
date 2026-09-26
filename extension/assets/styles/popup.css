@@ -167,14 +167,14 @@ select {
 .bt-brand-name {
   color: var(--bt-color-text-default);
   font-weight: 700;
-  font-size: 13px;
+  font-size: 14px;
   font-family: var(--bt-font-mono);
   letter-spacing: 0.14em;
 }
 
 .bt-brand-version {
   color: var(--bt-color-text-muted);
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-family: var(--bt-font-mono);
   letter-spacing: 0.08em;
 }
@@ -199,7 +199,7 @@ select {
   border-radius: calc(var(--bt-radius) - 2px);
   color: var(--bt-color-text-muted);
   font-weight: 600;
-  font-size: 10px;
+  font-size: 11px;
   font-family: var(--bt-font-mono);
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -226,7 +226,7 @@ select {
 .bt-nav-badge {
   color: var(--bt-color-green);
   font-weight: 600;
-  font-size: 9px;
+  font-size: 10px;
   font-family: var(--bt-font-mono);
 }
 
@@ -243,7 +243,7 @@ select {
 
 .bt-pane-title {
   font-weight: 700;
-  font-size: 17px;
+  font-size: 18px;
   letter-spacing: -0.02em;
 }
 
@@ -258,7 +258,7 @@ select {
   border-bottom: 1px solid var(--bt-color-border-default);
   color: var(--bt-color-text-muted);
   font-weight: 600;
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-family: var(--bt-font-mono);
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -291,7 +291,7 @@ select {
 .bt-field small {
   margin-top: 0.25rem;
   color: var(--bt-color-text-muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
 }
 
@@ -342,7 +342,7 @@ select {
   border-radius: 6px;
   color: var(--bt-color-text-muted);
   font-weight: 600;
-  font-size: 10px;
+  font-size: 11px;
   font-family: var(--bt-font-mono);
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -388,7 +388,7 @@ select {
   padding: 8px 10px 0;
   color: var(--bt-color-green);
   font-weight: 600;
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-family: var(--bt-font-mono);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -698,7 +698,7 @@ input:checked + .slider:before {
   background-color: var(--bt-color-background-default);
   color: var(--bt-color-text-default);
   font-weight: 500;
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
 }
 
@@ -714,7 +714,7 @@ input:checked + .slider:before {
   gap: 4px;
   color: var(--bt-color-text-muted);
   font-weight: 600;
-  font-size: 11px;
+  font-size: 12px;
   font-family: var(--bt-font-mono);
   letter-spacing: 0.06em;
   cursor: default;
@@ -743,7 +743,7 @@ input:checked + .slider:before {
 
 .bt-lang-toggle .divider {
   color: var(--bt-color-border-default);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 #save {
@@ -813,7 +813,7 @@ input:checked + .slider:before {
 
 .bt-provider-type {
   color: var(--bt-color-text-muted);
-  font-size: 10px;
+  font-size: 11px;
   font-family: var(--bt-font-mono);
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -854,7 +854,7 @@ input:checked + .slider:before {
   background: #dce4fb;
   color: var(--bt-color-blue);
   font-weight: 600;
-  font-size: 10px;
+  font-size: 11px;
   font-family: var(--bt-font-mono);
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -941,7 +941,7 @@ input:checked + .slider:before {
   border-radius: var(--bt-radius-small);
   background: var(--bt-color-sun-soft);
   color: var(--bt-color-mirror-text);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
 }
 
@@ -998,7 +998,7 @@ input:checked + .slider:before {
 .bt-ai-warning {
   padding: var(--bt-space-small);
   color: var(--bt-color-text-muted);
-  font-size: 11px;
+  font-size: 12px;
   text-align: center;
 }
 
@@ -1045,7 +1045,7 @@ input:checked + .slider:before {
   border-color: var(--bt-color-border-default) !important;
   background-color: var(--bt-color-background-muted) !important;
   color: var(--bt-color-text-muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
   font-family: var(--bt-font-mono);
   cursor: not-allowed;
@@ -1087,7 +1087,7 @@ textarea.bt-input:focus {
   display: block;
   margin-top: 4px;
   color: var(--bt-color-text-muted);
-  font-size: 11px;
+  font-size: 12px;
   font-family: var(--bt-font-mono);
   text-align: right;
 }
@@ -1101,7 +1101,7 @@ textarea.bt-input:focus {
 .bt-eyebrow {
   color: var(--bt-color-text-muted);
   font-weight: 600;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.4;
   font-family: var(--bt-font-mono);
   letter-spacing: 0.11em;
@@ -1158,7 +1158,7 @@ textarea.bt-input:focus {
   border-radius: var(--bt-radius-small);
   background: var(--bt-color-background-muted);
   color: var(--bt-color-text-muted);
-  font-size: 15px;
+  font-size: 16px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -1211,7 +1211,7 @@ textarea.bt-input:focus {
   border-radius: var(--bt-radius-small);
   background: transparent;
   color: var(--bt-color-text-muted);
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
 }
 
