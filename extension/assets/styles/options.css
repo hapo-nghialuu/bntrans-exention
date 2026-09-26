@@ -1,0 +1,136 @@
+/* Options page — full-window layout: left sidebar nav + content column.
+   Overrides the popup card styles from popup.css for pages/options.html only. */
+
+.bt-wrap.bt-page {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
+  max-height: none;
+  padding: 0;
+  overflow: hidden;
+  gap: 0;
+  border: none;
+  border-radius: 0;
+  background: var(--bt-color-background-default);
+  box-shadow: none;
+}
+
+/* Sidebar */
+.bt-page .bt-side {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: 216px;
+  padding: 18px 12px 14px;
+  border-right: 1px solid var(--bt-color-border-default);
+  background: var(--bt-color-background-muted);
+}
+
+.bt-page .bt-brand {
+  padding: 2px 10px 16px;
+}
+
+.bt-page .bt-brand img {
+  width: 34px;
+  height: 34px;
+}
+
+/* Vertical nav */
+.bt-page .bt-tabs {
+  flex-direction: column;
+  padding: 0;
+  gap: 2px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.bt-page .bt-tab {
+  flex: none;
+  justify-content: flex-start;
+  padding: 7px 10px;
+  gap: 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.bt-page .bt-tab svg {
+  width: 15px;
+  height: 15px;
+}
+
+.bt-page .bt-tab.active {
+  background: var(--bt-color-ink);
+  color: var(--bt-color-paper-bright);
+}
+
+.bt-page .bt-tab .bt-nav-badge {
+  margin-left: auto;
+}
+
+/* Sidebar footer */
+.bt-page .bt-side-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding: 12px 10px 0;
+  border-top: 1px solid var(--bt-color-border-default);
+}
+
+/* Main content column */
+.bt-page .bt-main {
+  flex: 1;
+  min-width: 0;
+  padding: 28px 36px 64px;
+  overflow-y: auto;
+}
+
+.bt-page .bt-settings-container {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.bt-page .bt-pane-title {
+  font-size: 20px;
+}
+
+.bt-page .bt-pane-header {
+  padding-bottom: var(--bt-space-large);
+}
+
+/* Save bar stays visible at the bottom of the content column */
+.bt-page .bt-settings-container > .bt-actions {
+  position: sticky;
+  bottom: 0;
+  margin: 12px -8px -28px;
+  padding: 12px 8px;
+  border-top: 1px solid var(--bt-color-border-default);
+  background: var(--bt-color-background-default);
+}
+
+/* Narrow windows: collapse to a single column */
+@media (max-width: 640px) {
+  .bt-wrap.bt-page {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .bt-page .bt-side {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--bt-color-border-default);
+  }
+
+  .bt-page .bt-side-foot {
+    margin-top: 12px;
+  }
+
+  .bt-page .bt-main {
+    padding: 20px 16px 48px;
+    overflow: visible;
+  }
+}

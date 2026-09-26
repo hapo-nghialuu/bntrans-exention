@@ -163,8 +163,11 @@ function setNavBadge(id, count) {
 }
 
 function applyTheme(value) {
-  if (value === "auto") document.documentElement.removeAttribute("data-theme");
-  else document.documentElement.dataset.theme = value;
+  // body also carries .bt-vars-container, so the attribute must live on both
+  for (const el of [document.documentElement, document.body]) {
+    if (value === "auto") el.removeAttribute("data-theme");
+    else el.dataset.theme = value;
+  }
 }
 
 function populateSelects() {
