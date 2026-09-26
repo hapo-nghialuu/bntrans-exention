@@ -1115,3 +1115,39 @@ textarea.bt-input:focus {
   line-height: 1.55;
   word-break: break-word;
 }
+
+/* Quick popup (compact translate-only) */
+.bt-quick-wrap {
+  width: 26rem;
+  padding: var(--bt-space-medium);
+  gap: var(--bt-space-medium);
+}
+
+.bt-quick-wrap .bt-header {
+  padding-bottom: var(--bt-space-medium);
+  border-bottom: 1px solid var(--bt-color-border-default);
+}
+
+.bt-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--bt-color-border-default);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--bt-color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bt-icon-btn:hover {
+  border-color: var(--bt-color-border-interactive);
+  color: var(--bt-color-text-default);
+}
+
+.bt-quick-body {
+  display: grid;
+  gap: var(--bt-space-medium);
+}
