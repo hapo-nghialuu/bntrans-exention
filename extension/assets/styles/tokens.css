@@ -43,13 +43,12 @@
   --bt-color-mirror-background-hover: #ebe4ff;
   --bt-color-mirror-border: #d6ccff;
 
-  --bt-color-mirror-solid: #7c3aed;         /* purple */
+  --bt-color-mirror-solid: #7c3aed; /* purple */
   --bt-color-mirror-solid-hover: #6d28d9;
   --bt-color-mirror-solid-active: #5b21b6;
 
   --bt-color-mirror-text: #3b0764;
   --bt-color-mirror-text-inverse: #ffffff;
-
 
   --bt-color-danger-background: #feebec;
   --bt-color-danger-background-hover: #ffdbdc;

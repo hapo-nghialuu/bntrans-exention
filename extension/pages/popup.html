@@ -32,16 +32,35 @@
           </div>
         </div>
         <p>
-          <span data-i18n="popup.subtitle">Instant AI-powered translation.</span>
-          <span id="version-display" style="opacity: 0.6; font-size: 0.85em; margin-left: 8px;"></span>
+          <span data-i18n="popup.subtitle"
+            >Instant AI-powered translation.</span
+          >
+          <span
+            id="version-display"
+            style="opacity: 0.6; font-size: 0.85em; margin-left: 8px"
+          ></span>
         </p>
       </div>
 
       <!-- Tabs Navigation -->
       <div class="bt-tabs">
-        <div class="bt-tab active" data-tab="general" data-i18n="popup.tabGeneral">General</div>
-        <div class="bt-tab" data-tab="instant" data-i18n="popup.tabInstant">Instant</div>
-        <div class="bt-tab" data-tab="ai-provider" data-i18n="popup.tabAIProvider">AI Provider</div>
+        <div
+          class="bt-tab active"
+          data-tab="general"
+          data-i18n="popup.tabGeneral"
+        >
+          General
+        </div>
+        <div class="bt-tab" data-tab="instant" data-i18n="popup.tabInstant">
+          Instant
+        </div>
+        <div
+          class="bt-tab"
+          data-tab="ai-provider"
+          data-i18n="popup.tabAIProvider"
+        >
+          AI Provider
+        </div>
         <div class="bt-tab" data-tab="tts" data-i18n="popup.tabTTS">TTS</div>
         <div class="bt-tab" data-tab="help" data-i18n="popup.tabHelp">Help</div>
       </div>
@@ -51,35 +70,41 @@
         <div id="tab-general" class="bt-tab-content active">
           <div class="bt-row">
             <div class="bt-field">
-              <label for="native" data-i18n="popup.nativeLanguage">Native Language</label>
+              <label for="native" data-i18n="popup.nativeLanguage"
+                >Native Language</label
+              >
               <select id="native" class="bt-input"></select>
             </div>
 
             <div class="bt-field">
-              <label for="target" data-i18n="popup.defaultTarget">Default Target</label>
+              <label for="target" data-i18n="popup.defaultTarget"
+                >Default Target</label
+              >
               <select id="target" class="bt-input"></select>
             </div>
           </div>
 
-
-
-          <div class="bt-field-row" style="justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 8px;">
+          <div class="bt-field-row" style="justify-content: space-between">
+            <div style="display: flex; align-items: center; gap: 8px">
               <label class="bt-switch">
                 <input type="checkbox" id="auto-detect" />
                 <span class="slider round"></span>
               </label>
-              <label for="auto-detect" data-i18n="popup.useAutoDetect">Auto-detect Source Language</label>
+              <label for="auto-detect" data-i18n="popup.useAutoDetect"
+                >Auto-detect Source Language</label
+              >
             </div>
           </div>
 
-          <div class="bt-field-row" style="justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 8px;">
+          <div class="bt-field-row" style="justify-content: space-between">
+            <div style="display: flex; align-items: center; gap: 8px">
               <label class="bt-switch">
                 <input type="checkbox" id="confirm-modal" />
                 <span class="slider round"></span>
               </label>
-              <label for="confirm-modal" data-i18n="popup.showConfirmModal">Show Confirm Modal</label>
+              <label for="confirm-modal" data-i18n="popup.showConfirmModal"
+                >Show Confirm Modal</label
+              >
             </div>
           </div>
 
@@ -88,8 +113,18 @@
           <div class="bt-field">
             <label data-i18n="popup.aliases">Aliases</label>
             <div class="bt-alias-input-group">
-              <input type="text" id="alias-key" placeholder="Key (e.g. e)" data-i18n-placeholder="popup.aliasKeyPlaceholder" />
-              <input type="text" id="alias-value" placeholder="Code (e.g. en)" data-i18n-placeholder="popup.aliasValuePlaceholder" />
+              <input
+                type="text"
+                id="alias-key"
+                placeholder="Key (e.g. e)"
+                data-i18n-placeholder="popup.aliasKeyPlaceholder"
+              />
+              <input
+                type="text"
+                id="alias-value"
+                placeholder="Code (e.g. en)"
+                data-i18n-placeholder="popup.aliasValuePlaceholder"
+              />
               <button id="add-alias" class="bt-button-small">+</button>
             </div>
             <div id="alias-list" class="bt-alias-list"></div>
@@ -98,48 +133,72 @@
           <div class="bt-divider"></div>
 
           <!-- Hover to Translate Section -->
-          <div class="bt-field-row" style="justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 8px;">
+          <div class="bt-field-row" style="justify-content: space-between">
+            <div style="display: flex; align-items: center; gap: 8px">
               <label class="bt-switch">
                 <input type="checkbox" id="hover-translate-enabled" />
                 <span class="slider round"></span>
               </label>
-              <label for="hover-translate-enabled" data-i18n="popup.enableHover">Enable Hover to Translate</label>
+              <label for="hover-translate-enabled" data-i18n="popup.enableHover"
+                >Enable Hover to Translate</label
+              >
             </div>
           </div>
 
           <div id="hover-settings" class="bt-hover-settings" hidden>
             <div class="bt-field">
-              <label for="hover-mode" data-i18n="popup.hoverMode">Translation Mode</label>
+              <label for="hover-mode" data-i18n="popup.hoverMode"
+                >Translation Mode</label
+              >
               <select id="hover-mode" class="bt-input">
-                <option value="inject" data-i18n="popup.hoverModeInject">Inject Below (Recommended)</option>
-                <option value="replace" data-i18n="popup.hoverModeReplace">Replace Original</option>
+                <option value="inject" data-i18n="popup.hoverModeInject">
+                  Inject Below (Recommended)
+                </option>
+                <option value="replace" data-i18n="popup.hoverModeReplace">
+                  Replace Original
+                </option>
               </select>
-              <small style="color: #666;" data-i18n="popup.hoverModeHint">Inject adds translation below. Replace swaps text.</small>
+              <small style="color: #666" data-i18n="popup.hoverModeHint"
+                >Inject adds translation below. Replace swaps text.</small
+              >
             </div>
 
             <div class="bt-field">
-              <label for="hover-granularity" data-i18n="popup.hoverGranularity">Translation Granularity</label>
+              <label for="hover-granularity" data-i18n="popup.hoverGranularity"
+                >Translation Granularity</label
+              >
               <select id="hover-granularity" class="bt-input">
-                <option value="block" data-i18n="popup.granularityBlock">Block (Entire Paragraph)</option>
-                <option value="line" data-i18n="popup.granularityLine">Line by Line</option>
-                <option value="sentence" data-i18n="popup.granularitySentence">Sentence by Sentence</option>
+                <option value="block" data-i18n="popup.granularityBlock">
+                  Block (Entire Paragraph)
+                </option>
+                <option value="line" data-i18n="popup.granularityLine">
+                  Line by Line
+                </option>
+                <option value="sentence" data-i18n="popup.granularitySentence">
+                  Sentence by Sentence
+                </option>
               </select>
-              <small style="color: #666;" data-i18n="popup.hoverGranularityHint">Line-by-line works best for chat apps like Discord.</small>
+              <small style="color: #666" data-i18n="popup.hoverGranularityHint"
+                >Line-by-line works best for chat apps like Discord.</small
+              >
             </div>
 
-            <div class="bt-field-row" style="justify-content: space-between;">
-              <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="bt-field-row" style="justify-content: space-between">
+              <div style="display: flex; align-items: center; gap: 8px">
                 <label class="bt-switch">
                   <input type="checkbox" id="hover-unique-mode" checked />
                   <span class="slider round"></span>
                 </label>
-                <label for="hover-unique-mode" data-i18n="popup.uniqueMode">Unique Mode</label>
+                <label for="hover-unique-mode" data-i18n="popup.uniqueMode"
+                  >Unique Mode</label
+                >
               </div>
             </div>
 
             <div class="bt-field">
-              <label for="hover-modifier" data-i18n="popup.modifierKey">Modifier Key</label>
+              <label for="hover-modifier" data-i18n="popup.modifierKey"
+                >Modifier Key</label
+              >
               <select id="hover-modifier" class="bt-input">
                 <option value="ctrl">Ctrl</option>
                 <option value="shift">Shift</option>
@@ -163,11 +222,24 @@
                     <input type="checkbox" id="hover-shortcut-alt" />
                     <span data-i18n="popup.shortcutAlt">Alt</span>
                   </label>
-                  <span style="margin: 0 8px; color: #888;">+</span>
-                  <input type="text" id="hover-shortcut-key" class="bt-input" maxlength="1" value="O" style="width: 50px; text-align: center; text-transform: uppercase;" />
+                  <span style="margin: 0 8px; color: #888">+</span>
+                  <input
+                    type="text"
+                    id="hover-shortcut-key"
+                    class="bt-input"
+                    maxlength="1"
+                    value="O"
+                    style="
+                      width: 50px;
+                      text-align: center;
+                      text-transform: uppercase;
+                    "
+                  />
                 </div>
                 <div class="bt-shortcut-preview">
-                  <small id="hover-shortcut-preview" style="color: #888;">Ctrl+Shift+O (Cmd+Shift+O on Mac)</small>
+                  <small id="hover-shortcut-preview" style="color: #888"
+                    >Ctrl+Shift+O (Cmd+Shift+O on Mac)</small
+                  >
                 </div>
               </div>
             </div>
@@ -178,36 +250,60 @@
                 <div class="bt-row">
                   <!-- Text Color and Font Size side-by-side -->
                   <div class="bt-field">
-                    <label for="hover-text-color" data-i18n="popup.textColor">Text Color</label>
+                    <label for="hover-text-color" data-i18n="popup.textColor"
+                      >Text Color</label
+                    >
                     <input type="color" id="hover-text-color" value="#ff0000" />
                   </div>
                   <div class="bt-field">
-                    <label for="hover-font-size" data-i18n="popup.fontSize">Font Size</label>
+                    <label for="hover-font-size" data-i18n="popup.fontSize"
+                      >Font Size</label
+                    >
                     <select id="hover-font-size" class="bt-input">
-                      <option value="0.85em" data-i18n="popup.fontSizeSmall">Small</option>
-                      <option value="0.95em" selected data-i18n="popup.fontSizeNormal">Normal</option>
-                      <option value="1em" data-i18n="popup.fontSizeLarge">Large</option>
+                      <option value="0.85em" data-i18n="popup.fontSizeSmall">
+                        Small
+                      </option>
+                      <option
+                        value="0.95em"
+                        selected
+                        data-i18n="popup.fontSizeNormal"
+                      >
+                        Normal
+                      </option>
+                      <option value="1em" data-i18n="popup.fontSizeLarge">
+                        Large
+                      </option>
                     </select>
                   </div>
                 </div>
-                
-                <div class="bt-field-row" style="justify-content: space-between; margin-top: 12px;">
-                  <div style="display: flex; align-items: center; gap: 8px;">
+
+                <div
+                  class="bt-field-row"
+                  style="justify-content: space-between; margin-top: 12px"
+                >
+                  <div style="display: flex; align-items: center; gap: 8px">
                     <label class="bt-switch">
                       <input type="checkbox" id="hover-show-icon" checked />
                       <span class="slider round"></span>
                     </label>
-                    <label for="hover-show-icon" data-i18n="popup.showIcon">Show Translation Icon</label>
+                    <label for="hover-show-icon" data-i18n="popup.showIcon"
+                      >Show Translation Icon</label
+                    >
                   </div>
                 </div>
-                
-                <div class="bt-field-row" style="justify-content: space-between;">
-                  <div style="display: flex; align-items: center; gap: 8px;">
+
+                <div
+                  class="bt-field-row"
+                  style="justify-content: space-between"
+                >
+                  <div style="display: flex; align-items: center; gap: 8px">
                     <label class="bt-switch">
                       <input type="checkbox" id="hover-underline" />
                       <span class="slider round"></span>
                     </label>
-                    <label for="hover-underline" data-i18n="popup.underline">Underline Translation</label>
+                    <label for="hover-underline" data-i18n="popup.underline"
+                      >Underline Translation</label
+                    >
                   </div>
                 </div>
               </div>
@@ -215,14 +311,29 @@
 
             <div class="bt-field">
               <label data-i18n="popup.activeDomains">Active Domains</label>
-              <button id="manage-hover-domains" class="bt-button bt-button-outline" style="width: 100%;">
-                <span data-i18n="popup.manageDomains">Manage Domains</span> (<span id="hover-domain-count">0</span>)
+              <button
+                id="manage-hover-domains"
+                class="bt-button bt-button-outline"
+                style="width: 100%"
+              >
+                <span data-i18n="popup.manageDomains">Manage Domains</span>
+                (<span id="hover-domain-count">0</span>)
               </button>
-              <div id="hover-domain-list-section" class="bt-domain-list-section" hidden>
+              <div
+                id="hover-domain-list-section"
+                class="bt-domain-list-section"
+                hidden
+              >
                 <div id="hover-domain-list" class="bt-domain-list"></div>
                 <div class="bt-domain-input-group">
-                  <input type="text" id="new-hover-domain" placeholder="discord.com" />
-                  <button id="add-hover-domain" class="bt-button-small">+</button>
+                  <input
+                    type="text"
+                    id="new-hover-domain"
+                    placeholder="discord.com"
+                  />
+                  <button id="add-hover-domain" class="bt-button-small">
+                    +
+                  </button>
                 </div>
               </div>
             </div>
@@ -231,27 +342,45 @@
 
         <!-- Instant Tab Content -->
         <div id="tab-instant" class="bt-tab-content">
-          <div class="bt-field-row" style="justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 8px;">
+          <div class="bt-field-row" style="justify-content: space-between">
+            <div style="display: flex; align-items: center; gap: 8px">
               <label class="bt-switch">
                 <input type="checkbox" id="instant-translate-enabled" />
                 <span class="slider round"></span>
               </label>
-              <label for="instant-translate-enabled" data-i18n="popup.enableInstant">Enable Instant Translate for specific domains</label>
+              <label
+                for="instant-translate-enabled"
+                data-i18n="popup.enableInstant"
+                >Enable Instant Translate for specific domains</label
+              >
             </div>
           </div>
 
           <div id="instant-settings" class="bt-instant-settings" hidden>
             <div class="bt-field">
-              <label for="instant-delay" data-i18n="popup.instantDelay">Delay (seconds)</label>
-              <input type="number" id="instant-delay" class="bt-input" min="1" max="10" value="3" />
+              <label for="instant-delay" data-i18n="popup.instantDelay"
+                >Delay (seconds)</label
+              >
+              <input
+                type="number"
+                id="instant-delay"
+                class="bt-input"
+                min="1"
+                max="10"
+                value="3"
+              />
             </div>
 
             <div class="bt-field">
               <label data-i18n="popup.activeDomains">Active Domains</label>
               <div id="instant-domain-list" class="bt-domain-list"></div>
               <div class="bt-domain-input-group">
-                <input type="text" id="new-domain" placeholder="example.com" data-i18n-placeholder="popup.domainPlaceholder" />
+                <input
+                  type="text"
+                  id="new-domain"
+                  placeholder="example.com"
+                  data-i18n-placeholder="popup.domainPlaceholder"
+                />
                 <button id="add-domain" class="bt-button-small">+</button>
               </div>
             </div>
@@ -259,7 +388,9 @@
             <div class="bt-divider"></div>
 
             <div class="bt-field">
-              <label data-i18n="popup.toggleShortcut">Toggle Instant Shortcut</label>
+              <label data-i18n="popup.toggleShortcut"
+                >Toggle Instant Shortcut</label
+              >
               <div class="bt-shortcut-compact">
                 <div class="bt-shortcut-modifiers">
                   <label>
@@ -274,11 +405,24 @@
                     <input type="checkbox" id="shortcut-alt" />
                     <span data-i18n="popup.shortcutAlt">Alt</span>
                   </label>
-                  <span style="margin: 0 8px; color: #888;">+</span>
-                  <input type="text" id="shortcut-key" class="bt-input" maxlength="1" value="I" style="width: 50px; text-align: center; text-transform: uppercase;" />
+                  <span style="margin: 0 8px; color: #888">+</span>
+                  <input
+                    type="text"
+                    id="shortcut-key"
+                    class="bt-input"
+                    maxlength="1"
+                    value="I"
+                    style="
+                      width: 50px;
+                      text-align: center;
+                      text-transform: uppercase;
+                    "
+                  />
                 </div>
                 <div class="bt-shortcut-preview">
-                  <small id="shortcut-preview" style="color: #888;">Ctrl+Shift+I (Cmd+Shift+I on Mac)</small>
+                  <small id="shortcut-preview" style="color: #888"
+                    >Ctrl+Shift+I (Cmd+Shift+I on Mac)</small
+                  >
                 </div>
               </div>
             </div>
@@ -291,13 +435,19 @@
             <div id="provider-list" class="bt-provider-list">
               <!-- Provider items will be injected here -->
             </div>
-            <button id="btn-add-provider" class="bt-button bt-button-outline" data-i18n="popup.addProvider">+ Add Provider</button>
+            <button
+              id="btn-add-provider"
+              class="bt-button bt-button-outline"
+              data-i18n="popup.addProvider"
+            >
+              + Add Provider
+            </button>
           </div>
 
           <!-- Add/Edit Provider Form (Hidden by default) -->
           <div id="provider-form" class="bt-provider-form" hidden>
             <h3 id="form-title" class="bt-form-title">Add Provider</h3>
-            
+
             <div class="bt-field">
               <label data-i18n="popup.providerType">Provider Type</label>
               <select id="form-type" class="bt-input">
@@ -313,47 +463,92 @@
 
             <div class="bt-field">
               <label data-i18n="popup.providerName">Name</label>
-              <input type="text" id="form-name" class="bt-input" placeholder="e.g. My Gemini" />
+              <input
+                type="text"
+                id="form-name"
+                class="bt-input"
+                placeholder="e.g. My Gemini"
+              />
             </div>
 
             <!-- Dynamic Fields Container -->
             <div id="form-dynamic-fields"></div>
 
             <div class="bt-actions bt-row">
-              <button id="form-cancel" class="bt-button bt-button-outline" data-i18n="dialog.cancel">Cancel</button>
-              <button id="form-save" class="bt-button" data-i18n="popup.save">Save</button>
+              <button
+                id="form-cancel"
+                class="bt-button bt-button-outline"
+                data-i18n="dialog.cancel"
+              >
+                Cancel
+              </button>
+              <button id="form-save" class="bt-button" data-i18n="popup.save">
+                Save
+              </button>
             </div>
           </div>
 
           <!-- Prompt Customization Section -->
           <div id="prompt-customization" class="bt-prompt-section">
-            <h3 class="bt-section-title" data-i18n="popup.promptCustomization">Prompt Customization</h3>
-            <p class="bt-help-text" data-i18n="popup.promptHelp">Customize the translation prompts to fit your specific needs (e.g., technical, casual, medical)</p>
-            
+            <h3 class="bt-section-title" data-i18n="popup.promptCustomization">
+              Prompt Customization
+            </h3>
+            <p class="bt-help-text" data-i18n="popup.promptHelp">
+              Customize the translation prompts to fit your specific needs
+              (e.g., technical, casual, medical)
+            </p>
+
             <div class="bt-field">
-              <label for="system-prompt-display" data-i18n="popup.systemPrompt">System Prompt (Read-only)</label>
-              <textarea id="system-prompt-display" class="bt-input bt-readonly-textarea" readonly rows="3"></textarea>
+              <label for="system-prompt-display" data-i18n="popup.systemPrompt"
+                >System Prompt (Read-only)</label
+              >
+              <textarea
+                id="system-prompt-display"
+                class="bt-input bt-readonly-textarea"
+                readonly
+                rows="3"
+              ></textarea>
             </div>
 
             <div class="bt-field">
-              <label for="user-custom-prompt" data-i18n="popup.userPrompt">Your Custom Context (Optional)</label>
-              <textarea id="user-custom-prompt" class="bt-input" maxlength="500" rows="4" placeholder="" data-i18n-placeholder="popup.promptPlaceholder"></textarea>
-              <small class="bt-char-counter"><span id="prompt-char-count">0</span>/500</small>
+              <label for="user-custom-prompt" data-i18n="popup.userPrompt"
+                >Your Custom Context (Optional)</label
+              >
+              <textarea
+                id="user-custom-prompt"
+                class="bt-input"
+                maxlength="500"
+                rows="4"
+                placeholder=""
+                data-i18n-placeholder="popup.promptPlaceholder"
+              ></textarea>
+              <small class="bt-char-counter"
+                ><span id="prompt-char-count">0</span>/500</small
+              >
             </div>
           </div>
         </div>
 
         <!-- TTS Tab Content -->
         <div id="tab-tts" class="bt-tab-content">
-          <div class="bt-section-title" data-i18n="popup.ttsSettings">Text to Speech</div>
-          <div class="bt-section-desc" data-i18n="popup.ttsDesc">Configure TTS providers for audio playback.</div>
-          
+          <div class="bt-section-title" data-i18n="popup.ttsSettings">
+            Text to Speech
+          </div>
+          <div class="bt-section-desc" data-i18n="popup.ttsDesc">
+            Configure TTS providers for audio playback.
+          </div>
+
           <div id="tts-provider-list" class="bt-provider-list">
             <!-- TTS Providers injected here -->
           </div>
 
-          <button id="btn-add-tts-provider" class="bt-button bt-button-outline bt-w-full" style="margin-top: 12px;">
-            <span class="bt-icon-plus">+</span> <span data-i18n="popup.addProvider">Add Provider</span>
+          <button
+            id="btn-add-tts-provider"
+            class="bt-button bt-button-outline bt-w-full"
+            style="margin-top: 12px"
+          >
+            <span class="bt-icon-plus">+</span>
+            <span data-i18n="popup.addProvider">Add Provider</span>
           </button>
 
           <!-- TTS Provider Form (Hidden by default) -->
@@ -361,7 +556,7 @@
             <div class="bt-form-header">
               <h3 id="tts-form-title">Add TTS Provider</h3>
             </div>
-            
+
             <div class="bt-field">
               <label>Type</label>
               <select id="tts-form-type" class="bt-input">
@@ -371,17 +566,31 @@
 
             <div class="bt-field">
               <label>Name</label>
-              <input type="text" id="tts-form-name" class="bt-input" placeholder="My TTS" />
+              <input
+                type="text"
+                id="tts-form-name"
+                class="bt-input"
+                placeholder="My TTS"
+              />
             </div>
 
             <div class="bt-field">
               <label>URL Template</label>
-              <input type="text" id="tts-form-url" class="bt-input" placeholder="https://api.tts.com?text={text}&lang={lang}" />
-              <small style="color: #666;">Available variables: {text}, {lang}, {speed}</small>
+              <input
+                type="text"
+                id="tts-form-url"
+                class="bt-input"
+                placeholder="https://api.tts.com?text={text}&lang={lang}"
+              />
+              <small style="color: #666"
+                >Available variables: {text}, {lang}, {speed}</small
+              >
             </div>
 
             <div class="bt-actions bt-row">
-              <button id="tts-form-cancel" class="bt-button bt-button-outline">Cancel</button>
+              <button id="tts-form-cancel" class="bt-button bt-button-outline">
+                Cancel
+              </button>
               <button id="tts-form-save" class="bt-button">Save</button>
             </div>
           </div>
@@ -391,72 +600,148 @@
         <div id="tab-help" class="bt-tab-content">
           <div class="bt-help-section">
             <h3 data-i18n="help.title">How to use TransKit</h3>
-            
+
             <div class="bt-help-item">
               <h4 data-i18n="help.commands.title">Command Translation</h4>
-              <p data-i18n="help.commands.desc">Type your text followed by a command to translate instantly.</p>
-              <p class="bt-code-example" data-i18n="help.commands.example">Example: <code>Hello !!vi</code> → <code>Xin chào</code></p>
-              <p data-i18n="help.commands.default">Use <code>!!t</code> for your default target language.</p>
+              <p data-i18n="help.commands.desc">
+                Type your text followed by a command to translate instantly.
+              </p>
+              <p class="bt-code-example" data-i18n="help.commands.example">
+                Example: <code>Hello !!vi</code> → <code>Xin chào</code>
+              </p>
+              <p data-i18n="help.commands.default">
+                Use <code>!!t</code> for your default target language.
+              </p>
             </div>
 
             <div class="bt-help-item">
               <h4 data-i18n="help.selection.title">Select to Translate</h4>
-              <p data-i18n="help.selection.desc">Highlight any text on a page and click the TransKit icon that appears.</p>
+              <p data-i18n="help.selection.desc">
+                Highlight any text on a page and click the TransKit icon that
+                appears.
+              </p>
             </div>
 
             <div class="bt-help-item">
               <h4 data-i18n="help.instant.title">Instant Mode</h4>
-              <p data-i18n="help.instant.desc">On enabled domains, just type and wait. A suggestion will appear.</p>
-              <p data-i18n="help.instant.apply">Press <kbd>Tab</kbd> to apply or <kbd>Esc</kbd> to dismiss.</p>
-              <p><strong>Quick Toggle:</strong> Press <kbd>Ctrl+Shift+I</kbd> (or <kbd>Cmd+Shift+I</kbd> on Mac) to enable/disable instant mode for current domain. If the domain is not in your list, it will be auto-added!</p>
+              <p data-i18n="help.instant.desc">
+                On enabled domains, just type and wait. A suggestion will
+                appear.
+              </p>
+              <p data-i18n="help.instant.apply">
+                Press <kbd>Tab</kbd> to apply or <kbd>Esc</kbd> to dismiss.
+              </p>
+              <p>
+                <strong>Quick Toggle:</strong> Press <kbd>Ctrl+Shift+I</kbd> (or
+                <kbd>Cmd+Shift+I</kbd> on Mac) to enable/disable instant mode
+                for current domain. If the domain is not in your list, it will
+                be auto-added!
+              </p>
             </div>
 
             <div class="bt-help-item">
               <h4>AI Providers</h4>
-              <p>Choose from multiple AI providers in the <strong>AI Provider</strong> tab:</p>
-              <ul style="margin: 8px 0; padding-left: 20px;">
-                <li><strong>Chrome Built-in AI</strong> - Free, private, offline (default)</li>
+              <p>
+                Choose from multiple AI providers in the
+                <strong>AI Provider</strong> tab:
+              </p>
+              <ul style="margin: 8px 0; padding-left: 20px">
+                <li>
+                  <strong>Chrome Built-in AI</strong> - Free, private, offline
+                  (default)
+                </li>
                 <li><strong>Google Gemini</strong> - Fast and accurate</li>
-                <li><strong>OpenAI (GPT)</strong> - Industry-leading quality</li>
-                <li><strong>Groq</strong> - Lightning-fast inference with generous free tier</li>
-                <li><strong>Ollama (Local)</strong> - 100% privacy, run models locally (recommended: <code>qwen2.5:1.5b</code>)</li>
-                <li><strong>Custom Endpoint</strong> - Any OpenAI-compatible API</li>
+                <li>
+                  <strong>OpenAI (GPT)</strong> - Industry-leading quality
+                </li>
+                <li>
+                  <strong>Groq</strong> - Lightning-fast inference with generous
+                  free tier
+                </li>
+                <li>
+                  <strong>Ollama (Local)</strong> - 100% privacy, run models
+                  locally (recommended: <code>qwen2.5:1.5b</code>)
+                </li>
+                <li>
+                  <strong>Custom Endpoint</strong> - Any OpenAI-compatible API
+                </li>
               </ul>
-              <p><em>Tip: For privacy and offline use, try Ollama with qwen2.5:1.5b model!</em></p>
+              <p>
+                <em
+                  >Tip: For privacy and offline use, try Ollama with
+                  qwen2.5:1.5b model!</em
+                >
+              </p>
             </div>
 
             <div class="bt-help-item">
               <h4>Custom Prompts</h4>
-              <p>Tailor translation behavior in the <strong>Prompt</strong> tab:</p>
-              <ul style="margin: 8px 0; padding-left: 20px;">
-                <li>Add context for technical, casual, or medical terminology</li>
+              <p>
+                Tailor translation behavior in the <strong>Prompt</strong> tab:
+              </p>
+              <ul style="margin: 8px 0; padding-left: 20px">
+                <li>
+                  Add context for technical, casual, or medical terminology
+                </li>
                 <li>Maximum 500 characters for optimal performance</li>
                 <li>System prompt is fixed for consistency</li>
               </ul>
             </div>
 
             <div class="bt-divider"></div>
-            
+
             <p class="bt-ai-warning">
               <em data-i18n="popup.aiWarning">
-                Requires Chrome desktop with AI APIs enabled; the model will download
-                on first use if needed.
+                Requires Chrome desktop with AI APIs enabled; the model will
+                download on first use if needed.
               </em>
             </p>
 
-            <div style="text-align: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--bt-color-border-default);">
-              <p style="margin: 0; font-size: 13px; color: var(--bt-color-text-muted);">
-                Made with ❤️ by <a href="https://github.com/fernnguyen" target="_blank" style="color: var(--bt-color-text-interactive); text-decoration: none;">@FernNguyen</a>
+            <div
+              style="
+                text-align: center;
+                margin-top: 16px;
+                padding-top: 12px;
+                border-top: 1px solid var(--bt-color-border-default);
+              "
+            >
+              <p
+                style="
+                  margin: 0;
+                  font-size: 13px;
+                  color: var(--bt-color-text-muted);
+                "
+              >
+                Made with ❤️ by
+                <a
+                  href="https://github.com/fernnguyen"
+                  target="_blank"
+                  style="
+                    color: var(--bt-color-text-interactive);
+                    text-decoration: none;
+                  "
+                  >@FernNguyen</a
+                >
               </p>
-              <p style="margin: 4px 0 0 0; font-size: 12px;">
-                <a href="https://github.com/fernnguyen/transkit" target="_blank" style="color: var(--bt-color-text-muted); text-decoration: none;">⭐ Star on GitHub</a>
+              <p style="margin: 4px 0 0 0; font-size: 12px">
+                <a
+                  href="https://github.com/fernnguyen/transkit"
+                  target="_blank"
+                  style="
+                    color: var(--bt-color-text-muted);
+                    text-decoration: none;
+                  "
+                  >⭐ Star on GitHub</a
+                >
               </p>
             </div>
           </div>
         </div>
 
         <div class="bt-actions">
-          <button id="save" class="bt-button" data-i18n="popup.savePreferences">Save preferences</button>
+          <button id="save" class="bt-button" data-i18n="popup.savePreferences">
+            Save preferences
+          </button>
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 # Task 07 — Verification harness + full lint
 
-Status: pending
+Status: in_progress
 
 ## Outcome
 `scripts/verify-extension.mjs` statically proves the port is internally consistent
