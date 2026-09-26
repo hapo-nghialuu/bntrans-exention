@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- BN letterform (BirdNion-style chunky rounded) -->
+  <text x="256" y="330" text-anchor="middle" font-family="'Arial Rounded MT Bold','Arial Black',sans-serif" font-size="300" font-weight="900" fill="#16150f" letter-spacing="-14">BN</text>
+
+  <!-- White halo behind swap arrows -->
+  <g stroke="#ffffff" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M192 218 h118 m0 0 l-22 -22 m22 22 l-22 22"/>
+    <path d="M320 272 h-118 m0 0 l22 -22 m-22 22 l22 22"/>
+  </g>
+
+  <!-- Swap arrows: blue right + sun left -->
+  <g stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M192 218 h118 m0 0 l-22 -22 m22 22 l-22 22" stroke="#4f80e8"/>
+    <path d="M320 272 h-118 m0 0 l22 -22 m-22 22 l22 22" stroke="#f2bf38"/>
+  </g>
+</svg>
