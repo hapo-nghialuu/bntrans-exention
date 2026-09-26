@@ -1070,11 +1070,11 @@ textarea.bt-input:focus {
 }
 
 .bt-provider-tag {
-  font-family: var(--bt-font-mono);
-  font-size: var(--bt-font-size-code);
   color: var(--bt-color-text-muted);
-  text-transform: uppercase;
+  font-size: var(--bt-font-size-code);
+  font-family: var(--bt-font-mono);
   letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .bt-quick-actions {

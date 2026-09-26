@@ -78,14 +78,14 @@
           </svg>
           <span data-i18n="popup.tabGeneral">General</span>
         </div>
-        <div class="bt-tab" data-tab="instant">
+        <div class="bt-tab" data-tab="automation">
           <svg viewBox="0 0 24 24" fill="currentColor">
             <path d="M13 2 4.5 14H11l-1 8L18.5 10H12z" />
           </svg>
-          <span data-i18n="popup.tabInstant">Instant</span>
-          <span id="nav-badge-instant" class="bt-nav-badge" hidden></span>
+          <span data-i18n="popup.tabAutomation">Automation</span>
+          <span id="nav-badge-automation" class="bt-nav-badge" hidden></span>
         </div>
-        <div class="bt-tab" data-tab="hover">
+        <div class="bt-tab" data-tab="advanced">
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -94,52 +94,13 @@
             stroke-linecap="round"
             stroke-linejoin="round"
           >
-            <path d="m5 3 14 8.5-6.2 1.4-3.4 5.6z" />
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+            />
           </svg>
-          <span data-i18n="popup.tabHover">Hover</span>
-          <span id="nav-badge-hover" class="bt-nav-badge" hidden></span>
-        </div>
-        <div class="bt-tab" data-tab="ai-provider">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linejoin="round"
-          >
-            <path d="M12 3 3 8.2 12 13.4l9-5.2z" />
-            <path d="m3 13 9 5.2L21 13" />
-          </svg>
-          <span data-i18n="popup.tabAIProvider">AI Provider</span>
-          <span id="nav-badge-providers" class="bt-nav-badge" hidden></span>
-        </div>
-        <div class="bt-tab" data-tab="tts">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linejoin="round"
-            stroke-linecap="round"
-          >
-            <path d="M4 9.5v5h4l5 4v-13l-5 4z" />
-            <path d="M16.5 8.5a5 5 0 0 1 0 7" />
-          </svg>
-          <span data-i18n="popup.tabTTS">TTS</span>
-        </div>
-        <div class="bt-tab" data-tab="help">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-          >
-            <circle cx="12" cy="12" r="8.5" />
-            <path d="M9.6 9.2a2.5 2.5 0 0 1 4.9.7c0 1.6-2.4 2-2.4 3.3" />
-            <circle cx="12" cy="16.8" r="0.5" fill="currentColor" />
-          </svg>
-          <span data-i18n="popup.tabHelp">Help</span>
+          <span data-i18n="popup.tabAdvanced">Advanced</span>
+          <span id="nav-badge-advanced" class="bt-nav-badge" hidden></span>
         </div>
       </nav>
 
@@ -302,12 +263,14 @@
           </div>
         </div>
 
-        <!-- Instant Tab Content -->
-        <div id="tab-instant" class="bt-tab-content">
+        <!-- Automation Tab Content -->
+        <div id="tab-automation" class="bt-tab-content">
           <div class="bt-pane-header">
-            <h2 class="bt-pane-title" data-i18n="popup.tabInstant">Instant</h2>
-            <p class="bt-pane-desc" data-i18n="popup.descInstant">
-              Translate as you type on enabled domains
+            <h2 class="bt-pane-title" data-i18n="popup.tabAutomation">
+              Automation
+            </h2>
+            <p class="bt-pane-desc" data-i18n="popup.descAutomation">
+              Instant & hover translation on enabled domains
             </p>
           </div>
           <div class="bt-group-label" data-i18n="popup.groupInstant">
@@ -398,16 +361,7 @@
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Hover Tab Content -->
-        <div id="tab-hover" class="bt-tab-content">
-          <div class="bt-pane-header">
-            <h2 class="bt-pane-title" data-i18n="popup.tabHover">Hover</h2>
-            <p class="bt-pane-desc" data-i18n="popup.descHover">
-              Translate text when hovering with a modifier key
-            </p>
-          </div>
           <div class="bt-group-label" data-i18n="popup.groupHover">
             Hover Translate
           </div>
@@ -620,14 +574,14 @@
           </div>
         </div>
 
-        <!-- AI Provider Tab Content -->
-        <div id="tab-ai-provider" class="bt-tab-content">
+        <!-- Advanced Tab Content -->
+        <div id="tab-advanced" class="bt-tab-content">
           <div class="bt-pane-header">
-            <h2 class="bt-pane-title" data-i18n="popup.tabAIProvider">
-              AI Provider
+            <h2 class="bt-pane-title" data-i18n="popup.tabAdvanced">
+              Advanced
             </h2>
-            <p class="bt-pane-desc" data-i18n="popup.descAIProvider">
-              Translation backends and prompt context
+            <p class="bt-pane-desc" data-i18n="popup.descAdvanced">
+              Providers, prompt, TTS and shortcuts
             </p>
           </div>
           <div class="bt-group-label" data-i18n="popup.groupProviders">
@@ -736,16 +690,11 @@
               >
             </div>
           </div>
-        </div>
 
-        <!-- TTS Tab Content -->
-        <div id="tab-tts" class="bt-tab-content">
-          <div class="bt-pane-header">
-            <h2 class="bt-pane-title" data-i18n="popup.tabTTS">TTS</h2>
-            <p class="bt-pane-desc" data-i18n="popup.descTTS">
-              Speech providers for audio playback
-            </p>
+          <div class="bt-group-label" data-i18n="popup.ttsSettings">
+            Text to Speech
           </div>
+
           <div class="bt-section-title" data-i18n="popup.ttsSettings" hidden>
             Text to Speech
           </div>
@@ -809,16 +758,9 @@
               <button id="tts-form-save" class="bt-button">Save</button>
             </div>
           </div>
-        </div>
 
-        <!-- Help Tab Content -->
-        <div id="tab-help" class="bt-tab-content">
-          <div class="bt-pane-header">
-            <h2 class="bt-pane-title" data-i18n="popup.tabHelp">Help</h2>
-            <p class="bt-pane-desc" data-i18n="popup.descHelp">
-              Commands, shortcuts, and usage
-            </p>
-          </div>
+          <div class="bt-group-label" data-i18n="popup.groupHelp">Help</div>
+
           <div class="bt-help-section">
             <h3 data-i18n="help.title" hidden>How to use BNTrans</h3>
 

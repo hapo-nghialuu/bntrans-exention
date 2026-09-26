@@ -148,6 +148,13 @@ function displayVersion() {
   }
 }
 
+function updateAutomationBadge() {
+  setNavBadge(
+    "nav-badge-automation",
+    currentDomains.length + currentHoverDomains.length
+  );
+}
+
 function setNavBadge(id, count) {
   const badge = document.getElementById(id);
   if (!badge) return;
@@ -254,7 +261,7 @@ function renderDomains() {
     });
   });
 
-  setNavBadge("nav-badge-instant", currentDomains.length);
+  updateAutomationBadge();
 }
 
 function renderProviderList() {
@@ -296,7 +303,7 @@ function renderProviderList() {
     providerListEl.appendChild(el);
   });
 
-  setNavBadge("nav-badge-providers", providers.length);
+  setNavBadge("nav-badge-advanced", providers.length);
 
   // Attach events
   providerListEl.querySelectorAll(".btn-set-active").forEach((btn) => {
@@ -1232,7 +1239,7 @@ function renderHoverDomainList(domains) {
   if (!hoverDomainList) return;
   hoverDomainList.innerHTML = "";
   if (hoverDomainCount) hoverDomainCount.textContent = domains.length;
-  setNavBadge("nav-badge-hover", domains.length);
+  updateAutomationBadge();
 
   domains.forEach((d, index) => {
     const item = document.createElement("div");
