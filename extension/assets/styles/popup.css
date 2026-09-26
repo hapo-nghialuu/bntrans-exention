@@ -370,13 +370,17 @@ em {
 }
 
 .bt-button-small {
-  height: var(--bt-target-min-height);
+  height: 28px;
   padding: 0 var(--bt-space-medium);
   border: 1px solid var(--bt-color-border-default);
-  border-radius: var(--bt-radius-small);
-  background: var(--bt-color-background-default);
-  font-weight: 600;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--bt-color-text-muted);
+  font-weight: 500;
+  font-size: var(--bt-font-size-code);
   font-family: var(--bt-font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   cursor: pointer;
   transition:
     border-color var(--bt-transition-duration) var(--bt-ease),
@@ -694,7 +698,7 @@ input:checked + .slider:before {
 .bt-provider-item.active {
   border-color: var(--bt-color-blue);
   background: var(--bt-color-background-default);
-  box-shadow: 0.1875rem 0.1875rem 0 var(--bt-color-sun);
+  box-shadow: inset 0 0 0 1px var(--bt-color-blue);
 }
 
 .bt-provider-info {
@@ -767,11 +771,13 @@ input:checked + .slider:before {
 }
 
 .bt-button-outline:hover {
-  transform: none;
   border-color: var(--bt-color-ink);
-  background: var(--bt-color-selected-surface);
-  box-shadow: none;
+  background: var(--bt-color-background-hover);
   color: var(--bt-color-ink);
+}
+
+.bt-button-outline:active {
+  opacity: 0.7;
 }
 
 /* Provider Form */

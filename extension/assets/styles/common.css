@@ -3,58 +3,51 @@
   min-height: var(--bt-target-min-height);
   margin: 0;
   padding: var(--bt-space-small) var(--bt-space-medium);
-  border: var(--bt-border-width) solid var(--bt-color-primary-border);
-  border-radius: var(--bt-radius);
+  border: 1px solid var(--bt-color-primary-border);
+  border-radius: 4px;
   background-color: var(--bt-color-primary-background);
-  box-shadow: var(--bt-shadow-hard);
   color: var(--bt-color-primary-text);
-  font: inherit;
-  font-weight: 600;
-  font-size: var(--bt-font-size-small);
+  font-weight: 500;
+  font-size: var(--bt-font-size-code);
   line-height: 1;
   font-family: var(--bt-font-mono);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
   transition:
-    transform var(--bt-transition-duration) var(--bt-ease),
-    box-shadow var(--bt-transition-duration) var(--bt-ease),
+    background-color var(--bt-transition-duration) var(--bt-ease),
     border-color var(--bt-transition-duration) var(--bt-ease),
-    background-color var(--bt-transition-duration) var(--bt-ease);
+    opacity var(--bt-transition-duration) var(--bt-ease);
 
   &:hover {
-    transform: translate(0.125rem, 0.125rem);
     border-color: var(--bt-color-primary-border-hover);
     background-color: var(--bt-color-primary-background-hover);
-    box-shadow: var(--bt-shadow-hard-hover);
   }
 
   &:active {
-    transform: translate(0.25rem, 0.25rem);
-    border-color: var(--bt-color-primary-border-interactive);
-    background-color: var(--bt-color-primary-background-interactive);
-    box-shadow: none;
-    color: var(--bt-color-ink);
+    opacity: 0.7;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.4;
   }
 
   &.bt-cancel,
   &#clear {
     border-color: var(--bt-color-danger-border);
-    background-color: var(--bt-color-danger-background);
-    box-shadow: none;
+    background-color: transparent;
     color: var(--bt-color-danger-text);
 
     &:hover {
-      transform: none;
       border-color: var(--bt-color-danger-border-hover);
-      background-color: var(--bt-color-danger-background-hover);
-      box-shadow: none;
+      background-color: var(--bt-color-danger-background);
     }
 
     &:active {
       border-color: var(--bt-color-danger-border-interactive);
       background-color: var(--bt-color-danger-background-interactive);
-      color: var(--bt-color-danger-text);
+      opacity: 1;
     }
   }
 }
