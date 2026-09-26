@@ -1,19 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <!-- Ink tile -->
-  <rect x="14" y="14" width="484" height="484" rx="104" fill="#16150f"/>
+  <!-- Ink tile, full bleed -->
+  <rect width="512" height="512" fill="#16150f"/>
 
   <!-- BN letterform (paper-bright) -->
-  <text x="256" y="352" text-anchor="middle" font-family="'Arial Rounded MT Bold','Arial Black',sans-serif" font-size="290" font-weight="900" fill="#fffefa" letter-spacing="-14">BN</text>
+  <text x="256" y="358" text-anchor="middle" font-family="'Arial Rounded MT Bold','Arial Black',sans-serif" font-size="300" font-weight="900" fill="#fffefa" letter-spacing="-14">BN</text>
 
   <!-- Ink halo behind swap arrows -->
   <g stroke="#16150f" stroke-width="42" stroke-linecap="round" stroke-linejoin="round" fill="none">
-    <path d="M168 236 h160 m0 0 l-26 -26 m26 26 l-26 26"/>
-    <path d="M344 300 h-160 m0 0 l26 -26 m-26 26 l26 26"/>
+    <path d="M158 240 h170 m0 0 l-26 -26 m26 26 l-26 26"/>
+    <path d="M354 304 h-170 m0 0 l26 -26 m-26 26 l26 26"/>
   </g>
 
   <!-- Swap arrows: blue right + sun left -->
   <g stroke-width="26" stroke-linecap="round" stroke-linejoin="round" fill="none">
-    <path d="M168 236 h160 m0 0 l-26 -26 m26 26 l-26 26" stroke="#4f80e8"/>
-    <path d="M344 300 h-160 m0 0 l26 -26 m-26 26 l26 26" stroke="#f2bf38"/>
+    <path d="M158 240 h170 m0 0 l-26 -26 m26 26 l-26 26" stroke="#4f80e8"/>
+    <path d="M354 304 h-170 m0 0 l26 -26 m-26 26 l26 26" stroke="#f2bf38"/>
   </g>
 </svg>
