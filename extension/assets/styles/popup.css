@@ -126,24 +126,166 @@ select {
 } */
 
 .bt-wrap {
-  display: grid;
+  display: flex;
   position: relative;
-  width: 32rem; /* Increased width */
-  padding: var(--bt-space-large);
-  overflow: hidden auto;
-  gap: var(--bt-space-small);
+  width: 38rem;
+  min-height: 30rem;
+  max-height: 600px;
+  padding: 0;
+  overflow: hidden;
 }
 
-.bt-header {
-  display: grid;
-  margin-bottom: var(--bt-space-medium);
-  gap: var(--bt-space-small);
+/* Sidebar — BirdNion app settings style */
+.bt-sidebar {
+  display: flex;
+  flex: 0 0 9.75rem;
+  flex-direction: column;
+  padding: var(--bt-space-medium) var(--bt-space-small);
+  gap: var(--bt-space-medium);
+  border-right: 1px solid var(--bt-color-border-default);
+  background: var(--bt-color-background-muted);
 }
 
-.bt-title-row {
+.bt-brand {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  padding: 4px 6px;
+  gap: 8px;
+}
+
+.bt-brand img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  border-radius: 7px;
+}
+
+.bt-brand-name {
+  color: var(--bt-color-text-muted);
+  font-weight: 600;
+  font-size: 10px;
+  font-family: var(--bt-font-mono);
+  letter-spacing: 0.14em;
+}
+
+.bt-nav {
+  display: grid;
+  gap: 2px;
+}
+
+.bt-nav-item {
+  display: flex;
+  align-items: center;
+  padding: 7px 8px;
+  gap: 8px;
+  border-radius: 8px;
+  color: var(--bt-color-text-default);
+  font-weight: 600;
+  font-size: var(--bt-font-size-small);
+  cursor: pointer;
+  transition:
+    background-color var(--bt-transition-duration) var(--bt-ease),
+    color var(--bt-transition-duration) var(--bt-ease);
+}
+
+.bt-nav-item svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  color: var(--bt-color-text-muted);
+  transition: color var(--bt-transition-duration) var(--bt-ease);
+}
+
+.bt-nav-item:hover {
+  background: var(--bt-color-hover-surface);
+}
+
+.bt-nav-item.active {
+  background: var(--bt-color-ink);
+  color: var(--bt-color-paper-bright);
+}
+
+.bt-nav-item.active svg {
+  color: var(--bt-color-paper-bright);
+}
+
+.bt-nav-badge {
+  margin-left: auto;
+  color: var(--bt-color-green);
+  font-weight: 600;
+  font-size: 10px;
+  font-family: var(--bt-font-mono);
+}
+
+.bt-nav-item.active .bt-nav-badge {
+  color: var(--bt-color-sun);
+}
+
+.bt-sidebar-footer {
+  display: grid;
+  margin-top: auto;
+  padding: var(--bt-space-small) 6px 4px;
+  gap: 10px;
+  border-top: 1px solid var(--bt-color-border-default);
+}
+
+.bt-sidebar-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bt-sidebar-switch-label {
+  color: var(--bt-color-text-muted);
+  font-weight: 600;
+  font-size: 9.5px;
+  font-family: var(--bt-font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.bt-sidebar-version {
+  color: var(--bt-color-text-muted);
+  font-size: 9.5px;
+  font-family: var(--bt-font-mono);
+  letter-spacing: 0.1em;
+}
+
+.bt-main {
+  flex: 1;
+  min-width: 0;
+  padding: var(--bt-space-large);
+  overflow-y: auto;
+}
+
+.bt-pane-header {
+  display: grid;
+  padding-bottom: var(--bt-space-medium);
+  gap: 2px;
+  border-bottom: 1px solid var(--bt-color-border-default);
+}
+
+.bt-pane-title {
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -0.02em;
+}
+
+.bt-pane-desc {
+  color: var(--bt-color-text-muted);
+  font-size: var(--bt-font-size-small);
+}
+
+.bt-group-label {
+  margin-top: var(--bt-space-small);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--bt-color-border-default);
+  color: var(--bt-color-text-muted);
+  font-weight: 600;
+  font-size: 9.5px;
+  font-family: var(--bt-font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .bt-settings-container {
@@ -325,11 +467,11 @@ input:checked + .slider:before {
 }
 
 .slider.round {
-  border-radius: 34px;
+  border-radius: 7px;
 }
 
 .slider.round:before {
-  border-radius: 50%;
+  border-radius: 4px;
 }
 
 .bt-instant-settings {
@@ -463,27 +605,6 @@ input:checked + .slider:before {
   text-align: center;
 }
 
-.title {
-  display: flex;
-  align-items: center; /* căn giữa theo chiều dọc */
-  gap: 10px; /* khoảng cách giữa icon và text */
-}
-
-.title img {
-  width: 26px;
-  height: 26px;
-  padding: 3px;
-  object-fit: contain;
-  border: 1px solid var(--bt-color-ink);
-  border-radius: 8px;
-  background: var(--bt-color-ink);
-  transition: transform var(--bt-transition-duration) var(--bt-ease);
-}
-
-.title:hover img {
-  transform: rotate(-5deg) translateY(-1px);
-}
-
 .bt-controls {
   display: flex;
   align-items: center;
@@ -511,7 +632,6 @@ input:checked + .slider:before {
 .bt-lang-toggle {
   display: flex;
   align-items: center;
-  margin-right: 12px;
   gap: 4px;
   color: var(--bt-color-text-muted);
   font-weight: 600;
@@ -550,44 +670,6 @@ input:checked + .slider:before {
 #save {
   justify-content: center;
   width: 100%;
-}
-
-/* Tabs — BirdNion segmented control */
-.bt-tabs {
-  display: flex;
-  margin-bottom: var(--bt-space-medium);
-  padding: 3px;
-  gap: 2px;
-  border: var(--bt-border-width) solid var(--bt-color-border-default);
-  border-radius: var(--bt-radius);
-  background: var(--bt-color-background-muted);
-}
-
-.bt-tab {
-  flex: 1;
-  padding: 0.4rem 0.25rem;
-  border: 1px solid transparent;
-  border-radius: calc(var(--bt-radius) - 2px);
-  color: var(--bt-color-text-muted);
-  font-weight: 600;
-  font-size: 10px;
-  font-family: var(--bt-font-mono);
-  letter-spacing: 0.04em;
-  text-align: center;
-  text-transform: uppercase;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: all var(--bt-transition-duration) var(--bt-ease);
-}
-
-.bt-tab:hover {
-  color: var(--bt-color-text-default);
-}
-
-.bt-tab.active {
-  border-color: var(--bt-color-ink);
-  background: var(--bt-color-ink);
-  color: var(--bt-color-paper-bright);
 }
 
 .bt-tab-content {
@@ -931,7 +1013,7 @@ textarea.bt-input:focus {
 }
 
 /* Full Page Layout Adjustments */
-@media (min-width: 600px) {
+@media (min-width: 700px) {
   body {
     display: flex;
     align-items: center;
@@ -941,8 +1023,9 @@ textarea.bt-input:focus {
   }
 
   .bt-wrap {
-    width: 32rem; /* Slightly wider on full page */
-    max-height: 90vh;
+    width: 46rem;
+    height: 90vh;
+    max-height: 44rem;
     border: var(--bt-border-width) solid var(--bt-color-border-default);
     border-radius: 12px;
     background-color: var(--bt-color-background-page);

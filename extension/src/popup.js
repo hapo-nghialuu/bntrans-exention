@@ -132,6 +132,13 @@ function displayVersion() {
   }
 }
 
+function setNavBadge(id, count) {
+  const badge = document.getElementById(id);
+  if (!badge) return;
+  badge.hidden = !count;
+  badge.textContent = count || "";
+}
+
 function populateSelects() {
   const currentNative = nativeSelect.value;
   const currentTarget = targetSelect.value;
@@ -212,6 +219,8 @@ function renderDomains() {
       saveSettings();
     });
   });
+
+  setNavBadge("nav-badge-instant", currentDomains.length);
 }
 
 function renderProviderList() {
@@ -252,6 +261,8 @@ function renderProviderList() {
     `;
     providerListEl.appendChild(el);
   });
+
+  setNavBadge("nav-badge-providers", providers.length);
 
   // Attach events
   providerListEl.querySelectorAll(".btn-set-active").forEach((btn) => {
