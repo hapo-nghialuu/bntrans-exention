@@ -1,6 +1,6 @@
 # Task 05 — Settings popup UI
 
-Status: pending
+Status: done
 
 ## Outcome
 The 5-tab settings popup (General / Instant / AI Provider / TTS / Help) and its logic
@@ -42,4 +42,16 @@ popup's visible product name reads "BNTrans".
 - Artifacts: ephemeral
 
 ## Receipt
-<!-- Fill only after execution; see canonical form below. -->
+
+Verification: PASS
+Command: npx eslint extension/src/popup.js
+Exit: 0
+Base: eb9a7a4
+Head: e8f2904
+```text
+$ npx eslint extension/src/popup.js
+EXIT=0
+```
+Note: R1 applied — popup `<title>`, logo `alt`, and `popup.title` EN+VI locale
+values now read "BNTrans"; other TransKit strings left verbatim per scope.
+Removed dead `normalizeLanguageToCode` import (unused). prettier --fix applied.
