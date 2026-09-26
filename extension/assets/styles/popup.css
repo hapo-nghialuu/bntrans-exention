@@ -471,11 +471,11 @@ em {
 .bt-button-small {
   height: 28px;
   padding: 0 var(--bt-space-medium);
-  border: 1px solid var(--bt-color-border-default);
+  border: 1px solid var(--bt-color-primary-border);
   border-radius: 4px;
   background: transparent;
-  color: var(--bt-color-text-muted);
-  font-weight: 500;
+  color: var(--bt-color-primary-background);
+  font-weight: 600;
   font-size: var(--bt-font-size-code);
   font-family: var(--bt-font-mono);
   letter-spacing: 0.04em;
@@ -486,8 +486,8 @@ em {
     background-color var(--bt-transition-duration) var(--bt-ease);
 
   &:hover {
-    border-color: var(--bt-color-border-hover);
-    background: var(--bt-color-background-hover);
+    border-color: var(--bt-color-primary-border-hover);
+    background: var(--bt-color-primary-background-interactive);
   }
 }
 
@@ -838,8 +838,14 @@ input:checked + .slider:before {
 }
 
 .bt-btn-text:hover {
-  background: var(--bt-color-hover-surface);
-  color: var(--bt-color-text-default);
+  background: var(--bt-color-primary-background-interactive);
+  color: var(--bt-color-primary-background);
+}
+
+.bt-btn-text.btn-set-active,
+.bt-btn-text.btn-set-active-tts {
+  color: var(--bt-color-primary-background);
+  font-weight: 600;
 }
 
 .bt-btn-text.btn-delete:hover {
@@ -883,14 +889,14 @@ input:checked + .slider:before {
    from content cards so it reads as an action, not a list item */
 .bt-button-dash {
   border-style: dashed;
-  border-color: var(--bt-color-border-default);
-  color: var(--bt-color-text-muted);
+  border-color: var(--bt-color-primary-border);
+  color: var(--bt-color-primary-background);
 }
 
 .bt-button-dash:hover {
   border-style: solid;
-  border-color: var(--bt-color-primary-border);
-  background: var(--bt-color-background-default);
+  border-color: var(--bt-color-primary-border-hover);
+  background: var(--bt-color-primary-background-interactive);
   color: var(--bt-color-primary-background);
 }
 
@@ -1164,8 +1170,9 @@ textarea.bt-input:focus {
 }
 
 .bt-quick-swap:hover {
-  border-color: var(--bt-color-border-interactive);
-  color: var(--bt-color-text-default);
+  border-color: var(--bt-color-primary-border);
+  background: var(--bt-color-primary-background-interactive);
+  color: var(--bt-color-primary-background);
 }
 
 .bt-quick-translate {
@@ -1216,8 +1223,8 @@ textarea.bt-input:focus {
 }
 
 .bt-quick-action:hover {
-  background: var(--bt-color-border-default);
-  color: var(--bt-color-text-default);
+  background: var(--bt-color-primary-background-interactive);
+  color: var(--bt-color-primary-background);
 }
 
 .bt-quick-result-text {
@@ -1257,8 +1264,8 @@ textarea.bt-input:focus {
 }
 
 .bt-icon-btn:hover {
-  border-color: var(--bt-color-border-interactive);
-  color: var(--bt-color-text-default);
+  border-color: var(--bt-color-primary-border);
+  color: var(--bt-color-primary-background);
 }
 
 .bt-quick-body {
