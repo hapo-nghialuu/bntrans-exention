@@ -1202,6 +1202,7 @@ function renderHoverDomainList(domains) {
   if (!hoverDomainList) return;
   hoverDomainList.innerHTML = "";
   if (hoverDomainCount) hoverDomainCount.textContent = domains.length;
+  setNavBadge("nav-badge-hover", domains.length);
 
   domains.forEach((d, index) => {
     const item = document.createElement("div");

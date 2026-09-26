@@ -72,6 +72,20 @@
           <span data-i18n="popup.tabInstant">Instant</span>
           <span id="nav-badge-instant" class="bt-nav-badge" hidden></span>
         </div>
+        <div class="bt-tab" data-tab="hover">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="m5 3 14 8.5-6.2 1.4-3.4 5.6z" />
+          </svg>
+          <span data-i18n="popup.tabHover">Hover</span>
+          <span id="nav-badge-hover" class="bt-nav-badge" hidden></span>
+        </div>
         <div class="bt-tab" data-tab="ai-provider">
           <svg
             viewBox="0 0 24 24"
@@ -204,7 +218,114 @@
             </div>
             <div id="alias-list" class="bt-alias-list"></div>
           </div>
+        </div>
 
+        <!-- Instant Tab Content -->
+        <div id="tab-instant" class="bt-tab-content">
+          <div class="bt-pane-header">
+            <h2 class="bt-pane-title" data-i18n="popup.tabInstant">Instant</h2>
+            <p class="bt-pane-desc" data-i18n="popup.descInstant">
+              Translate as you type on enabled domains
+            </p>
+          </div>
+          <div class="bt-group-label" data-i18n="popup.groupInstant">
+            Instant Mode
+          </div>
+          <div class="bt-field-row" style="justify-content: space-between">
+            <div style="display: flex; align-items: center; gap: 8px">
+              <label class="bt-switch">
+                <input type="checkbox" id="instant-translate-enabled" />
+                <span class="slider round"></span>
+              </label>
+              <label
+                for="instant-translate-enabled"
+                data-i18n="popup.enableInstant"
+                >Enable Instant Translate for specific domains</label
+              >
+            </div>
+          </div>
+
+          <div id="instant-settings" class="bt-instant-settings" hidden>
+            <div class="bt-field">
+              <label for="instant-delay" data-i18n="popup.instantDelay"
+                >Delay (seconds)</label
+              >
+              <input
+                type="number"
+                id="instant-delay"
+                class="bt-input"
+                min="1"
+                max="10"
+                value="3"
+              />
+            </div>
+
+            <div class="bt-field">
+              <label data-i18n="popup.activeDomains">Active Domains</label>
+              <div id="instant-domain-list" class="bt-domain-list"></div>
+              <div class="bt-domain-input-group">
+                <input
+                  type="text"
+                  id="new-domain"
+                  placeholder="example.com"
+                  data-i18n-placeholder="popup.domainPlaceholder"
+                />
+                <button id="add-domain" class="bt-button-small">+</button>
+              </div>
+            </div>
+
+            <div class="bt-divider"></div>
+
+            <div class="bt-field">
+              <label data-i18n="popup.toggleShortcut"
+                >Toggle Instant Shortcut</label
+              >
+              <div class="bt-shortcut-compact">
+                <div class="bt-shortcut-modifiers">
+                  <label>
+                    <input type="checkbox" id="shortcut-ctrl" checked />
+                    <span data-i18n="popup.shortcutCtrl">Ctrl/Cmd</span>
+                  </label>
+                  <label>
+                    <input type="checkbox" id="shortcut-shift" checked />
+                    <span data-i18n="popup.shortcutShift">Shift</span>
+                  </label>
+                  <label>
+                    <input type="checkbox" id="shortcut-alt" />
+                    <span data-i18n="popup.shortcutAlt">Alt</span>
+                  </label>
+                  <span style="margin: 0 8px; color: #888">+</span>
+                  <input
+                    type="text"
+                    id="shortcut-key"
+                    class="bt-input"
+                    maxlength="1"
+                    value="I"
+                    style="
+                      width: 50px;
+                      text-align: center;
+                      text-transform: uppercase;
+                    "
+                  />
+                </div>
+                <div class="bt-shortcut-preview">
+                  <small id="shortcut-preview" style="color: #888"
+                    >Ctrl+Shift+I (Cmd+Shift+I on Mac)</small
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hover Tab Content -->
+        <div id="tab-hover" class="bt-tab-content">
+          <div class="bt-pane-header">
+            <h2 class="bt-pane-title" data-i18n="popup.tabHover">Hover</h2>
+            <p class="bt-pane-desc" data-i18n="popup.descHover">
+              Translate text when hovering with a modifier key
+            </p>
+          </div>
           <div class="bt-group-label" data-i18n="popup.groupHover">
             Hover Translate
           </div>
@@ -411,104 +532,6 @@
                   <button id="add-hover-domain" class="bt-button-small">
                     +
                   </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Instant Tab Content -->
-        <div id="tab-instant" class="bt-tab-content">
-          <div class="bt-pane-header">
-            <h2 class="bt-pane-title" data-i18n="popup.tabInstant">Instant</h2>
-            <p class="bt-pane-desc" data-i18n="popup.descInstant">
-              Translate as you type on enabled domains
-            </p>
-          </div>
-          <div class="bt-group-label" data-i18n="popup.groupInstant">
-            Instant Mode
-          </div>
-          <div class="bt-field-row" style="justify-content: space-between">
-            <div style="display: flex; align-items: center; gap: 8px">
-              <label class="bt-switch">
-                <input type="checkbox" id="instant-translate-enabled" />
-                <span class="slider round"></span>
-              </label>
-              <label
-                for="instant-translate-enabled"
-                data-i18n="popup.enableInstant"
-                >Enable Instant Translate for specific domains</label
-              >
-            </div>
-          </div>
-
-          <div id="instant-settings" class="bt-instant-settings" hidden>
-            <div class="bt-field">
-              <label for="instant-delay" data-i18n="popup.instantDelay"
-                >Delay (seconds)</label
-              >
-              <input
-                type="number"
-                id="instant-delay"
-                class="bt-input"
-                min="1"
-                max="10"
-                value="3"
-              />
-            </div>
-
-            <div class="bt-field">
-              <label data-i18n="popup.activeDomains">Active Domains</label>
-              <div id="instant-domain-list" class="bt-domain-list"></div>
-              <div class="bt-domain-input-group">
-                <input
-                  type="text"
-                  id="new-domain"
-                  placeholder="example.com"
-                  data-i18n-placeholder="popup.domainPlaceholder"
-                />
-                <button id="add-domain" class="bt-button-small">+</button>
-              </div>
-            </div>
-
-            <div class="bt-divider"></div>
-
-            <div class="bt-field">
-              <label data-i18n="popup.toggleShortcut"
-                >Toggle Instant Shortcut</label
-              >
-              <div class="bt-shortcut-compact">
-                <div class="bt-shortcut-modifiers">
-                  <label>
-                    <input type="checkbox" id="shortcut-ctrl" checked />
-                    <span data-i18n="popup.shortcutCtrl">Ctrl/Cmd</span>
-                  </label>
-                  <label>
-                    <input type="checkbox" id="shortcut-shift" checked />
-                    <span data-i18n="popup.shortcutShift">Shift</span>
-                  </label>
-                  <label>
-                    <input type="checkbox" id="shortcut-alt" />
-                    <span data-i18n="popup.shortcutAlt">Alt</span>
-                  </label>
-                  <span style="margin: 0 8px; color: #888">+</span>
-                  <input
-                    type="text"
-                    id="shortcut-key"
-                    class="bt-input"
-                    maxlength="1"
-                    value="I"
-                    style="
-                      width: 50px;
-                      text-align: center;
-                      text-transform: uppercase;
-                    "
-                  />
-                </div>
-                <div class="bt-shortcut-preview">
-                  <small id="shortcut-preview" style="color: #888"
-                    >Ctrl+Shift+I (Cmd+Shift+I on Mac)</small
-                  >
                 </div>
               </div>
             </div>
