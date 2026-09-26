@@ -114,9 +114,61 @@
   --bt-shadow-hard-hover: 0.125rem 0.125rem 0 var(--bt-color-sun);
 }
 
+/* Dark palette — manual override via data-theme="dark" */
+:root[data-theme="dark"],
+.bt-vars-container[data-theme="dark"] {
+  /* Inverted paper/ink palette */
+  --bt-color-paper: #16150f;
+  --bt-color-paper-deep: #1d1b15;
+  --bt-color-paper-bright: #24221b;
+  --bt-color-ink: #f0ede4;
+  --bt-color-ink-soft: #a09c8f;
+  --bt-color-hairline: #3a382f;
+  --bt-color-hairline-dark: #55524a;
+  --bt-color-blue: #4f80e8;
+  --bt-color-blue-dark: #6b98ef;
+  --bt-color-sun: #f2bf38;
+  --bt-color-sun-soft: #3a2f14;
+  --bt-color-bird-blue: #84b8f4;
+  --bt-color-sky: #4f80e8;
+  --bt-color-green: #45c486;
+  --bt-color-warning: #e8c96a;
+  --bt-color-critical: #e8927f;
+  --bt-color-selected-surface: #2d2b23;
+  --bt-color-hover-surface: #27251d;
+  --bt-color-track: #3f3c33;
+
+  --bt-color-border-hover: #4a473d;
+
+  --bt-color-primary-background: #4f80e8;
+  --bt-color-primary-background-hover: #6b98ef;
+  --bt-color-primary-background-interactive: #26334f;
+  --bt-color-primary-border: #4f80e8;
+  --bt-color-primary-border-hover: #6b98ef;
+  --bt-color-primary-border-interactive: #6b98ef;
+
+  --bt-color-mirror-background: #35290f;
+  --bt-color-mirror-background-hover: #443718;
+  --bt-color-mirror-border: #5c4a1c;
+  --bt-color-mirror-text: #e8c96a;
+
+  --bt-color-danger-background: #3a1f1a;
+  --bt-color-danger-background-hover: #4a2821;
+  --bt-color-danger-background-interactive: #5c352c;
+  --bt-color-danger-border: #5c352c;
+  --bt-color-danger-border-hover: #7a453a;
+
+  --bt-shadow-default:
+    0 0.0625rem 0.125rem #00000066, 0 0.0625rem 0.0625rem #0000004d;
+  --bt-shadow-hover:
+    0 0.25rem 0.5rem #00000080, 0 0.0625rem 0.1875rem #00000066;
+  --bt-shadow-interactive: 0.375rem 0.375rem 0 #0000004d;
+}
+
+/* Dark palette — system preference unless manually forced light */
 @media (prefers-color-scheme: dark) {
-  :root,
-  .bt-vars-container {
+  :root:not([data-theme="light"]),
+  .bt-vars-container:not([data-theme="light"]) {
     /* Inverted paper/ink palette */
     --bt-color-paper: #16150f;
     --bt-color-paper-deep: #1d1b15;

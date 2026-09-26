@@ -20,6 +20,19 @@ let selectionIcon = null;
 let selectionPopup = null;
 let selectedText = "";
 
+// Theme (auto/light/dark) applied to injected UI containers
+let currentTheme = "auto";
+
+function applyThemeTo(el) {
+  if (!el) return;
+  if (currentTheme === "auto") el.removeAttribute("data-theme");
+  else el.dataset.theme = currentTheme;
+}
+
+function refreshInjectedTheme() {
+  document.querySelectorAll(".bt-vars-container").forEach(applyThemeTo);
+}
+
 // Global error handler for extension context invalidation
 window.addEventListener("error", (event) => {
   if (
@@ -257,6 +270,26 @@ async function getSettings() {
   };
 }
 
+// Initialize theme from settings + keep injected UI in sync
+try {
+  getSettings().then((s) => {
+    currentTheme = s?.theme || "auto";
+    refreshInjectedTheme();
+  });
+
+  chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (namespace === "local" && changes.translatorSettings?.newValue) {
+      const theme = changes.translatorSettings.newValue.theme || "auto";
+      if (theme !== currentTheme) {
+        currentTheme = theme;
+        refreshInjectedTheme();
+      }
+    }
+  });
+} catch {
+  /* extension context not ready */
+}
+
 async function requestTranslation(payload) {
   if (!isExtensionContextValid()) {
     throw new Error(i18n.t("toast.extensionUpdated"));
@@ -344,6 +377,7 @@ function showToast(message) {
 
   // Set class based on type
   host.className = `bt-toast-notify bt-toast-notify-${toastType} bt-vars-container`;
+  applyThemeTo(host);
 
   host.innerHTML = `
     <div class="bt-toast-notify-content">
@@ -622,6 +656,7 @@ function buildInlineSuggestion(
 ) {
   const container = document.createElement("div");
   container.className = "bt-inline-suggestion bt-vars-container";
+  applyThemeTo(container);
 
   // Position relative to input
   const rect = element.getBoundingClientRect();
@@ -1461,6 +1496,7 @@ function showTranslateIcon(x, y, selection) {
 
     const icon = document.createElement("div");
     icon.className = "bt-translate-icon bt-vars-container";
+    applyThemeTo(icon);
 
     // Use extension icon instead of SVG
     let iconUrl;
@@ -1776,6 +1812,7 @@ async function showTranslationPopup(selectionRect, text, iconPosition) {
       iconUrl = "";
     }
     popup.className = "bt-selection-popup bt-vars-container";
+    applyThemeTo(popup);
     popup.innerHTML = `
     <div class="bt-selection-bg-pattern"></div>
     <div class="bt-selection-header">

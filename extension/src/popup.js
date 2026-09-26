@@ -13,6 +13,9 @@ const aliasKeyInput = document.querySelector("#alias-key");
 const aliasValueInput = document.querySelector("#alias-value");
 const addAliasBtn = document.querySelector("#add-alias");
 
+// Theme element
+const themeSelect = document.querySelector("#theme-select");
+
 // Instant translate elements
 const instantEnabledCheckbox = document.querySelector(
   "#instant-translate-enabled"
@@ -137,6 +140,11 @@ function setNavBadge(id, count) {
   if (!badge) return;
   badge.hidden = !count;
   badge.textContent = count || "";
+}
+
+function applyTheme(value) {
+  if (value === "auto") document.body.removeAttribute("data-theme");
+  else document.body.dataset.theme = value;
 }
 
 function populateSelects() {
@@ -744,6 +752,10 @@ async function loadSettings() {
     confirmModal.checked = res.settings.showConfirmModal !== false;
     currentAliases = res.settings.aliases || {};
 
+    const theme = res.settings.theme || "auto";
+    if (themeSelect) themeSelect.value = theme;
+    applyTheme(theme);
+
     const lang = res.settings.interfaceLanguage || "vi";
     updateLangToggleUI(lang);
     i18n.setLanguage(lang);
@@ -896,6 +908,7 @@ async function saveSettings() {
     useAutoDetect: autoDetect.checked,
     showConfirmModal: confirmModal.checked,
     aliases: currentAliases,
+    theme: themeSelect?.value || "auto",
     interfaceLanguage: document
       .querySelector("#lang-toggle .active")
       .getAttribute("data-lang"),
@@ -971,6 +984,10 @@ enabledCheckbox.addEventListener("change", () => {
 
 nativeSelect.addEventListener("change", saveSettings);
 targetSelect.addEventListener("change", saveSettings);
+themeSelect?.addEventListener("change", () => {
+  applyTheme(themeSelect.value);
+  saveSettings();
+});
 
 autoDetect.addEventListener("change", saveSettings);
 confirmModal.addEventListener("change", saveSettings);
