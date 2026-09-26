@@ -102,6 +102,21 @@
           <span data-i18n="popup.tabAdvanced">Advanced</span>
           <span id="nav-badge-advanced" class="bt-nav-badge" hidden></span>
         </div>
+        <div class="bt-tab" data-tab="help">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="9" />
+            <path d="M9.6 9.2a2.5 2.5 0 0 1 4.9.7c0 1.6-2.4 2-2.4 3.3" />
+            <path d="M12 16.5h.01" />
+          </svg>
+          <span data-i18n="popup.tabHelp">Help</span>
+        </div>
       </nav>
 
       <div id="settings-container" class="bt-settings-container">
@@ -758,8 +773,16 @@
               <button id="tts-form-save" class="bt-button">Save</button>
             </div>
           </div>
+        </div>
 
-          <div class="bt-group-label" data-i18n="popup.groupHelp">Help</div>
+        <!-- Help Tab Content -->
+        <div id="tab-help" class="bt-tab-content">
+          <div class="bt-pane-header">
+            <h2 class="bt-pane-title" data-i18n="popup.tabHelp">Help</h2>
+            <p class="bt-pane-desc" data-i18n="popup.descHelp">
+              Commands, shortcuts, and usage
+            </p>
+          </div>
 
           <div class="bt-help-section">
             <h3 data-i18n="help.title" hidden>How to use BNTrans</h3>
@@ -806,7 +829,7 @@
               <h4>AI Providers</h4>
               <p>
                 Choose from multiple AI providers in the
-                <strong>AI Provider</strong> tab:
+                <strong>Advanced</strong> tab:
               </p>
               <ul style="margin: 8px 0; padding-left: 20px">
                 <li>
@@ -841,7 +864,7 @@
               <h4>Custom Prompts</h4>
               <p>
                 Tailor translation behavior in the
-                <strong>Prompt</strong> tab:
+                <strong>Advanced</strong> tab:
               </p>
               <ul style="margin: 8px 0; padding-left: 20px">
                 <li>
