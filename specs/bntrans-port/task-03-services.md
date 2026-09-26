@@ -1,6 +1,6 @@
 # Task 03 — Provider/format/TTS services
 
-Status: pending
+Status: done
 
 ## Outcome
 All AI providers, HTML↔markdown format utilities, and the TTS service are ported
@@ -39,4 +39,16 @@ verbatim under `extension/src/services/`.
 - Artifacts: ephemeral
 
 ## Receipt
-<!-- Fill only after execution; see canonical form below. -->
+
+Verification: PASS
+Command: npx eslint extension/src/services/
+Exit: 0
+Base: cd67b91
+Head: 53e11f6
+```text
+$ npx eslint extension/src/services/
+EXIT=0
+```
+Note: prettier --fix applied; removed 3 unused `translate()` params on
+base/`WindowAIProvider` stubs and dead `isFree` in `DeepLProvider` — no behavior
+change (subclasses keep their own signatures; base only throws).
