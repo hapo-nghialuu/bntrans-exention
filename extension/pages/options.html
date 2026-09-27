@@ -76,7 +76,7 @@
             <span data-i18n="popup.tabHover">Hover</span>
             <span id="nav-badge-hover" class="bt-nav-badge" hidden></span>
           </div>
-          <div class="bt-tab" data-tab="advanced">
+          <div class="bt-tab" data-tab="providers">
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -85,13 +85,28 @@
               stroke-linecap="round"
               stroke-linejoin="round"
             >
-              <circle cx="12" cy="12" r="3" />
-              <path
-                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
-              />
+              <path d="M12 2 2 7l10 5 10-5-10-5z" />
+              <path d="m2 17 10 5 10-5" />
+              <path d="m2 12 10 5 10-5" />
             </svg>
-            <span data-i18n="popup.tabAdvanced">Advanced</span>
-            <span id="nav-badge-advanced" class="bt-nav-badge" hidden></span>
+            <span data-i18n="popup.tabProviders">Providers</span>
+            <span id="nav-badge-providers" class="bt-nav-badge" hidden></span>
+          </div>
+          <div class="bt-tab" data-tab="tts">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M11 5 6 9H2v6h4l5 4V5z" />
+              <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+              <path d="M19 5a9 9 0 0 1 0 14" />
+            </svg>
+            <span data-i18n="popup.tabTts">TTS</span>
+            <span id="nav-badge-tts" class="bt-nav-badge" hidden></span>
           </div>
           <div class="bt-tab" data-tab="help">
             <svg
@@ -513,14 +528,14 @@
             </div>
           </div>
 
-          <!-- Advanced Tab Content -->
-          <div id="tab-advanced" class="bt-tab-content">
+          <!-- Providers Tab Content -->
+          <div id="tab-providers" class="bt-tab-content">
             <div class="bt-pane-header">
-              <h2 class="bt-pane-title" data-i18n="popup.tabAdvanced">
-                Advanced
+              <h2 class="bt-pane-title" data-i18n="popup.tabProviders">
+                Providers
               </h2>
-              <p class="bt-pane-desc" data-i18n="popup.descAdvanced">
-                Providers, prompt, TTS and shortcuts
+              <p class="bt-pane-desc" data-i18n="popup.descProviders">
+                Translation providers and custom prompt
               </p>
             </div>
             <div class="bt-group-label" data-i18n="popup.groupProviders">
@@ -631,16 +646,17 @@
                 >
               </div>
             </div>
+          </div>
 
-            <div class="bt-group-label" data-i18n="popup.ttsSettings">
-              Text to Speech
-            </div>
-
-            <div class="bt-section-title" data-i18n="popup.ttsSettings" hidden>
-              Text to Speech
-            </div>
-            <div class="bt-section-desc" data-i18n="popup.ttsDesc" hidden>
-              Configure TTS providers for audio playback.
+          <!-- Text to Speech Tab Content -->
+          <div id="tab-tts" class="bt-tab-content">
+            <div class="bt-pane-header">
+              <h2 class="bt-pane-title" data-i18n="popup.ttsSettings">
+                Text to Speech
+              </h2>
+              <p class="bt-pane-desc" data-i18n="popup.ttsDesc">
+                Configure TTS providers for audio playback.
+              </p>
             </div>
 
             <div id="tts-provider-list" class="bt-provider-list">
@@ -757,7 +773,7 @@
                 <h4>AI Providers</h4>
                 <p>
                   Choose from multiple AI providers in the
-                  <strong>Advanced</strong> tab:
+                  <strong>Providers</strong> tab:
                 </p>
                 <ul style="margin: 8px 0; padding-left: 20px">
                   <li>
@@ -792,7 +808,7 @@
                 <h4>Custom Prompts</h4>
                 <p>
                   Tailor translation behavior in the
-                  <strong>Advanced</strong> tab:
+                  <strong>Providers</strong> tab:
                 </p>
                 <ul style="margin: 8px 0; padding-left: 20px">
                   <li>

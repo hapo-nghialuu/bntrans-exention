@@ -298,7 +298,7 @@ function renderProviderList() {
     providerListEl.appendChild(el);
   });
 
-  setNavBadge("nav-badge-advanced", providers.length);
+  setNavBadge("nav-badge-providers", providers.length);
 
   // Attach events
   providerListEl.querySelectorAll(".btn-set-active").forEach((btn) => {
@@ -595,6 +595,7 @@ function renderTTSProviderList() {
 
   // Combine default and custom
   const allProviders = [googleTTS, ...ttsProviders];
+  setNavBadge("nav-badge-tts", allProviders.length);
 
   allProviders.forEach((p) => {
     const isActive = p.id === activeTTSProviderId;
