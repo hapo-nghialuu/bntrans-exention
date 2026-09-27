@@ -274,11 +274,15 @@
 
 .bt-selection-source-select,
 .bt-selection-target-select {
+  appearance: none;
   height: 22px;
-  padding: 0 0.375rem;
+  padding: 0 20px 0 0.375rem;
   border: 1px solid var(--bt-color-border-default);
   border-radius: 4px;
-  background: var(--bt-color-background-default);
+  background-image: var(--bt-select-arrow);
+  background-position: right 5px center;
+  background-repeat: no-repeat;
+  background-color: var(--bt-color-background-default);
   color: var(--bt-color-text-default);
   font-size: var(--bt-font-size-code);
   cursor: pointer;
@@ -401,12 +405,16 @@
 }
 
 .bt-selection-provider-select {
+  appearance: none;
   height: 20px;
-  padding: 0 4px;
+  padding: 0 16px 0 4px;
   border: 1px solid var(--bt-color-border-default);
   border-radius: 4px;
   outline: none;
-  background: var(--bt-color-background-default);
+  background-image: var(--bt-select-arrow);
+  background-position: right 4px center;
+  background-repeat: no-repeat;
+  background-color: var(--bt-color-background-default);
   color: var(--bt-color-text-default);
   font-size: var(--bt-font-size-code);
   cursor: pointer;
