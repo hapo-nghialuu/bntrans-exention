@@ -23,7 +23,7 @@
   flex-direction: column;
   width: 216px;
   padding: 18px 12px 14px;
-  border-right: 1px solid var(--bt-color-border-default);
+  border-right: 1px solid var(--bt-color-hairline);
   background: var(--bt-color-background-muted);
 }
 
@@ -77,7 +77,7 @@
   justify-content: space-between;
   margin-top: auto;
   padding: 12px 10px 0;
-  border-top: 1px solid var(--bt-color-border-default);
+  border-top: 1px solid var(--bt-color-hairline);
 }
 
 /* Main content column */
@@ -112,7 +112,7 @@
   .bt-page .bt-side {
     width: 100%;
     border-right: none;
-    border-bottom: 1px solid var(--bt-color-border-default);
+    border-bottom: 1px solid var(--bt-color-hairline);
   }
 
   .bt-page .bt-side-foot {

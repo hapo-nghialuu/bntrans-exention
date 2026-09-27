@@ -41,18 +41,18 @@
   --bt-color-white: #fffefa;
   --bt-color-black: #16150f;
 
-  /* BirdNion paper palette */
+  /* BirdNion Instrument palette (Theme.swift dyn() values, ported 1:1) */
   --bt-color-paper: #fbfaf7;
   --bt-color-paper-deep: #f3f1ea;
   --bt-color-paper-bright: #fffefa;
   --bt-color-ink: #16150f;
-  --bt-color-ink-soft: #58564d;
-  --bt-color-hairline: #dcd8cd;
+  --bt-color-ink-soft: #6b6862;
+  --bt-color-hairline: #e2dfd6;
   --bt-color-hairline-dark: #3c3a32;
   --bt-color-blue: #1f4fd8;
   --bt-color-blue-dark: #173aa0;
   --bt-color-sun: #f2bf38;
-  --bt-color-sun-soft: #fff7d6;
+  --bt-color-sun-soft: #f5eedd;
   --bt-color-bird-blue: #4f80e8;
   --bt-color-sky: #84b8f4;
   --bt-color-green: #1f7a4c;
@@ -62,14 +62,17 @@
   --bt-color-hover-surface: #edeae0;
   --bt-color-track: #e2dfd6;
 
-  --bt-color-background-default: var(--bt-color-paper-bright);
+  /* Flat surfaces — the app has no filled card surface, sections are
+     separated by hairline rules instead */
+  --bt-color-background-default: var(--bt-color-paper);
   --bt-color-background-hover: var(--bt-color-hover-surface);
   --bt-color-background-interactive: var(--bt-color-selected-surface);
   --bt-color-background-page: var(--bt-color-paper);
   --bt-color-background-muted: var(--bt-color-paper-deep);
 
-  --bt-color-border-default: var(--bt-color-hairline);
-  --bt-color-border-hover: #c9c5b8;
+  /* border = control chrome (#dcd8cd); hairline = quiet dividers (#e2dfd6) */
+  --bt-color-border-default: #dcd8cd;
+  --bt-color-border-hover: #c9c5ba;
   --bt-color-border-interactive: var(--bt-color-ink);
 
   --bt-color-text-default: var(--bt-color-ink);
@@ -119,45 +122,47 @@
 :root[data-theme="dark"],
 .bt-vars-container[data-theme="dark"] {
   /* Inverted paper/ink palette */
-  --bt-color-paper: #16150f;
-  --bt-color-paper-deep: #1d1b15;
+  --bt-color-paper: #17170f;
+  --bt-color-paper-deep: #1e1e16;
   --bt-color-paper-bright: #24221b;
-  --bt-color-ink: #f0ede4;
-  --bt-color-ink-soft: #a09c8f;
-  --bt-color-hairline: #3a382f;
-  --bt-color-hairline-dark: #55524a;
-  --bt-color-blue: #4f80e8;
-  --bt-color-blue-dark: #6b98ef;
+  --bt-color-ink: #f2f0e8;
+  --bt-color-ink-soft: #a3a096;
+  --bt-color-hairline: #2a2a22;
+  --bt-color-hairline-dark: #3f3f36;
+  --bt-color-blue: #7ea2ff;
+  --bt-color-blue-dark: #9ab8ff;
   --bt-color-sun: #f2bf38;
-  --bt-color-sun-soft: #3a2f14;
+  --bt-color-sun-soft: #2a2418;
   --bt-color-bird-blue: #84b8f4;
-  --bt-color-sky: #4f80e8;
-  --bt-color-green: #45c486;
-  --bt-color-warning: #e8c96a;
-  --bt-color-critical: #e8927f;
-  --bt-color-selected-surface: #2d2b23;
-  --bt-color-hover-surface: #27251d;
-  --bt-color-track: #3f3c33;
+  --bt-color-sky: #7ea2ff;
+  --bt-color-green: #58c089;
+  --bt-color-warning: #e0a93f;
+  --bt-color-critical: #e5716a;
+  --bt-color-selected-surface: #262620;
+  --bt-color-hover-surface: #262620;
+  --bt-color-track: #2a2a22;
 
-  --bt-color-border-hover: #4a473d;
+  --bt-color-border-default: #33332b;
+  --bt-color-border-hover: #3f3f36;
 
-  --bt-color-primary-background: #4f80e8;
-  --bt-color-primary-background-hover: #6b98ef;
-  --bt-color-primary-background-interactive: #26334f;
-  --bt-color-primary-border: #4f80e8;
-  --bt-color-primary-border-hover: #6b98ef;
-  --bt-color-primary-border-interactive: #6b98ef;
+  --bt-color-primary-background: #7ea2ff;
+  --bt-color-primary-background-hover: #9ab8ff;
+  --bt-color-primary-background-interactive: #2f3a5c;
+  --bt-color-primary-border: #7ea2ff;
+  --bt-color-primary-border-hover: #9ab8ff;
+  --bt-color-primary-border-interactive: #9ab8ff;
+  --bt-color-primary-text: #17170f;
 
-  --bt-color-mirror-background: #35290f;
-  --bt-color-mirror-background-hover: #443718;
+  --bt-color-mirror-background: #2a2418;
+  --bt-color-mirror-background-hover: #3a2f14;
   --bt-color-mirror-border: #5c4a1c;
-  --bt-color-mirror-text: #e8c96a;
+  --bt-color-mirror-text: #e0a93f;
 
-  --bt-color-danger-background: #3a1f1a;
-  --bt-color-danger-background-hover: #4a2821;
-  --bt-color-danger-background-interactive: #5c352c;
-  --bt-color-danger-border: #5c352c;
-  --bt-color-danger-border-hover: #7a453a;
+  --bt-color-danger-background: #2c1d1b;
+  --bt-color-danger-background-hover: #3a241f;
+  --bt-color-danger-background-interactive: #4a2b25;
+  --bt-color-danger-border: #4a2b25;
+  --bt-color-danger-border-hover: #5c3830;
 
   --bt-shadow-default:
     0 0.0625rem 0.125rem #00000066, 0 0.0625rem 0.0625rem #0000004d;
@@ -171,45 +176,47 @@
   :root:not([data-theme="light"]),
   .bt-vars-container:not([data-theme="light"]) {
     /* Inverted paper/ink palette */
-    --bt-color-paper: #16150f;
-    --bt-color-paper-deep: #1d1b15;
+    --bt-color-paper: #17170f;
+    --bt-color-paper-deep: #1e1e16;
     --bt-color-paper-bright: #24221b;
-    --bt-color-ink: #f0ede4;
-    --bt-color-ink-soft: #a09c8f;
-    --bt-color-hairline: #3a382f;
-    --bt-color-hairline-dark: #55524a;
-    --bt-color-blue: #4f80e8;
-    --bt-color-blue-dark: #6b98ef;
+    --bt-color-ink: #f2f0e8;
+    --bt-color-ink-soft: #a3a096;
+    --bt-color-hairline: #2a2a22;
+    --bt-color-hairline-dark: #3f3f36;
+    --bt-color-blue: #7ea2ff;
+    --bt-color-blue-dark: #9ab8ff;
     --bt-color-sun: #f2bf38;
-    --bt-color-sun-soft: #3a2f14;
+    --bt-color-sun-soft: #2a2418;
     --bt-color-bird-blue: #84b8f4;
-    --bt-color-sky: #4f80e8;
-    --bt-color-green: #45c486;
-    --bt-color-warning: #e8c96a;
-    --bt-color-critical: #e8927f;
-    --bt-color-selected-surface: #2d2b23;
-    --bt-color-hover-surface: #27251d;
-    --bt-color-track: #3f3c33;
+    --bt-color-sky: #7ea2ff;
+    --bt-color-green: #58c089;
+    --bt-color-warning: #e0a93f;
+    --bt-color-critical: #e5716a;
+    --bt-color-selected-surface: #262620;
+    --bt-color-hover-surface: #262620;
+    --bt-color-track: #2a2a22;
 
-    --bt-color-border-hover: #4a473d;
+    --bt-color-border-default: #33332b;
+    --bt-color-border-hover: #3f3f36;
 
-    --bt-color-primary-background: #4f80e8;
-    --bt-color-primary-background-hover: #6b98ef;
-    --bt-color-primary-background-interactive: #26334f;
-    --bt-color-primary-border: #4f80e8;
-    --bt-color-primary-border-hover: #6b98ef;
-    --bt-color-primary-border-interactive: #6b98ef;
+    --bt-color-primary-background: #7ea2ff;
+    --bt-color-primary-background-hover: #9ab8ff;
+    --bt-color-primary-background-interactive: #2f3a5c;
+    --bt-color-primary-border: #7ea2ff;
+    --bt-color-primary-border-hover: #9ab8ff;
+    --bt-color-primary-border-interactive: #9ab8ff;
+    --bt-color-primary-text: #17170f;
 
-    --bt-color-mirror-background: #35290f;
-    --bt-color-mirror-background-hover: #443718;
+    --bt-color-mirror-background: #2a2418;
+    --bt-color-mirror-background-hover: #3a2f14;
     --bt-color-mirror-border: #5c4a1c;
-    --bt-color-mirror-text: #e8c96a;
+    --bt-color-mirror-text: #e0a93f;
 
-    --bt-color-danger-background: #3a1f1a;
-    --bt-color-danger-background-hover: #4a2821;
-    --bt-color-danger-background-interactive: #5c352c;
-    --bt-color-danger-border: #5c352c;
-    --bt-color-danger-border-hover: #7a453a;
+    --bt-color-danger-background: #2c1d1b;
+    --bt-color-danger-background-hover: #3a241f;
+    --bt-color-danger-background-interactive: #4a2b25;
+    --bt-color-danger-border: #4a2b25;
+    --bt-color-danger-border-hover: #5c3830;
 
     --bt-shadow-default:
       0 0.0625rem 0.125rem #00000066, 0 0.0625rem 0.0625rem #0000004d;

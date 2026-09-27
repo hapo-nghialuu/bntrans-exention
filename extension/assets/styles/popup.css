@@ -238,7 +238,7 @@ select {
   display: grid;
   padding-bottom: var(--bt-space-medium);
   gap: 2px;
-  border-bottom: 1px solid var(--bt-color-border-default);
+  border-bottom: 1px solid var(--bt-color-hairline);
 }
 
 .bt-pane-title {
@@ -255,7 +255,7 @@ select {
 .bt-group-label {
   margin-top: var(--bt-space-small);
   padding-bottom: 6px;
-  border-bottom: 1px solid var(--bt-color-border-default);
+  border-bottom: 1px solid var(--bt-color-hairline);
   color: var(--bt-color-text-muted);
   font-weight: 600;
   font-size: 10.5px;
@@ -429,7 +429,7 @@ em {
 .bt-divider {
   height: 1px;
   margin: var(--bt-space-small) 0;
-  background-color: var(--bt-color-border-default);
+  background-color: var(--bt-color-hairline);
 }
 
 .bt-alias-input-group {
@@ -506,14 +506,16 @@ em {
   opacity: 0;
 }
 
+/* Instrument switch — off: outlined track + square ink knob;
+   on: blue fill + page-colored knob (BirdNion InstrumentSwitchTrack) */
 .slider {
   position: absolute;
   top: 0;
   right: 0;
   bottom: 0;
   left: 0;
-  border: 1px solid var(--bt-color-border-default);
-  background-color: var(--bt-color-track);
+  border: 1.5px solid var(--bt-color-ink-soft);
+  background-color: transparent;
   cursor: pointer;
   transition: 0.2s var(--bt-ease);
 }
@@ -524,15 +526,18 @@ em {
   left: 2px; /* Adjusted */
   width: 12px; /* Reduced from 16px */
   height: 12px; /* Reduced from 16px */
-  background-color: var(--bt-color-paper-bright);
-  box-shadow: 0 1px 2px rgb(22 21 15 / 25%);
+  background-color: var(--bt-color-ink);
   content: "";
   transition: 0.2s var(--bt-ease);
 }
 
 input:checked + .slider {
-  border-color: var(--bt-color-blue);
+  border-color: transparent;
   background-color: var(--bt-color-blue);
+}
+
+input:checked + .slider:before {
+  background-color: var(--bt-color-background-default);
 }
 
 input:focus + .slider {
@@ -546,11 +551,11 @@ input:checked + .slider:before {
 }
 
 .slider.round {
-  border-radius: 7px;
+  border-radius: 5px;
 }
 
 .slider.round:before {
-  border-radius: 4px;
+  border-radius: 2px;
 }
 
 .bt-instant-settings {
@@ -1192,7 +1197,7 @@ textarea.bt-input:focus {
   align-items: center;
   justify-content: space-between;
   padding: 6px 10px;
-  border-bottom: 1px solid var(--bt-color-border-default);
+  border-bottom: 1px solid var(--bt-color-hairline);
   background: var(--bt-color-background-muted);
 }
 
@@ -1246,7 +1251,7 @@ textarea.bt-input:focus {
 
 .bt-quick-wrap .bt-header {
   padding-bottom: var(--bt-space-medium);
-  border-bottom: 1px solid var(--bt-color-border-default);
+  border-bottom: 1px solid var(--bt-color-hairline);
 }
 
 .bt-icon-btn {
