@@ -569,6 +569,13 @@ input:checked + .slider:before {
   display: none;
 }
 
+/* Feature content stays visible but inert while its master toggle is off */
+.bt-feature-off {
+  filter: saturate(0.4);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 .bt-domain-list {
   display: grid;
   gap: var(--bt-space-small);

@@ -143,10 +143,8 @@ function displayVersion() {
 }
 
 function updateAutomationBadge() {
-  setNavBadge(
-    "nav-badge-automation",
-    currentDomains.length + currentHoverDomains.length
-  );
+  setNavBadge("nav-badge-instant", currentDomains.length);
+  setNavBadge("nav-badge-hover", currentHoverDomains.length);
 }
 
 function setNavBadge(id, count) {
@@ -724,12 +722,10 @@ function updateSettingsVisibility() {
 
 function toggleInstantSettings() {
   if (!instantEnabledCheckbox || !instantSettings) return;
-
-  if (instantEnabledCheckbox.checked) {
-    instantSettings.removeAttribute("hidden");
-  } else {
-    instantSettings.setAttribute("hidden", "true");
-  }
+  instantSettings.classList.toggle(
+    "bt-feature-off",
+    !instantEnabledCheckbox.checked
+  );
 }
 
 function updateShortcutPreview() {
@@ -839,7 +835,10 @@ async function loadSettings() {
     // Load Hover Translate settings
     hoverTranslateEnabled.checked = res.settings.hoverTranslateEnabled || false;
     hoverUniqueMode.checked = res.settings.hoverUniqueMode !== false; // Default true
-    hoverSettings.hidden = !hoverTranslateEnabled.checked;
+    hoverSettings.classList.toggle(
+      "bt-feature-off",
+      !hoverTranslateEnabled.checked
+    );
     hoverMode.value = res.settings.hoverTranslateMode || "inject";
     hoverModifier.value = res.settings.hoverModifierKey || "ctrl";
     hoverGranularity.value = res.settings.hoverTranslateGranularity || "line";
@@ -1137,7 +1136,10 @@ if (userCustomPrompt) {
 // Hover Translate Event Listeners
 if (hoverTranslateEnabled) {
   hoverTranslateEnabled.addEventListener("change", () => {
-    hoverSettings.hidden = !hoverTranslateEnabled.checked;
+    hoverSettings.classList.toggle(
+      "bt-feature-off",
+      !hoverTranslateEnabled.checked
+    );
     saveSettings();
   });
 }

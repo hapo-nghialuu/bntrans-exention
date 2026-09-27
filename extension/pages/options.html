@@ -54,12 +54,27 @@
             </svg>
             <span data-i18n="popup.tabGeneral">General</span>
           </div>
-          <div class="bt-tab" data-tab="automation">
+          <div class="bt-tab" data-tab="instant">
             <svg viewBox="0 0 24 24" fill="currentColor">
               <path d="M13 2 4.5 14H11l-1 8L18.5 10H12z" />
             </svg>
-            <span data-i18n="popup.tabAutomation">Automation</span>
-            <span id="nav-badge-automation" class="bt-nav-badge" hidden></span>
+            <span data-i18n="popup.tabInstant">Instant</span>
+            <span id="nav-badge-instant" class="bt-nav-badge" hidden></span>
+          </div>
+          <div class="bt-tab" data-tab="hover">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M4 3l7.07 16.97 2.51-7.39 7.39-2.51L4 3z" />
+              <path d="M13.5 13.5 19 19" />
+            </svg>
+            <span data-i18n="popup.tabHover">Hover</span>
+            <span id="nav-badge-hover" class="bt-nav-badge" hidden></span>
           </div>
           <div class="bt-tab" data-tab="advanced">
             <svg
@@ -201,17 +216,14 @@
           </div>
 
           <!-- Automation Tab Content -->
-          <div id="tab-automation" class="bt-tab-content">
+          <div id="tab-instant" class="bt-tab-content">
             <div class="bt-pane-header">
-              <h2 class="bt-pane-title" data-i18n="popup.tabAutomation">
-                Automation
+              <h2 class="bt-pane-title" data-i18n="popup.tabInstant">
+                Instant
               </h2>
-              <p class="bt-pane-desc" data-i18n="popup.descAutomation">
-                Instant & hover translation on enabled domains
+              <p class="bt-pane-desc" data-i18n="popup.descInstant">
+                Translate as you type on enabled domains
               </p>
-            </div>
-            <div class="bt-group-label" data-i18n="popup.groupInstant">
-              Instant Mode
             </div>
             <div class="bt-toggle-row">
               <label
@@ -225,7 +237,7 @@
               </label>
             </div>
 
-            <div id="instant-settings" class="bt-instant-settings" hidden>
+            <div id="instant-settings" class="bt-instant-settings">
               <div class="bt-field">
                 <label for="instant-delay" data-i18n="popup.instantDelay"
                   >Delay (seconds)</label
@@ -291,12 +303,16 @@
                 </div>
               </div>
             </div>
+          </div>
 
-            <div class="bt-group-label" data-i18n="popup.groupHover">
-              Hover Translate
+          <!-- Hover Tab Content -->
+          <div id="tab-hover" class="bt-tab-content">
+            <div class="bt-pane-header">
+              <h2 class="bt-pane-title" data-i18n="popup.tabHover">Hover</h2>
+              <p class="bt-pane-desc" data-i18n="popup.descHover">
+                Translate text when hovering with a modifier key
+              </p>
             </div>
-
-            <!-- Hover to Translate Section -->
             <div class="bt-toggle-row">
               <label for="hover-translate-enabled" data-i18n="popup.enableHover"
                 >Enable Hover to Translate</label
@@ -307,7 +323,7 @@
               </label>
             </div>
 
-            <div id="hover-settings" class="bt-hover-settings" hidden>
+            <div id="hover-settings" class="bt-hover-settings">
               <div class="bt-field">
                 <label for="hover-mode" data-i18n="popup.hoverMode"
                   >Translation Mode</label
