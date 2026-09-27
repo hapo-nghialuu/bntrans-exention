@@ -126,11 +126,47 @@ select {
 
 select {
   appearance: none;
+  appearance: base-select;
   padding-right: 30px;
   background-image: var(--bt-select-arrow);
   background-position: right 11px center;
   background-repeat: no-repeat;
   cursor: pointer;
+
+  /* base-select draws its own chevron — keep our token arrow instead */
+  &::picker-icon {
+    display: none;
+  }
+}
+
+/* Open dropdown (Chrome ≥135) — paper panel + instrument rows */
+::picker(select) {
+  padding: 4px;
+  border: var(--bt-border-width) solid var(--bt-color-border-default);
+  border-radius: 10px;
+  background-color: var(--bt-color-paper-bright);
+  box-shadow: var(--bt-shadow-hover);
+}
+
+option {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--bt-color-text-default);
+  font-size: var(--bt-font-size-small);
+
+  &:hover {
+    background-color: var(--bt-color-hover-surface);
+  }
+
+  &:checked {
+    background-color: var(--bt-color-selected-surface);
+    font-weight: 500;
+  }
+
+  &::checkmark {
+    color: var(--bt-color-blue);
+  }
 }
 
 input[type="number"]::-webkit-inner-spin-button,
