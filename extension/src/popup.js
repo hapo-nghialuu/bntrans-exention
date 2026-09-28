@@ -1,8 +1,5 @@
 import { i18n } from "./common/i18n.js";
 import { tts } from "./services/tts.js";
-import { enhanceSelects } from "./common/custom-select.js";
-
-enhanceSelects(document.body);
 
 const quickInput = document.getElementById("quick-input");
 const quickSource = document.getElementById("quick-source");
