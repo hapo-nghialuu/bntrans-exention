@@ -1,4 +1,5 @@
 @import url("./tokens.css");
+@import url("./common.css");
 
 /* Inline Suggestion */
 .bt-inline-suggestion {

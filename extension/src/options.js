@@ -1,5 +1,8 @@
 import { i18n } from "./common/i18n.js";
 import { tts } from "./services/tts.js";
+import { enhanceSelects } from "./common/custom-select.js";
+
+enhanceSelects(document.body);
 
 const enabledCheckbox = document.querySelector("#enabled");
 const settingsContainer = document.querySelector("#settings-container");

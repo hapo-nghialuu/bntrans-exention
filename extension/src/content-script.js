@@ -2,6 +2,7 @@
 let normalizeLanguageToCode;
 let i18n;
 let tts;
+let enhanceSelects;
 
 const TRANSLATION_COMMAND_PATTERN = /!!([a-zA-ZÀ-ÿ-]+)$/i;
 
@@ -83,6 +84,11 @@ window.addEventListener("unhandledrejection", (event) => {
 
       ttsMod = await import(chrome.runtime.getURL("src/services/tts.js"));
       tts = ttsMod.tts;
+
+      const selectMod = await import(
+        chrome.runtime.getURL("src/common/custom-select.js")
+      );
+      enhanceSelects = selectMod.enhanceSelects;
     } catch (importError) {
       if (
         importError.message.includes("Extension context invalidated") ||
@@ -847,6 +853,7 @@ function populateProviderSelectorForSuggestion(container, settings) {
 
     container.appendChild(label);
     container.appendChild(select);
+    enhanceSelects?.(container, { observe: false });
 
     return select;
   }
@@ -1875,6 +1882,7 @@ async function showTranslationPopup(selectionRect, text, iconPosition) {
     // Center popup based on SELECTION rect
     // First, add popup to DOM to get actual dimensions
     document.body.appendChild(popup);
+    enhanceSelects?.(popup, { observe: false });
     const tempRect = popup.getBoundingClientRect();
     const actualPopupWidth = tempRect.width;
 
@@ -2383,6 +2391,7 @@ function populateProviderSelector(popup, settings) {
 
     container.appendChild(label);
     container.appendChild(select);
+    enhanceSelects?.(container, { observe: false });
 
     return select;
   }
