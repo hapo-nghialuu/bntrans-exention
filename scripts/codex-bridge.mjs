@@ -42,6 +42,34 @@ function buildPrompt(messages) {
   return system ? `${system}\n\n${user}` : user;
 }
 
+/**
+ * Preflight: verify the codex binary exists and the session is logged in.
+ * Returns null when healthy, otherwise a human-readable problem string.
+ */
+function checkCodex() {
+  return new Promise((resolve) => {
+    execFile(
+      "codex",
+      ["login", "status"],
+      { timeout: 15_000, stdio: ["ignore", "pipe", "pipe"] },
+      (err, stdout, stderr) => {
+        if (err?.code === "ENOENT") {
+          resolve("codex CLI not found in PATH — install it first");
+        } else if (err) {
+          resolve(
+            `codex is not authenticated — run \`codex login\` (${String(stderr || err.message).trim()})`
+          );
+        } else if (!/logged in/i.test(`${stdout}\n${stderr}`)) {
+          // codex prints the status line on stderr, not stdout
+          resolve(`codex login status unclear: ${(stderr || stdout).trim()}`);
+        } else {
+          resolve(null);
+        }
+      }
+    );
+  });
+}
+
 function runCodex(prompt, model) {
   const dir = mkdtempSync(join(tmpdir(), "codex-bridge-"));
   const outFile = join(dir, "out.md");
@@ -57,7 +85,10 @@ function runCodex(prompt, model) {
   ];
   // The bridge alias maps to the bridge default model; an explicit model in
   // the request wins.
-  args.push("-m", model && model !== BRIDGE_MODEL ? model : DEFAULT_CODEX_MODEL);
+  args.push(
+    "-m",
+    model && model !== BRIDGE_MODEL ? model : DEFAULT_CODEX_MODEL
+  );
 
   return new Promise((resolve, reject) => {
     const proc = execFile(
@@ -66,7 +97,11 @@ function runCodex(prompt, model) {
       // The prompt goes over stdin: codex exec switches to "read stdin" mode
       // whenever stdin is not a TTY, so leaving it as an open pipe hangs
       // forever. A pipe that we write to and close gives it a clean EOF.
-      { cwd: dir, timeout: REQUEST_TIMEOUT_MS, stdio: ["pipe", "pipe", "pipe"] },
+      {
+        cwd: dir,
+        timeout: REQUEST_TIMEOUT_MS,
+        stdio: ["pipe", "pipe", "pipe"]
+      },
       (err, _stdout, stderr) => {
         let output = "";
         try {
@@ -76,7 +111,11 @@ function runCodex(prompt, model) {
         }
         rmSync(dir, { recursive: true, force: true });
         if (err) {
-          reject(new Error(stderr?.trim() || err.message));
+          const msg =
+            err.code === "ENOENT"
+              ? "codex CLI not found in PATH — install it first"
+              : stderr?.trim() || err.message;
+          reject(new Error(msg));
         } else if (!output) {
           reject(new Error("Codex returned empty output"));
         } else {
@@ -112,6 +151,16 @@ function readBody(req) {
 const server = createServer(async (req, res) => {
   if (req.method === "OPTIONS") {
     sendJson(res, 204, {});
+    return;
+  }
+
+  if (req.method === "GET" && req.url === "/v1/health") {
+    const problem = await checkCodex();
+    sendJson(
+      res,
+      problem ? 503 : 200,
+      problem ? { status: "error", problem } : { status: "ok" }
+    );
     return;
   }
 
@@ -154,8 +203,15 @@ const server = createServer(async (req, res) => {
   sendJson(res, 404, { error: { message: "Not found" } });
 });
 
-server.listen(PORT, "127.0.0.1", () => {
+server.listen(PORT, "127.0.0.1", async () => {
   console.log(
-    `codex-bridge listening on http://localhost:${PORT}/v1 — model: ${BRIDGE_MODEL}`
+    `codex-bridge listening on http://localhost:${PORT}/v1 — model: ${BRIDGE_MODEL} -> ${DEFAULT_CODEX_MODEL}`
   );
+  const problem = await checkCodex();
+  if (problem) {
+    console.warn(`WARNING: ${problem}`);
+    console.warn(
+      "Requests will fail until this is fixed. Check GET /v1/health."
+    );
+  }
 });
