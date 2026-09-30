@@ -55,6 +55,11 @@ export const locales = {
     "popup.themeLight": "Light",
     "popup.themeDark": "Dark",
     "popup.groupAliases": "Aliases",
+    "popup.groupScreenshot": "Screenshot",
+    "popup.screenshotShortcut": "Screenshot Translate Shortcut",
+    "popup.screenshotHint":
+      "Drag a rectangle on the page — text is read and translated via your Gemini provider",
+    "popup.captureArea": "Capture area",
     "popup.groupHover": "Hover Translate",
     "popup.groupInstant": "Instant Mode",
     "popup.groupProviders": "Providers",
@@ -174,6 +179,13 @@ export const locales = {
     "selection.copied": "Copied!",
     "selection.settings": "Settings",
 
+    // Screenshot Translate
+    "screenshot.title": "Screenshot Translate",
+    "screenshot.hint": "Drag to select an area · Esc to cancel",
+    "screenshot.extracted": "Detected text",
+    "screenshot.noText": "No readable text in the selected area",
+    "screenshot.capturing": "Capturing…",
+
     // Inline Suggestion
     "suggestion.hint": "<kbd>Tab</kbd> to apply • <kbd>Esc</kbd> to dismiss",
 
@@ -250,6 +262,11 @@ export const locales = {
     "popup.themeLight": "Sáng",
     "popup.themeDark": "Tối",
     "popup.groupAliases": "Alias",
+    "popup.groupScreenshot": "Ảnh chụp",
+    "popup.screenshotShortcut": "Phím tắt dịch ảnh chụp",
+    "popup.screenshotHint":
+      "Kéo một hình chữ nhật trên trang — chữ được đọc và dịch qua provider Gemini",
+    "popup.captureArea": "Chụp vùng màn hình",
     "popup.groupHover": "Dịch bằng hover",
     "popup.groupInstant": "Chế độ dịch nhanh",
     "popup.groupProviders": "Nhà cung cấp",
@@ -372,6 +389,13 @@ export const locales = {
     "selection.translate": "Kết quả dịch",
     "selection.copy": "Sao chép",
     "selection.copied": "Đã sao chép!",
+
+    // Screenshot Translate
+    "screenshot.title": "Dịch ảnh chụp",
+    "screenshot.hint": "Kéo để chọn vùng · Esc để hủy",
+    "screenshot.extracted": "Chữ nhận diện được",
+    "screenshot.noText": "Không thấy chữ trong vùng chọn",
+    "screenshot.capturing": "Đang chụp…",
     "selection.settings": "Cài đặt",
 
     // Inline Suggestion

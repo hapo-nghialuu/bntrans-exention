@@ -228,6 +228,49 @@
               </div>
               <div id="alias-list" class="bt-alias-list"></div>
             </div>
+
+            <div class="bt-group-label" data-i18n="popup.groupScreenshot">
+              Screenshot
+            </div>
+
+            <div class="bt-field">
+              <label data-i18n="popup.screenshotShortcut"
+                >Screenshot Translate Shortcut</label
+              >
+              <div class="bt-shortcut-compact">
+                <div class="bt-shortcut-modifiers">
+                  <label>
+                    <input type="checkbox" id="shot-shortcut-ctrl" checked />
+                    <span data-i18n="popup.shortcutCtrl">Ctrl/Cmd</span>
+                  </label>
+                  <label>
+                    <input type="checkbox" id="shot-shortcut-shift" checked />
+                    <span data-i18n="popup.shortcutShift">Shift</span>
+                  </label>
+                  <label>
+                    <input type="checkbox" id="shot-shortcut-alt" />
+                    <span data-i18n="popup.shortcutAlt">Alt</span>
+                  </label>
+                  <span class="bt-shortcut-plus">+</span>
+                  <input
+                    type="text"
+                    id="shot-shortcut-key"
+                    class="bt-input"
+                    maxlength="1"
+                    value="S"
+                  />
+                </div>
+                <div class="bt-shortcut-preview">
+                  <small id="shot-shortcut-preview" class="bt-hint"
+                    >Ctrl+Shift+S (Cmd+Shift+S on Mac)</small
+                  >
+                </div>
+              </div>
+              <small class="bt-hint" data-i18n="popup.screenshotHint">
+                Drag a rectangle on the page — text is read and translated via
+                your Gemini provider
+              </small>
+            </div>
           </div>
 
           <!-- Automation Tab Content -->

@@ -96,7 +96,7 @@ class WindowAIProvider extends TranslationProvider {
 /**
  * Google Gemini Provider
  */
-class GeminiProvider extends TranslationProvider {
+export class GeminiProvider extends TranslationProvider {
   async translate(text, sourceLang, targetLang, context = "") {
     const apiKey = this.config.apiKey;
     const model = this.config.model || "gemini-3.1-flash-lite";
@@ -128,6 +128,65 @@ class GeminiProvider extends TranslationProvider {
     const data = await response.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
   }
+
+  /**
+   * OCR + translate in one shot: send the image inline and ask for a
+   * delimited source/translation pair so callers can show both.
+   */
+  async translateImage(base64Png, targetLang, mimeType = "image/png") {
+    const apiKey = this.config.apiKey;
+    const model = this.config.model || "gemini-3.1-flash-lite";
+
+    if (!apiKey) throw new Error("Gemini API Key is missing");
+
+    const prompt = `Extract ALL text visible in this image, then translate it to ${targetLang}.
+Reply in EXACTLY this format, nothing else:
+<<<SOURCE>>>
+<the extracted text, preserving line breaks>
+<<<TRANSLATION>>>
+<the translation into ${targetLang}>
+If the image contains no readable text, reply with exactly: <<<EMPTY>>>`;
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: prompt },
+              { inline_data: { mime_type: mimeType, data: base64Png } }
+            ]
+          }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || "Gemini API Error");
+    }
+
+    const data = await response.json();
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+    return parseImageTranslation(raw);
+  }
+}
+
+/**
+ * Parse "<<<SOURCE>>>...<<<TRANSLATION>>>..." model output into
+ * {source, translation}. Tolerates whitespace/casing variance.
+ */
+function parseImageTranslation(raw) {
+  const m = raw.match(
+    /<<<SOURCE>>>\s*([\s\S]*?)\s*<<<TRANSLATION>>>\s*([\s\S]*?)\s*$/i
+  );
+  if (m) return { source: m[1], translation: m[2] };
+  if (/<<<EMPTY>>>/i.test(raw)) return { source: "", translation: "" };
+  // Fallback: treat the whole reply as the translation
+  return { source: "", translation: raw };
 }
 
 /**

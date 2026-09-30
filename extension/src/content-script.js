@@ -131,6 +131,7 @@ window.addEventListener("unhandledrejection", (event) => {
     registerInstantLabelIndicator();
     registerHoverTranslate();
     registerHoverToggleShortcut();
+    registerScreenshotTranslate();
   } catch (error) {
     console.log("BNTrans: Bootstrap failed:", error.message);
     if (
@@ -3266,4 +3267,316 @@ async function toggleHoverDomainForCurrentUrl() {
     console.error("Toggle hover domain error:", err);
     showToast("Error toggling hover domain");
   }
+}
+
+// ============================================
+// SCREENSHOT AREA TRANSLATION
+// ============================================
+
+let screenshotSelecting = false;
+let screenshotPopup = null;
+
+function hideScreenshotPopup() {
+  if (screenshotPopup) {
+    screenshotPopup.remove();
+    screenshotPopup = null;
+  }
+}
+
+function startScreenshotSelection() {
+  if (screenshotSelecting) return;
+  if (!isExtensionContextValid()) {
+    try {
+      showToast(i18n.t("toast.extensionUpdated"));
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
+  screenshotSelecting = true;
+
+  const overlay = document.createElement("div");
+  overlay.className = "bt-shot-overlay bt-vars-container";
+  applyThemeTo(overlay);
+
+  const band = document.createElement("div");
+  band.className = "bt-shot-band";
+
+  const hint = document.createElement("div");
+  hint.className = "bt-shot-hint";
+  hint.textContent = i18n.t("screenshot.hint");
+
+  overlay.append(band, hint);
+  document.documentElement.appendChild(overlay);
+
+  let start = null;
+  const finish = () => {
+    document.removeEventListener("keydown", onKey, true);
+    overlay.remove();
+    screenshotSelecting = false;
+  };
+  const onKey = (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      finish();
+    }
+  };
+  document.addEventListener("keydown", onKey, true);
+
+  overlay.addEventListener("mousedown", (e) => {
+    start = { x: e.clientX, y: e.clientY };
+    band.style.display = "block";
+    e.preventDefault();
+  });
+
+  overlay.addEventListener("mousemove", (e) => {
+    if (!start) return;
+    const x = Math.min(start.x, e.clientX);
+    const y = Math.min(start.y, e.clientY);
+    band.style.left = `${x}px`;
+    band.style.top = `${y}px`;
+    band.style.width = `${Math.abs(e.clientX - start.x)}px`;
+    band.style.height = `${Math.abs(e.clientY - start.y)}px`;
+  });
+
+  overlay.addEventListener("mouseup", (e) => {
+    if (!start) {
+      finish();
+      return;
+    }
+    const rect = {
+      x: Math.min(start.x, e.clientX),
+      y: Math.min(start.y, e.clientY),
+      w: Math.abs(e.clientX - start.x),
+      h: Math.abs(e.clientY - start.y)
+    };
+    finish();
+    if (rect.w >= 10 && rect.h >= 10) {
+      captureAndTranslateRect(rect);
+    }
+  });
+}
+
+async function captureAndTranslateRect(rect) {
+  try {
+    // Let the overlay removal paint before capturing the tab
+    await new Promise((r) => setTimeout(r, 120));
+
+    const cap = await chrome.runtime.sendMessage({ type: "capture-visible" });
+    if (!cap?.ok) {
+      showToast(cap?.error || i18n.t("toast.translationFailed"));
+      return;
+    }
+
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = reject;
+      el.src = cap.dataUrl;
+    });
+
+    // captureVisibleTab returns physical pixels; derive the real CSS→image
+    // scale from the bitmap rather than trusting window.devicePixelRatio
+    // (automation/DSF can make them disagree).
+    const scaleX = img.naturalWidth / window.innerWidth;
+    const scaleY = img.naturalHeight / window.innerHeight;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(rect.w * scaleX);
+    canvas.height = Math.round(rect.h * scaleY);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(
+      img,
+      Math.round(rect.x * scaleX),
+      Math.round(rect.y * scaleY),
+      Math.round(rect.w * scaleX),
+      Math.round(rect.h * scaleY),
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+    const base64 = canvas.toDataURL("image/png").split(",")[1];
+
+    const settings = await getSettings();
+    const popup = showScreenshotPopup(rect, "", null);
+    const targetBox = popup.querySelector(".bt-shot-result-text");
+
+    const res = await chrome.runtime.sendMessage({
+      type: "translate-image",
+      payload: {
+        imageBase64: base64,
+        mimeType: "image/png",
+        targetLanguage: settings.targetLanguageCode || "en"
+      }
+    });
+
+    if (!popup.isConnected) return; // user closed meanwhile
+    if (res?.ok && res.result) {
+      const { source, translation } = res.result;
+      popup.querySelector(".bt-shot-source-text").textContent =
+        source || i18n.t("screenshot.noText");
+      targetBox.textContent = translation || i18n.t("screenshot.noText");
+      targetBox.classList.remove("bt-loading-text");
+      popup.querySelector(".bt-shot-provider").textContent =
+        res.result.providerName || "Gemini";
+    } else {
+      targetBox.textContent = res?.error || i18n.t("toast.translationFailed");
+      targetBox.classList.remove("bt-loading-text");
+    }
+  } catch (err) {
+    if (String(err?.message).includes("Extension context invalidated")) {
+      cleanupExtensionElements();
+      try {
+        showToast(i18n.t("toast.extensionUpdated"));
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+    showToast(err.message || i18n.t("toast.translationFailed"));
+  }
+}
+
+function showScreenshotPopup(rect, sourceText) {
+  hideScreenshotPopup();
+
+  let iconUrl = "";
+  try {
+    iconUrl = isExtensionContextValid()
+      ? chrome.runtime.getURL("assets/icons/icon-19.png")
+      : "";
+  } catch {
+    iconUrl = "";
+  }
+
+  const popup = document.createElement("div");
+  popup.className = "bt-selection-popup bt-shot-popup bt-vars-container";
+  applyThemeTo(popup);
+  popup.innerHTML = `
+    <div class="bt-selection-header">
+      <span class="bt-selection-title">
+        ${iconUrl ? `<img src="${iconUrl}" width="16" height="16" alt="" />` : ""}
+        <span>${i18n.t("screenshot.title")}</span>
+      </span>
+      <button class="bt-selection-close">×</button>
+    </div>
+    <div class="bt-selection-content">
+      <div class="bt-selection-original">
+        <label>${i18n.t("screenshot.extracted")}</label>
+        <div class="bt-selection-text-container bt-selection-content-style">
+          <div class="bt-selection-text-content bt-shot-source-text">${sourceText || i18n.t("screenshot.capturing")}</div>
+        </div>
+      </div>
+      <div class="bt-selection-translated">
+        <label>${i18n.t("selection.translate")}</label>
+        <div class="bt-selection-result-container">
+          <div class="bt-selection-text-container bt-selection-content-style">
+            <div class="bt-selection-text-content bt-shot-result-text bt-loading-text">${i18n.t("dialog.translating")}</div>
+          </div>
+          <button class="bt-selection-copy-btn" title="${i18n.t("selection.copy")}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span class="bt-copy-feedback">${i18n.t("selection.copied")}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="bt-selection-footer">
+      <span class="bt-shot-provider"></span>
+      <a href="#" class="bt-selection-settings">${i18n.t("selection.settings")}</a>
+    </div>
+  `;
+
+  popup.style.position = "fixed";
+  popup.style.zIndex = "9999999999";
+  document.body.appendChild(popup);
+
+  // Anchor just below the captured rect; flip above when no room.
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const pw = popup.getBoundingClientRect().width;
+  const left = Math.max(
+    10,
+    Math.min(rect.x + rect.w / 2 - pw / 2, vw - pw - 10)
+  );
+  popup.style.left = `${left}px`;
+  if (rect.y + rect.h + 260 < vh) {
+    popup.style.top = `${rect.y + rect.h + 8}px`;
+  } else {
+    popup.style.bottom = `${Math.max(10, vh - rect.y + 8)}px`;
+  }
+
+  popup
+    .querySelector(".bt-selection-close")
+    .addEventListener("click", hideScreenshotPopup);
+
+  const copyBtn = popup.querySelector(".bt-selection-copy-btn");
+  copyBtn.addEventListener("click", async () => {
+    const text = popup.querySelector(".bt-shot-result-text").textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+      copyBtn.classList.add("bt-copied");
+      setTimeout(() => copyBtn.classList.remove("bt-copied"), 1200);
+    } catch {
+      /* clipboard denied */
+    }
+  });
+
+  popup
+    .querySelector(".bt-selection-settings")
+    .addEventListener("click", (e) => {
+      e.preventDefault();
+      try {
+        chrome.runtime.sendMessage({ type: "open-options" });
+      } catch {
+        /* context */
+      }
+    });
+
+  makeDraggable(popup, popup.querySelector(".bt-selection-header"));
+  screenshotPopup = popup;
+  return popup;
+}
+
+function registerScreenshotTranslate() {
+  // Configurable keyboard shortcut (default Cmd/Ctrl+Shift+S)
+  document.addEventListener(
+    "keydown",
+    async (e) => {
+      const settings = await getSettings();
+      const shortcut = settings.screenshotShortcut || {
+        key: "S",
+        ctrl: true,
+        shift: true,
+        alt: false
+      };
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+      const modifierKey = isMac ? e.metaKey : e.ctrlKey;
+      const matches =
+        e.key.toUpperCase() === shortcut.key.toUpperCase() &&
+        modifierKey === shortcut.ctrl &&
+        e.shiftKey === shortcut.shift &&
+        e.altKey === shortcut.alt;
+      if (matches) {
+        e.preventDefault();
+        e.stopPropagation();
+        startScreenshotSelection();
+      }
+    },
+    true
+  );
+
+  // Triggered from the extension context menu / quick popup button
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message?.type === "start-screenshot-select") {
+      startScreenshotSelection();
+    }
+  });
+
+  // Click outside the result popup closes it
+  document.addEventListener("mousedown", (e) => {
+    if (screenshotPopup && !screenshotPopup.contains(e.target)) {
+      hideScreenshotPopup();
+    }
+  });
 }

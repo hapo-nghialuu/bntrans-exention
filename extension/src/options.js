@@ -79,6 +79,12 @@ const hoverSettings = document.getElementById("hover-settings");
 const hoverMode = document.getElementById("hover-mode");
 const hoverGranularity = document.getElementById("hover-granularity");
 const hoverModifier = document.getElementById("hover-modifier");
+const shotShortcutCtrl = document.getElementById("shot-shortcut-ctrl");
+const shotShortcutShift = document.getElementById("shot-shortcut-shift");
+const shotShortcutAlt = document.getElementById("shot-shortcut-alt");
+const shotShortcutKey = document.getElementById("shot-shortcut-key");
+const shotShortcutPreview = document.getElementById("shot-shortcut-preview");
+
 const hoverShortcutCtrl = document.getElementById("hover-shortcut-ctrl");
 const hoverShortcutShift = document.getElementById("hover-shortcut-shift");
 const hoverShortcutAlt = document.getElementById("hover-shortcut-alt");
@@ -993,6 +999,19 @@ async function loadSettings() {
     hoverShortcutKey.value = hoverShortcut.key;
     updateHoverShortcutPreview();
 
+    // Load screenshot-translate shortcut
+    const shotShortcut = res.settings.screenshotShortcut || {
+      key: "S",
+      ctrl: true,
+      shift: true,
+      alt: false
+    };
+    if (shotShortcutCtrl) shotShortcutCtrl.checked = shotShortcut.ctrl;
+    if (shotShortcutShift) shotShortcutShift.checked = shotShortcut.shift;
+    if (shotShortcutAlt) shotShortcutAlt.checked = shotShortcut.alt;
+    if (shotShortcutKey) shotShortcutKey.value = shotShortcut.key;
+    updateShotShortcutPreview();
+
     // Load style settings
     const hoverStyle = res.settings.hoverInjectStyle || {};
     // hoverBgColor.value = hoverStyle.backgroundColor || '#667eea'; // Removed
@@ -1099,6 +1118,12 @@ async function saveSettings() {
       ctrl: shortcutCtrlCheckbox?.checked || false,
       shift: shortcutShiftCheckbox?.checked || false,
       alt: shortcutAltCheckbox?.checked || false
+    },
+    screenshotShortcut: {
+      key: shotShortcutKey?.value.toUpperCase() || "S",
+      ctrl: shotShortcutCtrl?.checked || false,
+      shift: shotShortcutShift?.checked || false,
+      alt: shotShortcutAlt?.checked || false
     },
     // Hover Translate settings
     hoverTranslateEnabled: hoverTranslateEnabled?.checked || false,
@@ -1362,6 +1387,41 @@ if (
     el.addEventListener("change", updateHoverShortcutPreview);
     el.addEventListener("input", updateHoverShortcutPreview);
   });
+}
+
+if (
+  shotShortcutCtrl &&
+  shotShortcutShift &&
+  shotShortcutAlt &&
+  shotShortcutKey
+) {
+  [shotShortcutCtrl, shotShortcutShift, shotShortcutAlt].forEach((el) =>
+    el.addEventListener("change", () => {
+      updateShotShortcutPreview();
+      saveSettings();
+    })
+  );
+  shotShortcutKey.addEventListener("input", (e) => {
+    e.target.value = e.target.value
+      .replace(/[^a-zA-Z]/g, "")
+      .toUpperCase()
+      .slice(0, 1);
+    updateShotShortcutPreview();
+  });
+  shotShortcutKey.addEventListener("change", saveSettings);
+}
+
+function updateShotShortcutPreview() {
+  if (!shotShortcutPreview) return;
+  const parts = [];
+  const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+
+  if (shotShortcutCtrl?.checked) parts.push(isMac ? "Cmd" : "Ctrl");
+  if (shotShortcutShift?.checked) parts.push("Shift");
+  if (shotShortcutAlt?.checked) parts.push("Alt");
+  parts.push(shotShortcutKey?.value.toUpperCase() || "S");
+
+  shotShortcutPreview.textContent = parts.join("+");
 }
 
 // Hover Translate Helper Functions

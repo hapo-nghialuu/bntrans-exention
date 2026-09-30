@@ -41,7 +41,7 @@
       "all_frames": true
     }
   ],
-  "permissions": ["storage", "offscreen"],
+  "permissions": ["storage", "offscreen", "contextMenus"],
   "host_permissions": [
     "<all_urls>",
     "http://localhost/*",

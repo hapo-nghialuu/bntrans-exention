@@ -12,6 +12,7 @@ const quickProvider = document.getElementById("quick-provider");
 const quickCopy = document.getElementById("quick-copy");
 const quickSpeak = document.getElementById("quick-speak");
 const openOptionsBtn = document.getElementById("open-options");
+const quickCapture = document.getElementById("quick-capture");
 
 let activeProviderId = "google-translate";
 
@@ -162,6 +163,25 @@ quickSpeak?.addEventListener("click", async () => {
 
 openOptionsBtn?.addEventListener("click", () => {
   chrome.runtime.openOptionsPage();
+});
+
+// Kick off the area-select overlay on the active tab, then close the popup —
+// the overlay needs the page visible to be usable.
+quickCapture?.addEventListener("click", async () => {
+  try {
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true
+    });
+    if (tab?.id) {
+      await chrome.tabs.sendMessage(tab.id, {
+        type: "start-screenshot-select"
+      });
+    }
+  } catch {
+    // restricted page (chrome://, web store…) — content script absent
+  }
+  window.close();
 });
 
 loadSettings();

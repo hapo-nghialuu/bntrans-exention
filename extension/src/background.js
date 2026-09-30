@@ -1,4 +1,4 @@
-import { AIProviderService } from "./services/ai-providers.js";
+import { AIProviderService, GeminiProvider } from "./services/ai-providers.js";
 import {
   htmlToMarkdown,
   markdownToHtml,
@@ -294,6 +294,63 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // Screenshot-area capture: return the visible tab as a PNG data URL.
+  // The content script crops to the user-selected rect on its side.
+  if (message?.type === "capture-visible") {
+    const windowId = sender.tab?.windowId ?? chrome.windows.WINDOW_ID_CURRENT;
+    chrome.tabs
+      .captureVisibleTab(windowId, { format: "png" })
+      .then((dataUrl) => sendResponse({ ok: true, dataUrl }))
+      .catch((err) =>
+        sendResponse({ ok: false, error: String(err?.message || err) })
+      );
+    return true;
+  }
+
+  // OCR + translate a cropped screenshot through Gemini vision.
+  if (message?.type === "translate-image") {
+    readSettings()
+      .then(async (settings) => {
+        try {
+          const gemini = (settings.providers || []).find(
+            (p) => p.type === "gemini" && p.config?.apiKey
+          );
+          if (!gemini) {
+            sendResponse({
+              ok: false,
+              error:
+                "Screenshot translation needs a Gemini API key. Add a Gemini provider in Options → Providers."
+            });
+            return;
+          }
+          const provider = new GeminiProvider(gemini.config);
+          const targetLang =
+            message.payload?.targetLanguage ||
+            settings.targetLanguageCode ||
+            "en";
+          const result = await provider.translateImage(
+            message.payload.imageBase64,
+            targetLang,
+            message.payload.mimeType
+          );
+          sendResponse({
+            ok: true,
+            result: {
+              ...result,
+              providerName: gemini.name || "Gemini",
+              targetLanguage: targetLang
+            }
+          });
+        } catch (err) {
+          sendResponse({ ok: false, error: String(err?.message || err) });
+        }
+      })
+      .catch((err) =>
+        sendResponse({ ok: false, error: String(err?.message || err) })
+      );
+    return true;
+  }
+
   if (message?.type === "open-options") {
     chrome.runtime.openOptionsPage();
     return true;
@@ -312,4 +369,46 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true;
   }
+});
+
+// --- Screenshot-area translation context menu -----------------------------
+
+const SCREENSHOT_MENU_ID = "bntrans-screenshot-area";
+
+async function registerScreenshotMenu() {
+  // Callback form + lastError swallow: the promise form does not reliably
+  // reject on a missing id and would spam the console on every SW start.
+  await new Promise((resolve) =>
+    chrome.contextMenus.remove(SCREENSHOT_MENU_ID, () => {
+      void chrome.runtime.lastError;
+      resolve();
+    })
+  );
+  let title = "Translate screenshot area";
+  try {
+    const settings = await readSettings();
+    if ((settings.interfaceLanguage || "en") === "vi") {
+      title = "Dịch vùng chụp màn hình";
+    }
+  } catch {
+    /* keep English fallback */
+  }
+  chrome.contextMenus.create({
+    id: SCREENSHOT_MENU_ID,
+    title,
+    contexts: ["page", "selection", "image", "frame", "link", "video"]
+  });
+}
+
+chrome.runtime.onInstalled.addListener(registerScreenshotMenu);
+chrome.runtime.onStartup.addListener(registerScreenshotMenu);
+// MV3 service workers restart often; menu items persist per session but a
+// dev reload clears them, so register eagerly too (remove+create is safe).
+registerScreenshotMenu();
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId !== SCREENSHOT_MENU_ID || !tab?.id) return;
+  chrome.tabs
+    .sendMessage(tab.id, { type: "start-screenshot-select" })
+    .catch(() => {});
 });

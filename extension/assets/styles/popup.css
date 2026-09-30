@@ -568,8 +568,8 @@ em {
 
 .bt-model-row {
   display: flex;
-  gap: var(--bt-space-small);
   align-items: stretch;
+  gap: var(--bt-space-small);
 }
 
 .bt-model-row .bt-input {
@@ -1422,4 +1422,10 @@ textarea.bt-input:focus {
 .bt-quick-body {
   display: grid;
   gap: var(--bt-space-medium);
+}
+
+.bt-quick-capture {
+  justify-content: center;
+  width: 100%;
+  margin-top: 8px;
 }
