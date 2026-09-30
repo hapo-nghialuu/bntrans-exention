@@ -52,7 +52,7 @@ async function detectLanguage(text) {
     const results = await d.detect(text);
 
     if (Array.isArray(results) && results.length > 0) {
-      return results[0].detectedLanguage;
+      return results[0];
     }
   } catch {}
 
@@ -74,7 +74,7 @@ async function runTranslation(text, requestedSource, requestedTarget) {
 
   if (!finalSource || finalSource === "auto") {
     const detected = await detectLanguage(text);
-    finalSource = detected || source;
+    finalSource = detected?.detectedLanguage || source;
   }
 
   if (!finalSource || finalSource === "auto") {
@@ -145,6 +145,19 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         sendResponse({ ok: false, error: String(err?.message || err) })
       );
 
+    return true;
+  }
+
+  if (message?.type === "detect-language") {
+    detectLanguage(message.payload?.text || "")
+      .then((result) => {
+        sendResponse({
+          ok: true,
+          detectedLanguage: result?.detectedLanguage || null,
+          confidence: result?.confidence || 0
+        });
+      })
+      .catch(() => sendResponse({ ok: false }));
     return true;
   }
 

@@ -290,6 +290,20 @@ try {
   /* extension context not ready */
 }
 
+/**
+ * Page context sent with every translation request so the provider can
+ * resolve ambiguity (site + page title, never translated itself).
+ */
+function getPageContext() {
+  try {
+    const title = (document.title || "").trim();
+    const host = location.hostname || "";
+    return `${host} — ${title}`.slice(0, 200).trim();
+  } catch {
+    return "";
+  }
+}
+
 async function requestTranslation(payload) {
   if (!isExtensionContextValid()) {
     throw new Error(i18n.t("toast.extensionUpdated"));
@@ -301,7 +315,10 @@ async function requestTranslation(payload) {
       throw new Error("Extension context invalidated");
     }
 
-    return chrome.runtime.sendMessage({ type: "translate", payload });
+    return chrome.runtime.sendMessage({
+      type: "translate",
+      payload: { context: getPageContext(), ...payload }
+    });
   } catch (error) {
     if (
       error.message.includes("Extension context invalidated") ||
@@ -2447,6 +2464,50 @@ function makeDraggable(element, handle) {
 // Hover translate state
 let hoverModifierPressed = false;
 let hoverTranslateCache = new Map();
+
+// Translation memory: persist hover translations across sessions so repeated
+// segments are free and consistent. Bounded, flushed to storage debounced.
+const TM_STORAGE_KEY = "bnTransTM";
+const TM_MAX_ENTRIES = 200;
+let tmFlushTimer = null;
+
+function tmSet(key, value) {
+  if (hoverTranslateCache.has(key)) hoverTranslateCache.delete(key);
+  hoverTranslateCache.set(key, value);
+  while (hoverTranslateCache.size > TM_MAX_ENTRIES) {
+    hoverTranslateCache.delete(hoverTranslateCache.keys().next().value);
+  }
+  if (tmFlushTimer) return;
+  tmFlushTimer = setTimeout(() => {
+    tmFlushTimer = null;
+    try {
+      chrome.storage.local.set({
+        [TM_STORAGE_KEY]: Array.from(hoverTranslateCache.entries())
+      });
+    } catch {
+      /* extension context invalidated */
+    }
+  }, 2000);
+}
+
+// Facade passed to granularity handlers so their cache.set also persists
+const tmCache = {
+  has: (k) => hoverTranslateCache.has(k),
+  get: (k) => hoverTranslateCache.get(k),
+  set: (k, v) => tmSet(k, v)
+};
+
+// Hydrate the cache from storage once on load
+try {
+  chrome.storage.local.get(TM_STORAGE_KEY).then((data) => {
+    const entries = data?.[TM_STORAGE_KEY];
+    if (Array.isArray(entries)) {
+      entries.forEach(([k, v]) => hoverTranslateCache.set(k, v));
+    }
+  });
+} catch {
+  /* extension context not ready */
+}
 let currentHoveredElement = null;
 let hoverTimeout = null;
 let lastMouseX = 0;
@@ -2813,7 +2874,7 @@ async function handleHoverTranslate(element, settings) {
       createHoverPlaceholder,
       updateHoverContent,
       requestTranslation,
-      hoverTranslateCache,
+      tmCache,
       clearAllHoverTranslations
     );
   } else if (granularity === "sentence") {
@@ -2824,7 +2885,7 @@ async function handleHoverTranslate(element, settings) {
       createHoverPlaceholder,
       updateHoverContent,
       requestTranslation,
-      hoverTranslateCache,
+      tmCache,
       clearAllHoverTranslations
     );
   }
@@ -2835,12 +2896,8 @@ async function handleHoverTranslate(element, settings) {
 
   // Include providerId in cache key to support provider switching
   const cacheKey = `${text}-${settings.nativeLanguageCode}-${settings.activeProviderId}`;
-  if (hoverTranslateCache.has(cacheKey)) {
-    updateHoverContent(
-      placeholder,
-      hoverTranslateCache.get(cacheKey),
-      settings
-    );
+  if (tmCache.has(cacheKey)) {
+    updateHoverContent(placeholder, tmCache.get(cacheKey), settings);
     return;
   }
 
@@ -2855,7 +2912,7 @@ async function handleHoverTranslate(element, settings) {
 
     if (res?.ok && res.result?.translation) {
       const translation = res.result.translation;
-      hoverTranslateCache.set(cacheKey, translation);
+      tmCache.set(cacheKey, translation);
       updateHoverContent(placeholder, translation, settings);
     } else {
       // Show error inline instead of removing

@@ -25,6 +25,26 @@ async function ensureOffscreen() {
   }
 }
 
+/**
+ * Detect the language of a text via the offscreen LanguageDetector API.
+ * Returns a BCP-47 code or null when detection is unavailable/uncertain.
+ */
+async function detectLanguageWithOffscreen(text) {
+  try {
+    await ensureOffscreen();
+    const res = await chrome.runtime.sendMessage({
+      type: "detect-language",
+      payload: { text: String(text || "").slice(0, 1000) }
+    });
+    if (res?.ok && res.detectedLanguage) {
+      return res.detectedLanguage;
+    }
+  } catch {
+    // Detection is best-effort; fall back to 'auto'
+  }
+  return null;
+}
+
 async function readSettings() {
   const { translatorSettings } = await chrome.storage.local.get(SETTINGS_KEY);
   return (
@@ -55,6 +75,8 @@ async function readSettings() {
       ],
       // AI Provider settings
       activeProviderId: "google-translate",
+      translationStyle: "natural",
+      glossary: {},
       providers: [
         {
           id: "google-translate",
@@ -135,13 +157,47 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "translate") {
     readSettings().then(async (settings) => {
       // Extract payload using keys sent by content-script.js
-      const { text, targetLanguage, sourceLanguage, providerId, customPrompt } =
-        message.payload;
+      const {
+        text,
+        targetLanguage,
+        sourceLanguage,
+        providerId,
+        customPrompt,
+        context
+      } = message.payload;
 
-      // Map to standardized keys for AIProviderService
-      // Use 'auto' if sourceLanguage is not explicitly provided
-      const sourceLang = sourceLanguage || "auto";
       const targetLang = targetLanguage;
+      let sourceLang = sourceLanguage || "auto";
+
+      // Detect the source language when it is not explicitly provided, so
+      // prompts get a concrete language and we can skip no-op translations
+      // (e.g., English text -> English target).
+      if (sourceLang === "auto") {
+        const detected = await detectLanguageWithOffscreen(text);
+        if (detected) {
+          const sameBaseLang =
+            detected.split("-")[0].toLowerCase() ===
+            String(targetLang || "")
+              .split("-")[0]
+              .toLowerCase();
+          if (sameBaseLang) {
+            // Source already matches the target language: return it as-is.
+            sendResponse({
+              ok: true,
+              result: {
+                translation: text,
+                providerName: "Detection",
+                providerType: "same-language",
+                sourceLanguage: detected,
+                targetLanguage: targetLang,
+                skippedSameLanguage: true
+              }
+            });
+            return;
+          }
+          sourceLang = detected;
+        }
+      }
 
       const aiService = new AIProviderService(settings);
 
@@ -161,7 +217,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sourceLang,
           targetLang,
           providerId,
-          customPrompt
+          customPrompt,
+          context
         );
 
         // If result is the special signal for Window AI, use offscreen
