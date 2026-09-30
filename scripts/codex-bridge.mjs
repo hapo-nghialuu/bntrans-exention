@@ -25,6 +25,9 @@ import { join } from "node:path";
 
 const PORT = Number(process.env.CODEX_BRIDGE_PORT) || 8787;
 const BRIDGE_MODEL = "codex-subscription";
+// Translation is a trivial task: default to the cheap/fast model with low
+// reasoning effort. CODEX_MODEL overrides; a request may also pick a model.
+const DEFAULT_CODEX_MODEL = process.env.CODEX_MODEL || "gpt-6-luna";
 const REQUEST_TIMEOUT_MS = 180_000;
 
 function buildPrompt(messages) {
@@ -48,11 +51,13 @@ function runCodex(prompt, model) {
     "--sandbox",
     "read-only",
     "-o",
-    outFile
+    outFile,
+    "-c",
+    'model_reasoning_effort="low"'
   ];
-  // Only forward an explicit model override; the bridge alias means
-  // "whatever the CLI is configured with".
-  if (model && model !== BRIDGE_MODEL) args.push("-m", model);
+  // The bridge alias maps to the bridge default model; an explicit model in
+  // the request wins.
+  args.push("-m", model && model !== BRIDGE_MODEL ? model : DEFAULT_CODEX_MODEL);
 
   return new Promise((resolve, reject) => {
     const proc = execFile(
