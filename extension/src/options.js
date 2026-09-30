@@ -109,6 +109,10 @@ let editingProviderId = null;
 let ttsProviders = [];
 let activeTTSProviderId = "google-tts";
 let editingTTSProviderId = null;
+// The default target the last load/save produced. The selection popup
+// remembers its own last target; when the user changes the explicit
+// default we sync that memory so the new default actually takes effect.
+let savedTargetLanguageCode = null;
 
 const LANGUAGES = [
   { code: "en", name: "English" },
@@ -882,6 +886,7 @@ async function loadSettings() {
     enabledCheckbox.checked = res.settings.enabled !== false;
     nativeSelect.value = res.settings.nativeLanguageCode || "vi";
     targetSelect.value = res.settings.targetLanguageCode || "en";
+    savedTargetLanguageCode = targetSelect.value;
 
     // Migration: Convert old preferNativeAsSource to new useAutoDetect (reversed logic)
     // Old true (prefer native) → New false (fixed direction)
@@ -1063,6 +1068,11 @@ async function saveSettings() {
     enabled: enabledCheckbox.checked,
     nativeLanguageCode: nativeSelect.value,
     targetLanguageCode: targetSelect.value,
+    // A changed explicit default must win over the popup's remembered target
+    ...(savedTargetLanguageCode !== null &&
+    savedTargetLanguageCode !== targetSelect.value
+      ? { selectionLastTarget: targetSelect.value }
+      : {}),
     useAutoDetect: autoDetect.checked,
     showConfirmModal: confirmModal.checked,
     aliases: currentAliases,
@@ -1116,6 +1126,8 @@ async function saveSettings() {
     type: "set-settings",
     settings
   });
+
+  if (res?.ok) savedTargetLanguageCode = targetSelect.value;
 
   if (res?.ok && saveStatus) {
     saveStatus.textContent = `✓ ${i18n.t("popup.saved")}`;

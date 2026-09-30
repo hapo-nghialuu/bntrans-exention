@@ -138,8 +138,13 @@ async function readSettings() {
 }
 
 async function writeSettings(next) {
-  await chrome.storage.local.set({ [SETTINGS_KEY]: next });
-  return next;
+  // Merge instead of replace: callers send partial or possibly stale
+  // snapshots; keys they don't know about (e.g. selectionLastTarget saved
+  // from a content script) must survive a save from another surface.
+  const current = await readSettings();
+  const merged = { ...current, ...next };
+  await chrome.storage.local.set({ [SETTINGS_KEY]: merged });
+  return merged;
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

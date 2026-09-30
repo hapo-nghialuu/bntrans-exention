@@ -1245,7 +1245,7 @@ async function toggleInstantDomainForCurrentUrl() {
         await safeRuntimeCall(() =>
           chrome.runtime.sendMessage({
             type: "set-settings",
-            settings: settings
+            settings: { instantDomains: settings.instantDomains }
           })
         );
       } catch (error) {
@@ -1269,7 +1269,7 @@ async function toggleInstantDomainForCurrentUrl() {
       await safeRuntimeCall(() =>
         chrome.runtime.sendMessage({
           type: "set-settings",
-          settings: settings
+          settings: { instantDomains: settings.instantDomains }
         })
       );
     } catch (error) {
@@ -2058,7 +2058,7 @@ async function showTranslationPopup(selectionRect, text, iconPosition) {
           safeRuntimeCall(() =>
             chrome.runtime.sendMessage({
               type: "set-settings",
-              settings: { ...settings, selectionLastSource: e.target.value }
+              settings: { selectionLastSource: e.target.value }
             })
           );
         } catch (error) {
@@ -2094,7 +2094,7 @@ async function showTranslationPopup(selectionRect, text, iconPosition) {
           safeRuntimeCall(() =>
             chrome.runtime.sendMessage({
               type: "set-settings",
-              settings: { ...settings, selectionLastTarget: e.target.value }
+              settings: { selectionLastTarget: e.target.value }
             })
           );
         } catch (error) {
@@ -3214,7 +3214,7 @@ async function toggleHoverDomainForCurrentUrl() {
         await safeRuntimeCall(() =>
           chrome.runtime.sendMessage({
             type: "set-settings",
-            settings: settings
+            settings: { hoverTranslateDomains: settings.hoverTranslateDomains }
           })
         );
       } catch (error) {
@@ -3236,7 +3236,7 @@ async function toggleHoverDomainForCurrentUrl() {
       await safeRuntimeCall(() =>
         chrome.runtime.sendMessage({
           type: "set-settings",
-          settings: settings
+          settings: { hoverTranslateDomains: settings.hoverTranslateDomains }
         })
       );
     } catch (error) {
