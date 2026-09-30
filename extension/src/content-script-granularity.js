@@ -302,32 +302,38 @@ function markupHTML(text) {
   );
 }
 
+const DELIMITER = " ||| ";
+
+function buildDelimiterPrompt() {
+  return `Translate the following Markdown text segments. The segments are separated by "${DELIMITER}". Keep the delimiter "${DELIMITER}" in the output at the exact same positions. Preserve Markdown syntax (**, *, \`, []) and HTML tags. Do not translate code inside \`\`. Return the full translated string with delimiters.`;
+}
+
 /**
- * Handle line-by-line translation (Wrapper-Based + Block-List Grouping + Markdown)
+ * Split translated text back into segments aligned with the source list
  */
-async function handleLineByLineTranslate(
-  element,
-  text,
-  settings,
-  createPlaceholder,
-  updateContent,
-  requestTranslation,
-  cache
-) {
-  // 1. Check if already translated
-  if (element.hasAttribute("data-bntrans-translated")) {
-    return;
+function splitTranslatedSegments(rawTranslation, expectedCount) {
+  let segments = rawTranslation.split(/\|\|\|/).map((s) => s.trim());
+
+  if (segments.length !== expectedCount) {
+    console.warn(
+      "[Granularity] Delimiter mismatch. Expected:",
+      expectedCount,
+      "Got:",
+      segments.length
+    );
+    if (segments.length === 1 && rawTranslation.includes("\n")) {
+      segments = rawTranslation.split("\n").map((s) => s.trim());
+    }
   }
 
-  // 2. Get Translation Units (Groups)
-  const units = getTranslationUnits(element);
+  return segments;
+}
 
-  if (units.length === 0) {
-    console.log("[Granularity] No translation units found");
-    return;
-  }
-
-  // 3. Inject Wrappers with Loading Indicators
+/**
+ * Inject wrapper spans (original + translation placeholder) around each unit
+ * @returns {Array<{wrapper: HTMLElement, translationSpan: HTMLElement}>}
+ */
+function injectUnitWrappers(units) {
   const wrappers = [];
 
   for (const unit of units) {
@@ -366,70 +372,82 @@ async function handleLineByLineTranslate(
     wrappers.push({ wrapper, translationSpan });
   }
 
+  return wrappers;
+}
+
+function markTranslationError(wrappers, error) {
+  console.error("[Granularity] Error:", error);
+  wrappers.forEach(({ translationSpan }) => {
+    translationSpan.textContent = "❌ Error";
+  });
+}
+
+/**
+ * Handle line-by-line translation (Wrapper-Based + Block-List Grouping + Markdown)
+ */
+// eslint-disable-next-line no-unused-vars -- called from content-script.js
+async function handleLineByLineTranslate(
+  element,
+  text,
+  settings,
+  createPlaceholder,
+  updateContent,
+  requestTranslation,
+  cache
+) {
+  // 1. Check if already translated
+  if (element.hasAttribute("data-bntrans-translated")) {
+    return;
+  }
+
+  // 2. Get Translation Units (Groups)
+  const units = getTranslationUnits(element);
+
+  if (units.length === 0) {
+    console.log("[Granularity] No translation units found");
+    return;
+  }
+
+  // 3. Inject Wrappers with Loading Indicators
+  const wrappers = injectUnitWrappers(units);
+
   // Mark element
   element.setAttribute("data-bntrans-translated", "line");
   element.classList.add("bt-hover-translated");
 
   // 4. Prepare text with Delimiters (Markdown conversion)
-  const DELIMITER = " ||| ";
   const originalMarkdowns = units.map((u) => toMarkdown(u.nodes));
   const combinedText = originalMarkdowns.join(DELIMITER);
 
-  // Cache key
-  const cacheKey = `line-md-${combinedText.length}-${settings.nativeLanguageCode}-${settings.activeProviderId}`;
+  // Cache key: full source text, not just its length
+  const cacheKey = `line-md-${combinedText}-${settings.nativeLanguageCode}-${settings.activeProviderId}`;
 
   let translatedSegments;
   if (cache.has(cacheKey)) {
     translatedSegments = cache.get(cacheKey);
   } else {
     try {
-      const customPrompt = `Translate the following Markdown text segments. The segments are separated by "${DELIMITER}". Keep the delimiter "${DELIMITER}" in the output at the exact same positions. Preserve Markdown syntax (**, *, \`, []) and HTML tags. Do not translate code inside \`\`. Return the full translated string with delimiters.`;
-
       const res = await requestTranslation({
         text: combinedText,
         nativeLanguageCode: settings.nativeLanguageCode || "en",
         targetLanguage: settings.nativeLanguageCode || "vi",
         sourceLanguage: settings.targetLanguageCode || "en",
         useAutoDetect: false,
-        customPrompt: customPrompt
+        customPrompt: buildDelimiterPrompt()
       });
 
       if (res?.ok && res.result?.translation) {
-        const rawTranslation = res.result.translation;
-        translatedSegments = rawTranslation
-          .split(/\|\|\|/)
-          .map((s) => s.trim());
-
-        if (translatedSegments.length !== originalMarkdowns.length) {
-          console.warn(
-            "[Granularity] Delimiter mismatch. Expected:",
-            originalMarkdowns.length,
-            "Got:",
-            translatedSegments.length
-          );
-          if (
-            translatedSegments.length === 1 &&
-            rawTranslation.includes("\n")
-          ) {
-            translatedSegments = rawTranslation
-              .split("\n")
-              .map((s) => s.trim());
-          }
-        }
-
+        translatedSegments = splitTranslatedSegments(
+          res.result.translation,
+          originalMarkdowns.length
+        );
         cache.set(cacheKey, translatedSegments);
       } else {
-        console.error("[Granularity] Translation failed:", res?.error);
-        wrappers.forEach(({ translationSpan }) => {
-          translationSpan.textContent = "❌ Error";
-        });
+        markTranslationError(wrappers, res?.error);
         return;
       }
     } catch (err) {
-      console.error("[Granularity] Error:", err);
-      wrappers.forEach(({ translationSpan }) => {
-        translationSpan.textContent = "❌ Error";
-      });
+      markTranslationError(wrappers, err);
       return;
     }
   }
@@ -438,6 +456,33 @@ async function handleLineByLineTranslate(
   updateWrappers(wrappers, translatedSegments, settings);
 }
 
+/**
+ * Split a Markdown string into sentences using Intl.Segmenter.
+ * Falls back to the whole string when the API is unavailable.
+ */
+function splitIntoSentences(markdown, locale) {
+  if (typeof Intl === "undefined" || typeof Intl.Segmenter !== "function") {
+    return [markdown];
+  }
+  try {
+    const segmenter = new Intl.Segmenter(locale || undefined, {
+      granularity: "sentence"
+    });
+    const sentences = [...segmenter.segment(markdown)]
+      .map((s) => s.segment.trim())
+      .filter((s) => s.length > 0);
+    return sentences.length > 0 ? sentences : [markdown];
+  } catch {
+    return [markdown];
+  }
+}
+
+/**
+ * Handle sentence-by-sentence translation.
+ * Same wrapper injection as line mode, but each unit's Markdown is split into
+ * sentences first, so every sentence is translated as an isolated segment
+ * (cleaner boundaries for the translator) then re-grouped per unit.
+ */
 // eslint-disable-next-line no-unused-vars -- called from content-script.js
 async function handleSentenceBySentenceTranslate(
   element,
@@ -448,14 +493,82 @@ async function handleSentenceBySentenceTranslate(
   requestTranslation,
   cache
 ) {
-  return handleLineByLineTranslate(
-    element,
-    text,
-    settings,
-    createPlaceholder,
-    updateContent,
-    requestTranslation,
-    cache
+  if (element.hasAttribute("data-bntrans-translated")) {
+    return;
+  }
+
+  const units = getTranslationUnits(element);
+
+  if (units.length === 0) {
+    console.log("[Granularity] No translation units found");
+    return;
+  }
+
+  const wrappers = injectUnitWrappers(units);
+
+  element.setAttribute("data-bntrans-translated", "sentence");
+  element.classList.add("bt-hover-translated");
+
+  // Split each unit's Markdown into sentences; keep unit index per sentence
+  // so translated sentences can be re-grouped under their own unit.
+  const sourceLocale = settings.targetLanguageCode || "en";
+  const sentences = [];
+  const sentenceUnitIndex = [];
+
+  units.forEach((unit, unitIndex) => {
+    const unitMarkdown = toMarkdown(unit.nodes);
+    splitIntoSentences(unitMarkdown, sourceLocale).forEach((sentence) => {
+      sentences.push(sentence);
+      sentenceUnitIndex.push(unitIndex);
+    });
+  });
+
+  const combinedText = sentences.join(DELIMITER);
+  const cacheKey = `sentence-md-${combinedText}-${settings.nativeLanguageCode}-${settings.activeProviderId}`;
+
+  let translatedSentences;
+  if (cache.has(cacheKey)) {
+    translatedSentences = cache.get(cacheKey);
+  } else {
+    try {
+      const res = await requestTranslation({
+        text: combinedText,
+        nativeLanguageCode: settings.nativeLanguageCode || "en",
+        targetLanguage: settings.nativeLanguageCode || "vi",
+        sourceLanguage: settings.targetLanguageCode || "en",
+        useAutoDetect: false,
+        customPrompt: buildDelimiterPrompt()
+      });
+
+      if (res?.ok && res.result?.translation) {
+        translatedSentences = splitTranslatedSegments(
+          res.result.translation,
+          sentences.length
+        );
+        cache.set(cacheKey, translatedSentences);
+      } else {
+        markTranslationError(wrappers, res?.error);
+        return;
+      }
+    } catch (err) {
+      markTranslationError(wrappers, err);
+      return;
+    }
+  }
+
+  // Re-group translated sentences per unit; each sentence on its own line
+  const unitTranslations = units.map(() => []);
+  translatedSentences.forEach((sentence, i) => {
+    const unitIndex = sentenceUnitIndex[i];
+    if (unitIndex !== undefined) {
+      unitTranslations[unitIndex].push(sentence);
+    }
+  });
+
+  updateWrappers(
+    wrappers,
+    unitTranslations.map((parts) => parts.join("<br>")),
+    settings
   );
 }
 
