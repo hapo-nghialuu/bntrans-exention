@@ -645,6 +645,54 @@
                   ><span id="prompt-char-count">0</span>/500</small
                 >
               </div>
+
+              <div class="bt-field">
+                <label
+                  for="translation-style"
+                  data-i18n="popup.translationStyle"
+                  >Translation Style</label
+                >
+                <select id="translation-style" class="bt-input">
+                  <option value="natural" data-i18n="popup.styleNatural">
+                    Natural
+                  </option>
+                  <option value="literal" data-i18n="popup.styleLiteral">
+                    Literal
+                  </option>
+                  <option value="formal" data-i18n="popup.styleFormal">
+                    Formal
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Glossary Section -->
+            <div id="glossary-section" class="bt-prompt-section">
+              <div class="bt-group-label" data-i18n="popup.groupGlossary">
+                Glossary
+              </div>
+              <p class="bt-help-text" data-i18n="popup.glossaryHelp">
+                Terms always translated exactly as specified (AI providers only)
+              </p>
+
+              <div class="bt-alias-input-group">
+                <input
+                  type="text"
+                  id="glossary-key"
+                  class="bt-input"
+                  data-i18n-placeholder="popup.glossaryTermPlaceholder"
+                  placeholder="Term (e.g. KYC)"
+                />
+                <input
+                  type="text"
+                  id="glossary-value"
+                  class="bt-input"
+                  data-i18n-placeholder="popup.glossaryValuePlaceholder"
+                  placeholder="Translation"
+                />
+                <button id="add-glossary" class="bt-button-small">+</button>
+              </div>
+              <div id="glossary-list" class="bt-alias-list"></div>
             </div>
           </div>
 

@@ -16,6 +16,11 @@ const aliasListEl = document.querySelector("#alias-list");
 const aliasKeyInput = document.querySelector("#alias-key");
 const aliasValueInput = document.querySelector("#alias-value");
 const addAliasBtn = document.querySelector("#add-alias");
+const translationStyleSelect = document.querySelector("#translation-style");
+const glossaryListEl = document.querySelector("#glossary-list");
+const glossaryKeyInput = document.querySelector("#glossary-key");
+const glossaryValueInput = document.querySelector("#glossary-value");
+const addGlossaryBtn = document.querySelector("#add-glossary");
 
 // Theme element
 const themeSelect = document.querySelector("#theme-select");
@@ -94,6 +99,7 @@ const newHoverDomain = document.getElementById("new-hover-domain");
 const addHoverDomain = document.getElementById("add-hover-domain");
 
 let currentAliases = {};
+let currentGlossary = {};
 let currentDomains = [];
 let currentHoverDomains = [];
 let providers = [];
@@ -211,6 +217,28 @@ function renderAliases() {
       const key = e.target.dataset.key;
       delete currentAliases[key];
       renderAliases();
+      saveSettings();
+    });
+  });
+}
+
+function renderGlossary() {
+  if (!glossaryListEl) return;
+  glossaryListEl.innerHTML = "";
+  Object.entries(currentGlossary).forEach(([key, value]) => {
+    const item = document.createElement("div");
+    item.className = "bt-alias-item";
+    item.innerHTML = `
+      <span><b>${key}</b> → ${value}</span>
+      <button data-key="${key}" class="bt-remove-glossary">×</button>
+    `;
+    glossaryListEl.appendChild(item);
+  });
+
+  glossaryListEl.querySelectorAll(".bt-remove-glossary").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      delete currentGlossary[e.target.dataset.key];
+      renderGlossary();
       saveSettings();
     });
   });
@@ -822,6 +850,10 @@ async function loadSettings() {
       systemPromptDisplay.value =
         "You are a professional translator. Translate the user's text from source language to target language. Return ONLY the translated text.";
     }
+    if (translationStyleSelect) {
+      translationStyleSelect.value = res.settings.translationStyle || "natural";
+    }
+    currentGlossary = res.settings.glossary || {};
 
     // Load Keyboard Shortcut
     const shortcut = res.settings.instantToggleShortcut || {
@@ -922,6 +954,7 @@ async function loadSettings() {
   }
 
   renderAliases();
+  renderGlossary();
   renderDomains();
   renderProviderList();
   renderTTSProviderList();
@@ -952,6 +985,8 @@ async function saveSettings() {
     activeTTSProviderId,
     // Custom Prompt
     customPrompt: userCustomPrompt?.value || "",
+    translationStyle: translationStyleSelect?.value || "natural",
+    glossary: currentGlossary,
     // Keyboard shortcut
     instantToggleShortcut: {
       key: shortcutKeyInput?.value.toUpperCase() || "I",
@@ -1008,6 +1043,20 @@ addAliasBtn.addEventListener("click", () => {
     saveSettings();
   }
 });
+
+addGlossaryBtn?.addEventListener("click", () => {
+  const key = glossaryKeyInput.value.trim();
+  const value = glossaryValueInput.value.trim();
+  if (key && value) {
+    currentGlossary[key] = value;
+    glossaryKeyInput.value = "";
+    glossaryValueInput.value = "";
+    renderGlossary();
+    saveSettings();
+  }
+});
+
+translationStyleSelect?.addEventListener("change", saveSettings);
 
 enabledCheckbox.addEventListener("change", () => {
   updateSettingsVisibility();

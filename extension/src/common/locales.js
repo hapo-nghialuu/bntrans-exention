@@ -91,6 +91,15 @@ export const locales = {
     "popup.userPrompt": "Your Custom Context (Optional)",
     "popup.promptPlaceholder":
       "e.g., Focus on technical terminology in software development",
+    "popup.translationStyle": "Translation Style",
+    "popup.styleNatural": "Natural",
+    "popup.styleLiteral": "Literal",
+    "popup.styleFormal": "Formal",
+    "popup.groupGlossary": "Glossary",
+    "popup.glossaryHelp":
+      "Terms always translated exactly as specified (AI providers only)",
+    "popup.glossaryTermPlaceholder": "Term (e.g. KYC)",
+    "popup.glossaryValuePlaceholder": "Translation",
     "popup.modelOptional": "Model",
 
     // Hover Translate
@@ -279,6 +288,15 @@ export const locales = {
     "popup.userPrompt": "Ngữ cảnh tuỳ chỉnh (Tùy chọn)",
     "popup.promptPlaceholder":
       "Ví dụ: Tập trung vào thuật ngữ kỹ thuật trong phát triển phần mềm",
+    "popup.translationStyle": "Phong cách dịch",
+    "popup.styleNatural": "Tự nhiên",
+    "popup.styleLiteral": "Sát nghĩa",
+    "popup.styleFormal": "Trang trọng",
+    "popup.groupGlossary": "Glossary (Thuật ngữ)",
+    "popup.glossaryHelp":
+      "Thuật ngữ luôn được dịch đúng như chỉ định (chỉ áp dụng cho AI providers)",
+    "popup.glossaryTermPlaceholder": "Thuật ngữ (vd: KYC)",
+    "popup.glossaryValuePlaceholder": "Bản dịch",
     "popup.modelOptional": "Mô hình",
 
     // Hover Translate

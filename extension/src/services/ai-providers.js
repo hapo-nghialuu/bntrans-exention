@@ -10,28 +10,65 @@ RULES:
 4. Return ONLY the translated text with preserved Markdown.`;
 
 /**
+ * Register/style guidance appended to the system prompt.
+ */
+const STYLE_INSTRUCTIONS = {
+  literal:
+    "STYLE: Stay close to the source wording and sentence structure. Preserve nuances and terminology exactly, even when the result reads less fluently.",
+  formal:
+    "STYLE: Use a formal, polite register appropriate for professional contexts. For Vietnamese output, prefer neutral pronouns (tôi/bạn); do not use casual particles.",
+  natural:
+    "STYLE: Translate naturally and fluently, prioritizing idiomatic phrasing and readability in the target language."
+};
+
+/**
  * Base class for Translation Providers
  */
 class TranslationProvider {
-  constructor(config, customPrompt = "") {
+  constructor(
+    config,
+    customPrompt = "",
+    { style = "natural", glossary = {} } = {}
+  ) {
     this.config = config;
     this.customPrompt = customPrompt;
+    this.style = style;
+    this.glossary = glossary;
   }
 
   /**
-   * Build the complete system prompt with custom additions
+   * Build the complete system prompt with style, glossary, context and
+   * custom additions
    */
-  buildSystemPrompt(sourceLang, targetLang) {
-    const basePrompt = DEFAULT_SYSTEM_PROMPT.replace(
+  buildSystemPrompt(sourceLang, targetLang, context = "") {
+    let prompt = DEFAULT_SYSTEM_PROMPT.replace(
       "{sourceLang}",
       sourceLang
     ).replace("{targetLang}", targetLang);
 
-    if (this.customPrompt && this.customPrompt.trim()) {
-      return `${basePrompt}\n\nAdditional context: ${this.customPrompt.trim()}`;
+    const styleInstruction =
+      STYLE_INSTRUCTIONS[this.style] || STYLE_INSTRUCTIONS.natural;
+    prompt += `\n\n${styleInstruction}`;
+
+    const glossaryEntries = Object.entries(this.glossary || {}).filter(
+      ([term, translation]) => term.trim() && translation.trim()
+    );
+    if (glossaryEntries.length > 0) {
+      const lines = glossaryEntries
+        .map(([term, translation]) => `- ${term} → ${translation}`)
+        .join("\n");
+      prompt += `\n\nGLOSSARY (always translate these terms exactly as specified):\n${lines}`;
     }
 
-    return basePrompt;
+    if (context && context.trim()) {
+      prompt += `\n\nCONTEXT (use this to resolve ambiguity, do not translate it): ${context.trim()}`;
+    }
+
+    if (this.customPrompt && this.customPrompt.trim()) {
+      prompt += `\n\nAdditional context: ${this.customPrompt.trim()}`;
+    }
+
+    return prompt;
   }
 
   async translate() {
@@ -60,13 +97,17 @@ class WindowAIProvider extends TranslationProvider {
  * Google Gemini Provider
  */
 class GeminiProvider extends TranslationProvider {
-  async translate(text, sourceLang, targetLang) {
+  async translate(text, sourceLang, targetLang, context = "") {
     const apiKey = this.config.apiKey;
     const model = this.config.model || "gemini-pro";
 
     if (!apiKey) throw new Error("Gemini API Key is missing");
 
-    const systemPrompt = this.buildSystemPrompt(sourceLang, targetLang);
+    const systemPrompt = this.buildSystemPrompt(
+      sourceLang,
+      targetLang,
+      context
+    );
     const prompt = `${systemPrompt}\n\nText: ${text}`;
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -93,7 +134,7 @@ class GeminiProvider extends TranslationProvider {
  * OpenAI Provider
  */
 class OpenAIProvider extends TranslationProvider {
-  async translate(text, sourceLang, targetLang) {
+  async translate(text, sourceLang, targetLang, context = "") {
     const apiKey = this.config.apiKey;
     const model = this.config.model || "gpt-3.5-turbo";
     const baseUrl = this.config.baseUrl || "https://api.openai.com/v1";
@@ -111,7 +152,7 @@ class OpenAIProvider extends TranslationProvider {
         messages: [
           {
             role: "system",
-            content: this.buildSystemPrompt(sourceLang, targetLang)
+            content: this.buildSystemPrompt(sourceLang, targetLang, context)
           },
           { role: "user", content: text }
         ]
@@ -220,7 +261,7 @@ class GoogleTranslateProvider extends TranslationProvider {
  * Keeping code commented for future reference if auth method is found
  */
 // class MicrosoftTranslateProvider extends TranslationProvider {
-//   async translate(text, sourceLang, targetLang) {
+//   async translate(text, sourceLang, targetLang, context = "") {
 //     // Microsoft Translate uses ISO 639-1 codes
 //     // For auto-detect, leave 'from' parameter empty
 //     const from = sourceLang === 'auto' ? '' : sourceLang.toLowerCase();
@@ -265,7 +306,7 @@ class GoogleTranslateProvider extends TranslationProvider {
  * OpenRouter Provider
  */
 class OpenRouterProvider extends TranslationProvider {
-  async translate(text, sourceLang, targetLang) {
+  async translate(text, sourceLang, targetLang, context = "") {
     const apiKey = this.config.apiKey;
     const model = this.config.model || "google/gemini-2.0-flash-exp:free";
     const baseUrl = "https://openrouter.ai/api/v1";
@@ -285,7 +326,7 @@ class OpenRouterProvider extends TranslationProvider {
         messages: [
           {
             role: "system",
-            content: this.buildSystemPrompt(sourceLang, targetLang)
+            content: this.buildSystemPrompt(sourceLang, targetLang, context)
           },
           { role: "user", content: text }
         ]
@@ -306,7 +347,7 @@ class OpenRouterProvider extends TranslationProvider {
  * Groq Provider (Fast inference API)
  */
 class GroqProvider extends TranslationProvider {
-  async translate(text, sourceLang, targetLang) {
+  async translate(text, sourceLang, targetLang, context = "") {
     const apiKey = this.config.apiKey;
     const model = this.config.model || "llama-3.3-70b-versatile";
     const baseUrl = "https://api.groq.com/openai/v1";
@@ -324,7 +365,7 @@ class GroqProvider extends TranslationProvider {
         messages: [
           {
             role: "system",
-            content: this.buildSystemPrompt(sourceLang, targetLang)
+            content: this.buildSystemPrompt(sourceLang, targetLang, context)
           },
           { role: "user", content: text }
         ]
@@ -345,7 +386,7 @@ class GroqProvider extends TranslationProvider {
  * Custom Provider for OpenAI-compatible endpoints (Ollama, LM Studio, etc.)
  */
 class CustomProvider extends TranslationProvider {
-  async translate(text, sourceLang, targetLang) {
+  async translate(text, sourceLang, targetLang, context = "") {
     const apiKey = this.config.apiKey;
     const model = this.config.model || "llama2";
     const baseUrl = this.config.baseUrl || "http://localhost:11434/v1";
@@ -374,7 +415,7 @@ class CustomProvider extends TranslationProvider {
           messages: [
             {
               role: "system",
-              content: this.buildSystemPrompt(sourceLang, targetLang)
+              content: this.buildSystemPrompt(sourceLang, targetLang, context)
             },
             { role: "user", content: text }
           ]
@@ -415,6 +456,8 @@ export class AIProviderService {
     this.activeProviderId = settings.activeProviderId || "builtin";
     this.providers = settings.providers || [];
     this.customPrompt = settings.customPrompt || "";
+    this.translationStyle = settings.translationStyle || "natural";
+    this.glossary = settings.glossary || {};
 
     this.activeProvider = this.providers.find(
       (p) => p.id === this.activeProviderId
@@ -438,26 +481,27 @@ export class AIProviderService {
       typeof promptOverride === "string" && promptOverride.trim()
         ? promptOverride
         : this.customPrompt;
+    const opts = { style: this.translationStyle, glossary: this.glossary };
 
     switch (type) {
       case "gemini":
-        return new GeminiProvider(config, prompt);
+        return new GeminiProvider(config, prompt, opts);
       case "openai":
-        return new OpenAIProvider(config, prompt);
+        return new OpenAIProvider(config, prompt, opts);
       case "openrouter":
-        return new OpenRouterProvider(config, prompt);
+        return new OpenRouterProvider(config, prompt, opts);
       case "deepl":
-        return new DeepLProvider(config, prompt);
+        return new DeepLProvider(config, prompt, opts);
       case "google-translate":
-        return new GoogleTranslateProvider(config, prompt);
+        return new GoogleTranslateProvider(config, prompt, opts);
       // case "microsoft-translate":
-      //   return new MicrosoftTranslateProvider(config, prompt);
+      //   return new MicrosoftTranslateProvider(config, prompt, opts);
       case "groq":
-        return new GroqProvider(config, prompt);
+        return new GroqProvider(config, prompt, opts);
       case "ollama":
-        return new CustomProvider(config, prompt);
+        return new CustomProvider(config, prompt, opts);
       case "custom":
-        return new CustomProvider(config, prompt);
+        return new CustomProvider(config, prompt, opts);
       case "gemini-nano":
       default:
         return new WindowAIProvider({});
@@ -469,10 +513,16 @@ export class AIProviderService {
     sourceLang,
     targetLang,
     providerId,
-    requestPrompt = ""
+    requestPrompt = "",
+    context = ""
   ) {
     const provider = this.getProvider(providerId, requestPrompt);
-    const translation = await provider.translate(text, sourceLang, targetLang);
+    const translation = await provider.translate(
+      text,
+      sourceLang,
+      targetLang,
+      context
+    );
 
     // If it's the special offscreen signal, return it directly
     if (
