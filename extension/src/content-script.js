@@ -1809,6 +1809,12 @@ async function showTranslationPopup(selectionRect, text, iconPosition) {
   // Check if extension context is still valid
   if (!isExtensionContextValid()) {
     console.log("BNTrans: Extension context invalidated, cannot show popup");
+    // Silent dead-clicks confuse users — tell them the page needs a refresh
+    try {
+      showToast(i18n.t("toast.extensionUpdated"));
+    } catch {
+      /* toast needs DOM only; ignore */
+    }
     return;
   }
 
