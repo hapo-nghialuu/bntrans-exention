@@ -135,7 +135,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "translate") {
     readSettings().then(async (settings) => {
       // Extract payload using keys sent by content-script.js
-      const { text, targetLanguage, sourceLanguage, providerId } =
+      const { text, targetLanguage, sourceLanguage, providerId, customPrompt } =
         message.payload;
 
       // Map to standardized keys for AIProviderService
@@ -160,7 +160,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           textToTranslate,
           sourceLang,
           targetLang,
-          providerId
+          providerId,
+          customPrompt
         );
 
         // If result is the special signal for Window AI, use offscreen

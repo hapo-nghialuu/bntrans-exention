@@ -425,7 +425,7 @@ export class AIProviderService {
       };
   }
 
-  getProvider(providerId) {
+  getProvider(providerId, promptOverride) {
     let providerData = this.activeProvider;
 
     if (providerId) {
@@ -434,34 +434,44 @@ export class AIProviderService {
     }
 
     const { type, config } = providerData;
+    const prompt =
+      typeof promptOverride === "string" && promptOverride.trim()
+        ? promptOverride
+        : this.customPrompt;
 
     switch (type) {
       case "gemini":
-        return new GeminiProvider(config, this.customPrompt);
+        return new GeminiProvider(config, prompt);
       case "openai":
-        return new OpenAIProvider(config, this.customPrompt);
+        return new OpenAIProvider(config, prompt);
       case "openrouter":
-        return new OpenRouterProvider(config, this.customPrompt);
+        return new OpenRouterProvider(config, prompt);
       case "deepl":
-        return new DeepLProvider(config, this.customPrompt);
+        return new DeepLProvider(config, prompt);
       case "google-translate":
-        return new GoogleTranslateProvider(config, this.customPrompt);
+        return new GoogleTranslateProvider(config, prompt);
       // case "microsoft-translate":
-      //   return new MicrosoftTranslateProvider(config, this.customPrompt);
+      //   return new MicrosoftTranslateProvider(config, prompt);
       case "groq":
-        return new GroqProvider(config, this.customPrompt);
+        return new GroqProvider(config, prompt);
       case "ollama":
-        return new CustomProvider(config, this.customPrompt);
+        return new CustomProvider(config, prompt);
       case "custom":
-        return new CustomProvider(config, this.customPrompt);
+        return new CustomProvider(config, prompt);
       case "gemini-nano":
       default:
         return new WindowAIProvider({});
     }
   }
 
-  async translate(text, sourceLang, targetLang, providerId) {
-    const provider = this.getProvider(providerId);
+  async translate(
+    text,
+    sourceLang,
+    targetLang,
+    providerId,
+    requestPrompt = ""
+  ) {
+    const provider = this.getProvider(providerId, requestPrompt);
     const translation = await provider.translate(text, sourceLang, targetLang);
 
     // If it's the special offscreen signal, return it directly
