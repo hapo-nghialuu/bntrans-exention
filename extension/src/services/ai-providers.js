@@ -500,6 +500,16 @@ export class AIProviderService {
         return new GroqProvider(config, prompt, opts);
       case "ollama":
         return new CustomProvider(config, prompt, opts);
+      case "codex":
+        return new CustomProvider(
+          {
+            baseUrl: "http://localhost:8787/v1",
+            model: "codex-subscription",
+            ...config
+          },
+          prompt,
+          opts
+        );
       case "custom":
         return new CustomProvider(config, prompt, opts);
       case "gemini-nano":

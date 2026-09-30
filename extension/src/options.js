@@ -423,6 +423,7 @@ async function fetchProviderModels(type, { apiKey = "", baseUrl = "" } = {}) {
     openrouter: "https://openrouter.ai/api/v1",
     groq: "https://api.groq.com/openai/v1",
     ollama: baseUrl || "http://localhost:11434/v1",
+    codex: baseUrl || "http://localhost:8787/v1",
     custom: baseUrl
   };
   const base = bases[type];
@@ -579,6 +580,19 @@ function renderFormFields(type, config = {}) {
         <small style="color: #666;">Default Ollama endpoint</small>
       </div>
       ${modelFieldHtml(model, "llama3.1", "e.g., llama3.1, qwen2.5, mistral")}
+    `
+    );
+  } else if (type === "codex") {
+    const model = config.model || "codex-subscription";
+    formDynamicFields.insertAdjacentHTML(
+      "beforeend",
+      `
+      <div class="bt-field">
+        <label>Base URL</label>
+        <input type="text" id="field-baseUrl" class="bt-input" value="${config.baseUrl || "http://localhost:8787/v1"}" placeholder="http://localhost:8787/v1" />
+        <small style="color: #666;">Requires <code>node scripts/codex-bridge.mjs</code> running — uses your local Codex CLI login, no API key</small>
+      </div>
+      ${modelFieldHtml(model, "codex-subscription", "codex-subscription, gpt-6-luna, gpt-6-astra…")}
     `
     );
   } else if (type === "custom") {

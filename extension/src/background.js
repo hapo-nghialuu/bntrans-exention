@@ -96,6 +96,12 @@ async function readSettings() {
           type: "gemini-nano",
           name: "Chrome Built-in AI",
           config: {}
+        },
+        {
+          id: "codex",
+          type: "codex",
+          name: "Codex CLI (Subscription)",
+          config: {}
         }
       ],
       // Keyboard shortcut for toggle instant domain
