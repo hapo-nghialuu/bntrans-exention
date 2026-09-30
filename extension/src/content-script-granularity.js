@@ -148,6 +148,18 @@ function escapeTextBrackets(text) {
 }
 
 /**
+ * Tokens that must survive translation verbatim.
+ * Wrapped in backticks so the LLM treats them as code and does not touch them.
+ */
+const PROTECTED_TOKEN_PATTERN =
+  /(\{\{?[^{}\s]+\}?\}|[\w.+-]+@[\w-]+\.[\w.]+|https?:\/\/[^\s]+|@[\w][\w.-]*|#[\w][\w-]*|%[sd])/g;
+
+function protectInlineTokens(text) {
+  if (!text) return text;
+  return text.replace(PROTECTED_TOKEN_PATTERN, "`$1`");
+}
+
+/**
  * Restore markers back to < and > after receiving translation
  * Then escape them as HTML entities for safe rendering
  */
@@ -170,8 +182,10 @@ function toMarkdown(nodes) {
 
   nodeList.forEach((node) => {
     if (node.nodeType === Node.TEXT_NODE) {
-      // Escape < and > in text to prevent LLM confusion
-      md += escapeTextBrackets(node.textContent);
+      // Escape < and > in text to prevent LLM confusion, and wrap tokens
+      // that must not be translated (placeholders, links, mentions) in
+      // backticks
+      md += protectInlineTokens(escapeTextBrackets(node.textContent));
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       const tag = node.tagName.toLowerCase();
 
@@ -308,25 +322,92 @@ function buildDelimiterPrompt() {
   return `Translate the following Markdown text segments. The segments are separated by "${DELIMITER}". Keep the delimiter "${DELIMITER}" in the output at the exact same positions. Preserve Markdown syntax (**, *, \`, []) and HTML tags. Do not translate code inside \`\`. Return the full translated string with delimiters.`;
 }
 
-/**
- * Split translated text back into segments aligned with the source list
- */
-function splitTranslatedSegments(rawTranslation, expectedCount) {
-  let segments = rawTranslation.split(/\|\|\|/).map((s) => s.trim());
+function buildBasePayload(settings) {
+  return {
+    nativeLanguageCode: settings.nativeLanguageCode || "en",
+    targetLanguage: settings.nativeLanguageCode || "vi",
+    sourceLanguage: settings.targetLanguageCode || "en",
+    useAutoDetect: false
+  };
+}
 
-  if (segments.length !== expectedCount) {
-    console.warn(
-      "[Granularity] Delimiter mismatch. Expected:",
-      expectedCount,
-      "Got:",
-      segments.length
-    );
-    if (segments.length === 1 && rawTranslation.includes("\n")) {
-      segments = rawTranslation.split("\n").map((s) => s.trim());
+/**
+ * A segment is suspicious when the "translation" is identical to the source:
+ * likely the translator skipped it (unless it is non-letter content like
+ * numbers or very short text).
+ */
+function looksUntranslated(source, translation) {
+  const s = (source || "").trim();
+  const t = (translation || "").trim();
+  return s.length > 3 && s === t && /\p{L}/u.test(s);
+}
+
+async function translateSingleSegment(text, basePayload, requestTranslation) {
+  try {
+    const res = await requestTranslation({ ...basePayload, text });
+    if (res?.ok && res.result?.translation) {
+      return res.result.translation.trim();
     }
+  } catch (err) {
+    console.warn("[Granularity] Per-segment request failed:", err);
+  }
+  return "";
+}
+
+/**
+ * Translate a list of segments: one delimiter-batched request, with a
+ * per-segment fallback when the delimiter alignment breaks, plus a QA pass
+ * that retries segments returned identical to their source.
+ */
+async function requestSegmentTranslations(
+  segments,
+  settings,
+  requestTranslation
+) {
+  const basePayload = buildBasePayload(settings);
+  const res = await requestTranslation({
+    ...basePayload,
+    text: segments.join(DELIMITER),
+    customPrompt: buildDelimiterPrompt()
+  });
+
+  if (!res?.ok || !res.result?.translation) {
+    throw new Error(res?.error || "Translation failed");
   }
 
-  return segments;
+  let translated = res.result.translation.split(/\|\|\|/).map((s) => s.trim());
+
+  if (translated.length !== segments.length) {
+    console.warn(
+      "[Granularity] Delimiter mismatch. Expected:",
+      segments.length,
+      "Got:",
+      translated.length,
+      "- retrying per segment"
+    );
+    translated = await Promise.all(
+      segments.map((segment) =>
+        translateSingleSegment(segment, basePayload, requestTranslation)
+      )
+    );
+  }
+
+  // QA pass: retry segments that appear untranslated
+  translated = await Promise.all(
+    translated.map(async (translation, i) => {
+      if (!looksUntranslated(segments[i], translation)) {
+        return translation;
+      }
+      const retry = await translateSingleSegment(
+        segments[i],
+        basePayload,
+        requestTranslation
+      );
+      return retry || translation;
+    })
+  );
+
+  return translated;
 }
 
 /**
@@ -427,25 +508,12 @@ async function handleLineByLineTranslate(
     translatedSegments = cache.get(cacheKey);
   } else {
     try {
-      const res = await requestTranslation({
-        text: combinedText,
-        nativeLanguageCode: settings.nativeLanguageCode || "en",
-        targetLanguage: settings.nativeLanguageCode || "vi",
-        sourceLanguage: settings.targetLanguageCode || "en",
-        useAutoDetect: false,
-        customPrompt: buildDelimiterPrompt()
-      });
-
-      if (res?.ok && res.result?.translation) {
-        translatedSegments = splitTranslatedSegments(
-          res.result.translation,
-          originalMarkdowns.length
-        );
-        cache.set(cacheKey, translatedSegments);
-      } else {
-        markTranslationError(wrappers, res?.error);
-        return;
-      }
+      translatedSegments = await requestSegmentTranslations(
+        originalMarkdowns,
+        settings,
+        requestTranslation
+      );
+      cache.set(cacheKey, translatedSegments);
     } catch (err) {
       markTranslationError(wrappers, err);
       return;
@@ -531,25 +599,12 @@ async function handleSentenceBySentenceTranslate(
     translatedSentences = cache.get(cacheKey);
   } else {
     try {
-      const res = await requestTranslation({
-        text: combinedText,
-        nativeLanguageCode: settings.nativeLanguageCode || "en",
-        targetLanguage: settings.nativeLanguageCode || "vi",
-        sourceLanguage: settings.targetLanguageCode || "en",
-        useAutoDetect: false,
-        customPrompt: buildDelimiterPrompt()
-      });
-
-      if (res?.ok && res.result?.translation) {
-        translatedSentences = splitTranslatedSegments(
-          res.result.translation,
-          sentences.length
-        );
-        cache.set(cacheKey, translatedSentences);
-      } else {
-        markTranslationError(wrappers, res?.error);
-        return;
-      }
+      translatedSentences = await requestSegmentTranslations(
+        sentences,
+        settings,
+        requestTranslation
+      );
+      cache.set(cacheKey, translatedSentences);
     } catch (err) {
       markTranslationError(wrappers, err);
       return;
