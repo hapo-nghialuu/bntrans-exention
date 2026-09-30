@@ -99,7 +99,7 @@ class WindowAIProvider extends TranslationProvider {
 class GeminiProvider extends TranslationProvider {
   async translate(text, sourceLang, targetLang, context = "") {
     const apiKey = this.config.apiKey;
-    const model = this.config.model || "gemini-pro";
+    const model = this.config.model || "gemini-3.1-flash-lite";
 
     if (!apiKey) throw new Error("Gemini API Key is missing");
 
@@ -136,7 +136,7 @@ class GeminiProvider extends TranslationProvider {
 class OpenAIProvider extends TranslationProvider {
   async translate(text, sourceLang, targetLang, context = "") {
     const apiKey = this.config.apiKey;
-    const model = this.config.model || "gpt-3.5-turbo";
+    const model = this.config.model || "gpt-4o-mini";
     const baseUrl = this.config.baseUrl || "https://api.openai.com/v1";
 
     if (!apiKey) throw new Error("OpenAI API Key is missing");
@@ -388,7 +388,7 @@ class GroqProvider extends TranslationProvider {
 class CustomProvider extends TranslationProvider {
   async translate(text, sourceLang, targetLang, context = "") {
     const apiKey = this.config.apiKey;
-    const model = this.config.model || "llama2";
+    const model = this.config.model || "llama3.1";
     const baseUrl = this.config.baseUrl || "http://localhost:11434/v1";
 
     if (!baseUrl) throw new Error("Base URL is required for Custom provider");

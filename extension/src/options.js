@@ -394,6 +394,104 @@ function getProviderInfo(type) {
   }
 }
 
+/**
+ * Fetch the list of models the provider actually serves for these
+ * credentials. Returns [] shape varies; normalized to an array of ids.
+ */
+async function fetchProviderModels(type, { apiKey = "", baseUrl = "" } = {}) {
+  if (type === "gemini") {
+    if (!apiKey) throw new Error("API key required to list models");
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`);
+    return (data.models || [])
+      .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
+      .map((m) => m.name.replace(/^models\//, ""))
+      .filter(
+        (n) =>
+          /^(gemini|gemma)/i.test(n) &&
+          !/(tts|image|robotics|omni|transcribe|computer-use|lyria|customtools|aqa|embedding|learnlm|bidi)/i.test(
+            n
+          )
+      );
+  }
+
+  const bases = {
+    openai: baseUrl || "https://api.openai.com/v1",
+    openrouter: "https://openrouter.ai/api/v1",
+    groq: "https://api.groq.com/openai/v1",
+    ollama: baseUrl || "http://localhost:11434/v1",
+    custom: baseUrl
+  };
+  const base = bases[type];
+  if (!base) throw new Error("Base URL required to list models");
+
+  const headers = {};
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+  const res = await fetch(`${base.replace(/\/$/, "")}/models`, { headers });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`);
+  return (data.data || [])
+    .map((m) => m.id)
+    .filter(
+      (id) =>
+        id &&
+        !/(tts|whisper|dall-e|embedding|moderation|audio|realtime|transcribe|image)/i.test(
+          id
+        )
+    );
+}
+
+async function loadModelsIntoDatalist() {
+  const type = formType.value;
+  const apiKey = document.querySelector("#field-apiKey")?.value.trim() || "";
+  const baseUrl = document.querySelector("#field-baseUrl")?.value.trim() || "";
+  const btn = document.querySelector("#btn-load-models");
+  const hint = document.querySelector("#model-load-hint");
+  const datalist = document.querySelector("#model-datalist");
+  if (!btn || !datalist) return;
+
+  btn.disabled = true;
+  btn.textContent = "…";
+  if (hint) hint.textContent = i18n.t("popup.loadingModels") || "Loading…";
+
+  try {
+    const models = await fetchProviderModels(type, { apiKey, baseUrl });
+    datalist.innerHTML = models
+      .map((m) => `<option value="${m}"></option>`)
+      .join("");
+    if (hint) {
+      hint.textContent = models.length
+        ? `${models.length} models — ${models.slice(0, 3).join(", ")}${models.length > 3 ? "…" : ""}`
+        : "No models returned";
+    }
+  } catch (err) {
+    if (hint) hint.textContent = `⚠ ${err.message}`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "↻";
+  }
+}
+
+/**
+ * Model input + load button + datalist so users can pick from the models
+ * their key actually serves, while still allowing free text.
+ */
+function modelFieldHtml(model, placeholder, hint = "") {
+  return `
+      <div class="bt-field">
+        <label>Model</label>
+        <div class="bt-model-row">
+          <input type="text" id="field-model" class="bt-input" list="model-datalist" value="${model}" placeholder="${placeholder}" />
+          <button type="button" id="btn-load-models" class="bt-button-small" title="Load available models">↻</button>
+        </div>
+        <datalist id="model-datalist"></datalist>
+        <small id="model-load-hint" class="bt-hint">${hint}</small>
+      </div>`;
+}
+
 function renderFormFields(type, config = {}) {
   formDynamicFields.innerHTML = "";
 
@@ -409,7 +507,7 @@ function renderFormFields(type, config = {}) {
   }
 
   if (type === "gemini") {
-    const model = config.model || "gemini-flash-latest";
+    const model = config.model || "gemini-3.1-flash-lite";
     formDynamicFields.insertAdjacentHTML(
       "beforeend",
       `
@@ -417,14 +515,11 @@ function renderFormFields(type, config = {}) {
         <label>API Key</label>
         <input type="password" id="field-apiKey" class="bt-input api-key-input" value="${config.apiKey || ""}" />
       </div>
-      <div class="bt-field">
-        <label>Model</label>
-        <input type="text" id="field-model" class="bt-input" value="${model}" placeholder="gemini-flash-latest" />
-      </div>
+      ${modelFieldHtml(model, "gemini-3.1-flash-lite")}
     `
     );
   } else if (type === "openai") {
-    const model = config.model || "gpt-3.5-turbo";
+    const model = config.model || "gpt-4o-mini";
     formDynamicFields.insertAdjacentHTML(
       "beforeend",
       `
@@ -432,10 +527,7 @@ function renderFormFields(type, config = {}) {
         <label>API Key</label>
         <input type="password" id="field-apiKey" class="bt-input api-key-input" value="${config.apiKey || ""}" />
       </div>
-      <div class="bt-field">
-        <label>Model</label>
-        <input type="text" id="field-model" class="bt-input" value="${model}" placeholder="gpt-3.5-turbo" />
-      </div>
+      ${modelFieldHtml(model, "gpt-4o-mini")}
       <div class="bt-field">
         <label>Base URL (Optional)</label>
         <input type="text" id="field-baseUrl" class="bt-input" value="${config.baseUrl || ""}" placeholder="https://api.openai.com/v1" />
@@ -443,7 +535,7 @@ function renderFormFields(type, config = {}) {
     `
     );
   } else if (type === "openrouter") {
-    const model = config.model || "google/gemini-2.0-flash-exp:free";
+    const model = config.model || "openai/gpt-4o-mini";
     formDynamicFields.insertAdjacentHTML(
       "beforeend",
       `
@@ -451,10 +543,7 @@ function renderFormFields(type, config = {}) {
         <label>API Key</label>
         <input type="password" id="field-apiKey" class="bt-input api-key-input" value="${config.apiKey || ""}" />
       </div>
-      <div class="bt-field">
-        <label>Model</label>
-        <input type="text" id="field-model" class="bt-input" value="${model}" placeholder="google/gemini-2.0-flash-exp:free" />
-      </div>
+      ${modelFieldHtml(model, "openai/gpt-4o-mini")}
     `
     );
   } else if (type === "deepl") {
@@ -476,15 +565,11 @@ function renderFormFields(type, config = {}) {
         <label>API Key</label>
         <input type="password" id="field-apiKey" class="bt-input api-key-input" value="${config.apiKey || ""}" />
       </div>
-      <div class="bt-field">
-        <label>Model</label>
-        <input type="text" id="field-model" class="bt-input" value="${model}" placeholder="llama-3.3-70b-versatile" />
-        <small style="color: #666;">Lightning-fast inference (llama-3.3-70b-versatile, mixtral-8x7b, etc.)</small>
-      </div>
+      ${modelFieldHtml(model, "llama-3.3-70b-versatile", "Lightning-fast inference")}
     `
     );
   } else if (type === "ollama") {
-    const model = config.model || "llama2";
+    const model = config.model || "llama3.1";
     formDynamicFields.insertAdjacentHTML(
       "beforeend",
       `
@@ -493,16 +578,12 @@ function renderFormFields(type, config = {}) {
         <input type="text" id="field-baseUrl" class="bt-input" value="${config.baseUrl || "http://localhost:11434/v1"}" placeholder="http://localhost:11434/v1" />
         <small style="color: #666;">Default Ollama endpoint</small>
       </div>
-      <div class="bt-field">
-        <label>Model</label>
-        <input type="text" id="field-model" class="bt-input" value="${model}" placeholder="llama2" />
-        <small style="color: #666;">e.g., llama2, mistral, codellama</small>
-      </div>
+      ${modelFieldHtml(model, "llama3.1", "e.g., llama3.1, qwen2.5, mistral")}
     `
     );
   } else if (type === "custom") {
     const baseUrl = config.baseUrl || "";
-    const model = config.model || "gpt-3.5-turbo";
+    const model = config.model || "llama3.1";
     formDynamicFields.insertAdjacentHTML(
       "beforeend",
       `
@@ -511,10 +592,7 @@ function renderFormFields(type, config = {}) {
         <input type="text" id="field-baseUrl" class="bt-input" value="${baseUrl}" placeholder="https://api.example.com/v1" />
         <small style="color: #666;">OpenAI-compatible API endpoint</small>
       </div>
-      <div class="bt-field">
-        <label>Model</label>
-        <input type="text" id="field-model" class="bt-input" value="${model}" placeholder="gpt-3.5-turbo" />
-      </div>
+      ${modelFieldHtml(model, "llama3.1")}
       <div class="bt-field">
         <label>API Key (Optional)</label>
         <input type="password" id="field-apiKey" class="bt-input api-key-input" value="${config.apiKey || ""}" placeholder="Leave empty if not needed" />
@@ -532,6 +610,10 @@ function renderFormFields(type, config = {}) {
     </div>
   `
   );
+
+  document
+    .querySelector("#btn-load-models")
+    ?.addEventListener("click", loadModelsIntoDatalist);
 }
 
 function openProviderForm(provider = null) {

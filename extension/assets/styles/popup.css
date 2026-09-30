@@ -566,6 +566,16 @@ em {
   gap: var(--bt-space-small);
 }
 
+.bt-model-row {
+  display: flex;
+  gap: var(--bt-space-small);
+  align-items: stretch;
+}
+
+.bt-model-row .bt-input {
+  flex: 1;
+}
+
 .bt-alias-list {
   display: grid;
   gap: var(--bt-space-small);

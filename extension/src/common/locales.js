@@ -101,6 +101,7 @@ export const locales = {
     "popup.glossaryTermPlaceholder": "Term (e.g. KYC)",
     "popup.glossaryValuePlaceholder": "Translation",
     "popup.modelOptional": "Model",
+    "popup.loadingModels": "Loading models…",
 
     // Hover Translate
     "popup.enableHover": "Enable Hover to Translate",
@@ -298,6 +299,7 @@ export const locales = {
     "popup.glossaryTermPlaceholder": "Thuật ngữ (vd: KYC)",
     "popup.glossaryValuePlaceholder": "Bản dịch",
     "popup.modelOptional": "Mô hình",
+    "popup.loadingModels": "Đang tải danh sách model…",
 
     // Hover Translate
     "popup.hoverGranularity": "Mức độ chi tiết",
