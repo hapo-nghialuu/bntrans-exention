@@ -76,6 +76,22 @@
             <span data-i18n="popup.tabHover">Hover</span>
             <span id="nav-badge-hover" class="bt-nav-badge" hidden></span>
           </div>
+          <div class="bt-tab" data-tab="screenshot">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
+              />
+              <circle cx="12" cy="13" r="4" />
+            </svg>
+            <span data-i18n="popup.tabScreenshot">Screenshot</span>
+          </div>
           <div class="bt-tab" data-tab="providers">
             <svg
               viewBox="0 0 24 24"
@@ -227,63 +243,6 @@
                 <button id="add-alias" class="bt-button-small">+</button>
               </div>
               <div id="alias-list" class="bt-alias-list"></div>
-            </div>
-
-            <div class="bt-group-label" data-i18n="popup.groupScreenshot">
-              Screenshot
-            </div>
-
-            <div class="bt-field">
-              <label data-i18n="popup.screenshotShortcut"
-                >Screenshot Translate Shortcut</label
-              >
-              <div class="bt-shortcut-compact">
-                <div class="bt-shortcut-modifiers">
-                  <label>
-                    <input type="checkbox" id="shot-shortcut-ctrl" checked />
-                    <span data-i18n="popup.shortcutCtrl">Ctrl/Cmd</span>
-                  </label>
-                  <label>
-                    <input type="checkbox" id="shot-shortcut-shift" checked />
-                    <span data-i18n="popup.shortcutShift">Shift</span>
-                  </label>
-                  <label>
-                    <input type="checkbox" id="shot-shortcut-alt" />
-                    <span data-i18n="popup.shortcutAlt">Alt</span>
-                  </label>
-                  <span class="bt-shortcut-plus">+</span>
-                  <input
-                    type="text"
-                    id="shot-shortcut-key"
-                    class="bt-input"
-                    maxlength="1"
-                    value="S"
-                  />
-                </div>
-                <div class="bt-shortcut-preview">
-                  <small id="shot-shortcut-preview" class="bt-hint"
-                    >Ctrl+Shift+S (Cmd+Shift+S on Mac)</small
-                  >
-                </div>
-              </div>
-              <small class="bt-hint" data-i18n="popup.screenshotHint">
-                Drag a rectangle on the page — text is read and translated via
-                your Gemini provider
-              </small>
-            </div>
-
-            <div class="bt-field">
-              <label data-i18n="popup.screenshotModel">Screenshot Model</label>
-              <input
-                type="text"
-                id="shot-model"
-                class="bt-input"
-                placeholder="gemini-3.1-flash-lite"
-              />
-              <small class="bt-hint" data-i18n="popup.screenshotModelHint">
-                Vision model for OCR + translate. Empty = the Gemini provider's
-                own model
-              </small>
             </div>
           </div>
 
@@ -582,6 +541,76 @@
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <!-- Screenshot Tab Content -->
+          <div id="tab-screenshot" class="bt-tab-content">
+            <div class="bt-pane-header">
+              <h2 class="bt-pane-title" data-i18n="popup.tabScreenshot">
+                Screenshot
+              </h2>
+            </div>
+
+            <div class="bt-field">
+              <label data-i18n="popup.screenshotProvider">Provider</label>
+              <select id="shot-provider" class="bt-input"></select>
+              <small class="bt-hint" data-i18n="popup.screenshotProviderHint">
+                Gemini provider used for OCR + translate (needs an API key)
+              </small>
+            </div>
+
+            <div class="bt-field">
+              <label data-i18n="popup.screenshotModel">Screenshot Model</label>
+              <input
+                type="text"
+                id="shot-model"
+                class="bt-input"
+                placeholder="gemini-3.1-flash-lite"
+              />
+              <small class="bt-hint" data-i18n="popup.screenshotModelHint">
+                Vision model for OCR + translate. Empty = the selected
+                provider's model
+              </small>
+            </div>
+
+            <div class="bt-field">
+              <label data-i18n="popup.screenshotShortcut"
+                >Screenshot Translate Shortcut</label
+              >
+              <div class="bt-shortcut-compact">
+                <div class="bt-shortcut-modifiers">
+                  <label>
+                    <input type="checkbox" id="shot-shortcut-ctrl" checked />
+                    <span data-i18n="popup.shortcutCtrl">Ctrl/Cmd</span>
+                  </label>
+                  <label>
+                    <input type="checkbox" id="shot-shortcut-shift" checked />
+                    <span data-i18n="popup.shortcutShift">Shift</span>
+                  </label>
+                  <label>
+                    <input type="checkbox" id="shot-shortcut-alt" />
+                    <span data-i18n="popup.shortcutAlt">Alt</span>
+                  </label>
+                  <span class="bt-shortcut-plus">+</span>
+                  <input
+                    type="text"
+                    id="shot-shortcut-key"
+                    class="bt-input"
+                    maxlength="1"
+                    value="S"
+                  />
+                </div>
+                <div class="bt-shortcut-preview">
+                  <small id="shot-shortcut-preview" class="bt-hint"
+                    >Ctrl+Shift+S (Cmd+Shift+S on Mac)</small
+                  >
+                </div>
+              </div>
+              <small class="bt-hint" data-i18n="popup.screenshotHint">
+                Drag a rectangle on the page — text is read and translated via
+                your Gemini provider
+              </small>
             </div>
           </div>
 

@@ -56,10 +56,15 @@ export const locales = {
     "popup.themeDark": "Dark",
     "popup.groupAliases": "Aliases",
     "popup.groupScreenshot": "Screenshot",
+    "popup.tabScreenshot": "Screenshot",
     "popup.screenshotShortcut": "Screenshot Translate Shortcut",
+    "popup.screenshotProvider": "Provider",
+    "popup.screenshotProviderHint":
+      "Gemini provider used for OCR + translate (needs an API key)",
+    "popup.screenshotProviderAuto": "Auto (first Gemini provider)",
     "popup.screenshotModel": "Screenshot Model",
     "popup.screenshotModelHint":
-      "Vision model for OCR + translate. Empty = the Gemini provider's own model",
+      "Vision model for OCR + translate. Empty = the selected provider's model",
     "popup.screenshotHint":
       "Drag a rectangle on the page — text is read and translated via your Gemini provider",
     "popup.captureArea": "Capture area",
@@ -266,10 +271,15 @@ export const locales = {
     "popup.themeDark": "Tối",
     "popup.groupAliases": "Alias",
     "popup.groupScreenshot": "Ảnh chụp",
+    "popup.tabScreenshot": "Ảnh chụp",
     "popup.screenshotShortcut": "Phím tắt dịch ảnh chụp",
+    "popup.screenshotProvider": "Provider",
+    "popup.screenshotProviderHint":
+      "Provider Gemini dùng để đọc chữ + dịch (cần API key)",
+    "popup.screenshotProviderAuto": "Tự động (provider Gemini đầu tiên)",
     "popup.screenshotModel": "Model cho ảnh chụp",
     "popup.screenshotModelHint":
-      "Model vision để đọc chữ + dịch. Để trống = dùng model của Gemini provider",
+      "Model vision để đọc chữ + dịch. Để trống = dùng model của provider đã chọn",
     "popup.screenshotHint":
       "Kéo một hình chữ nhật trên trang — chữ được đọc và dịch qua provider Gemini",
     "popup.captureArea": "Chụp vùng màn hình",

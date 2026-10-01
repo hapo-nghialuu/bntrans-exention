@@ -312,9 +312,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     readSettings()
       .then(async (settings) => {
         try {
-          const gemini = (settings.providers || []).find(
+          const geminiProviders = (settings.providers || []).filter(
             (p) => p.type === "gemini" && p.config?.apiKey
           );
+          const gemini =
+            geminiProviders.find(
+              (p) => p.id === settings.screenshotProviderId
+            ) || geminiProviders[0];
           if (!gemini) {
             sendResponse({
               ok: false,

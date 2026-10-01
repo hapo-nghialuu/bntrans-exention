@@ -85,6 +85,7 @@ const shotShortcutAlt = document.getElementById("shot-shortcut-alt");
 const shotShortcutKey = document.getElementById("shot-shortcut-key");
 const shotShortcutPreview = document.getElementById("shot-shortcut-preview");
 const shotModel = document.getElementById("shot-model");
+const shotProvider = document.getElementById("shot-provider");
 
 const hoverShortcutCtrl = document.getElementById("hover-shortcut-ctrl");
 const hoverShortcutShift = document.getElementById("hover-shortcut-shift");
@@ -1012,6 +1013,10 @@ async function loadSettings() {
     if (shotShortcutAlt) shotShortcutAlt.checked = shotShortcut.alt;
     if (shotShortcutKey) shotShortcutKey.value = shotShortcut.key;
     if (shotModel) shotModel.value = res.settings.screenshotModel || "";
+    populateShotProviders(res.settings.providers || []);
+    if (shotProvider)
+      shotProvider.value = res.settings.screenshotProviderId || "";
+    updateShotModelPlaceholder();
     updateShotShortcutPreview();
 
     // Load style settings
@@ -1121,6 +1126,7 @@ async function saveSettings() {
       shift: shortcutShiftCheckbox?.checked || false,
       alt: shortcutAltCheckbox?.checked || false
     },
+    screenshotProviderId: shotProvider?.value || "",
     screenshotModel: shotModel?.value.trim() || "",
     screenshotShortcut: {
       key: shotShortcutKey?.value.toUpperCase() || "S",
@@ -1414,6 +1420,42 @@ if (
   shotShortcutKey.addEventListener("change", saveSettings);
 
   shotModel?.addEventListener("change", saveSettings);
+  shotProvider?.addEventListener("change", () => {
+    updateShotModelPlaceholder();
+    saveSettings();
+  });
+}
+
+// Screenshot translation only works with Gemini vision today — list the
+// configured Gemini providers so users can pick which key/model it uses.
+let shotProviderModels = {}; // providerId -> configured model
+function populateShotProviders(providers) {
+  if (!shotProvider) return;
+  shotProviderModels = {};
+  shotProvider.innerHTML = "";
+  const auto = document.createElement("option");
+  auto.value = "";
+  auto.textContent = i18n.t("popup.screenshotProviderAuto");
+  shotProvider.appendChild(auto);
+  providers
+    .filter((p) => p.type === "gemini")
+    .forEach((p) => {
+      shotProviderModels[p.id] = p.config?.model || "";
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = p.name || p.id;
+      shotProvider.appendChild(opt);
+    });
+}
+
+function updateShotModelPlaceholder() {
+  if (!shotModel || !shotProvider) return;
+  const model = shotProviderModels[shotProvider.value];
+  shotModel.placeholder =
+    model ||
+    (shotProvider.value
+      ? i18n.t("popup.screenshotModel")
+      : "gemini-3.1-flash-lite");
 }
 
 function updateShotShortcutPreview() {
