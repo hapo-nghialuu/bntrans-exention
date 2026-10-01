@@ -3401,30 +3401,55 @@ async function captureAndTranslateRect(rect) {
     const settings = await getSettings();
     const popup = showScreenshotPopup(rect, "", null);
     const targetBox = popup.querySelector(".bt-shot-result-text");
+    const targetSelect = popup.querySelector(".bt-shot-target-select");
+    populateLanguageSelector(
+      targetSelect,
+      settings.selectionLastTarget || settings.targetLanguageCode || "en",
+      false
+    );
 
-    const res = await chrome.runtime.sendMessage({
-      type: "translate-image",
-      payload: {
-        imageBase64: base64,
-        mimeType: "image/png",
-        targetLanguage:
-          settings.selectionLastTarget || settings.targetLanguageCode || "en"
+    const runTranslation = async (targetLang) => {
+      targetBox.textContent = i18n.t("dialog.translating");
+      targetBox.classList.add("bt-loading-text");
+      const res = await chrome.runtime.sendMessage({
+        type: "translate-image",
+        payload: {
+          imageBase64: base64,
+          mimeType: "image/png",
+          targetLanguage: targetLang
+        }
+      });
+      if (!popup.isConnected) return; // user closed meanwhile
+      if (res?.ok && res.result) {
+        const { source, translation } = res.result;
+        popup.querySelector(".bt-shot-source-text").textContent =
+          source || i18n.t("screenshot.noText");
+        targetBox.textContent = translation || i18n.t("screenshot.noText");
+        popup.querySelector(".bt-shot-provider").textContent =
+          res.result.providerName || "Gemini";
+      } else {
+        targetBox.textContent = res?.error || i18n.t("toast.translationFailed");
       }
+      targetBox.classList.remove("bt-loading-text");
+    };
+
+    // Re-translate when the user picks a different target language —
+    // the cropped PNG is still in scope so this costs no extra capture.
+    targetSelect.addEventListener("change", (e) => {
+      try {
+        safeRuntimeCall(() =>
+          chrome.runtime.sendMessage({
+            type: "set-settings",
+            settings: { selectionLastTarget: e.target.value }
+          })
+        );
+      } catch {
+        /* context */
+      }
+      runTranslation(e.target.value);
     });
 
-    if (!popup.isConnected) return; // user closed meanwhile
-    if (res?.ok && res.result) {
-      const { source, translation } = res.result;
-      popup.querySelector(".bt-shot-source-text").textContent =
-        source || i18n.t("screenshot.noText");
-      targetBox.textContent = translation || i18n.t("screenshot.noText");
-      targetBox.classList.remove("bt-loading-text");
-      popup.querySelector(".bt-shot-provider").textContent =
-        res.result.providerName || "Gemini";
-    } else {
-      targetBox.textContent = res?.error || i18n.t("toast.translationFailed");
-      targetBox.classList.remove("bt-loading-text");
-    }
+    await runTranslation(targetSelect.value);
   } catch (err) {
     if (String(err?.message).includes("Extension context invalidated")) {
       cleanupExtensionElements();
@@ -3484,6 +3509,7 @@ function showScreenshotPopup(rect, sourceText) {
     </div>
     <div class="bt-selection-footer">
       <span class="bt-shot-provider"></span>
+      <select class="bt-selection-target-select bt-shot-target-select"></select>
       <a href="#" class="bt-selection-settings">${i18n.t("selection.settings")}</a>
     </div>
   `;

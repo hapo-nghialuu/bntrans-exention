@@ -564,3 +564,11 @@ option::checkmark {
   color: var(--bt-color-muted, #777);
   font: 500 11px/1 var(--bt-font-sans, sans-serif);
 }
+
+.bt-shot-popup .bt-selection-footer {
+  gap: 8px;
+}
+
+.bt-shot-target-select {
+  max-width: 110px;
+}

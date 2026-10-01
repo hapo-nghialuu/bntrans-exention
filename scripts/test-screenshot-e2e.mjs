@@ -190,6 +190,43 @@ try {
     else if (out.translation && out.translation.length > 3)
       pass("translation-nonempty", out.translation);
     else fail("translation", JSON.stringify(out));
+
+    // Language switcher: change target to Japanese, expect re-translation
+    await page.select(".bt-shot-target-select", "ja");
+    const switched = await page
+      .waitForFunction(
+        (prev) => {
+          const el = document.querySelector(".bt-shot-result-text");
+          return (
+            el &&
+            !el.classList.contains("bt-loading-text") &&
+            el.textContent !== prev
+          );
+        },
+        { timeout: 30000 },
+        out.translation
+      )
+      .then(() => true)
+      .catch(() => false);
+    if (switched) {
+      const ja = await page.evaluate(
+        () => document.querySelector(".bt-shot-result-text")?.textContent
+      );
+      console.log("  ja:", JSON.stringify(ja));
+      /[ぁ-んァ-ン一-龥]/.test(ja || "")
+        ? pass("target-switch", ja)
+        : fail("target-switch", `not japanese: ${ja}`);
+      const saved = await sw.evaluate(
+        async () =>
+          (await chrome.storage.local.get("translatorSettings"))
+            .translatorSettings?.selectionLastTarget
+      );
+      saved === "ja"
+        ? pass("target-saved", "selectionLastTarget=ja")
+        : fail("target-saved", `got ${saved}`);
+    } else {
+      fail("target-switch", "no re-translation after select change");
+    }
   }
 
   // Escape-cancel path: trigger again, press Escape, overlay must go
