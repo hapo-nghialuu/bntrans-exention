@@ -375,29 +375,42 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 const SCREENSHOT_MENU_ID = "bntrans-screenshot-area";
 
-async function registerScreenshotMenu() {
-  // Callback form + lastError swallow: the promise form does not reliably
-  // reject on a missing id and would spam the console on every SW start.
-  await new Promise((resolve) =>
-    chrome.contextMenus.remove(SCREENSHOT_MENU_ID, () => {
-      void chrome.runtime.lastError;
-      resolve();
-    })
-  );
-  let title = "Translate screenshot area";
-  try {
-    const settings = await readSettings();
-    if ((settings.interfaceLanguage || "en") === "vi") {
-      title = "Dịch vùng chụp màn hình";
-    }
-  } catch {
-    /* keep English fallback */
+let screenshotMenuPromise = null;
+// onInstalled + onStartup + the eager call below can all fire during one
+// service-worker boot; funnel them through a single remove→create so two
+// concurrent runs can't race into "duplicate id" on create().
+function registerScreenshotMenu() {
+  if (!screenshotMenuPromise) {
+    screenshotMenuPromise = (async () => {
+      // Callback form + lastError swallow: the promise form does not
+      // reliably reject on a missing id and would spam the console on
+      // every SW start.
+      await new Promise((resolve) =>
+        chrome.contextMenus.remove(SCREENSHOT_MENU_ID, () => {
+          void chrome.runtime.lastError;
+          resolve();
+        })
+      );
+      let title = "Translate screenshot area";
+      try {
+        const settings = await readSettings();
+        if ((settings.interfaceLanguage || "en") === "vi") {
+          title = "Dịch vùng chụp màn hình";
+        }
+      } catch {
+        /* keep English fallback */
+      }
+      chrome.contextMenus.create(
+        {
+          id: SCREENSHOT_MENU_ID,
+          title,
+          contexts: ["page", "selection", "image", "frame", "link", "video"]
+        },
+        () => void chrome.runtime.lastError
+      );
+    })();
   }
-  chrome.contextMenus.create({
-    id: SCREENSHOT_MENU_ID,
-    title,
-    contexts: ["page", "selection", "image", "frame", "link", "video"]
-  });
+  return screenshotMenuPromise;
 }
 
 chrome.runtime.onInstalled.addListener(registerScreenshotMenu);
