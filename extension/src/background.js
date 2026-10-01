@@ -365,7 +365,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const result = await provider.translateImage(
             message.payload.imageBase64,
             targetLang,
-            message.payload.mimeType
+            message.payload.mimeType,
+            message.payload.mode
           );
           sendResponse({
             ok: true,

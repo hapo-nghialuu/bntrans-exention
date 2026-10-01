@@ -3293,7 +3293,9 @@ function hideScreenshotPopup() {
 // translated text lands exactly where the original text was (manga-style).
 // `result` is either a plain string (loading/error) or
 // { translation, segments: [{box:[y0,x0,y1,x1], source, translation}] }.
-function renderShotFill(rect, result) {
+// `onMode` is invoked when the user clicks the bar's translate/explain
+// buttons, letting callers rerun the same capture in another mode.
+function renderShotFill(rect, result, mode = "translate", onMode = null) {
   const segments =
     typeof result === "string"
       ? [{ box: [0, 0, 1000, 1000], translation: result }]
@@ -3305,6 +3307,18 @@ function renderShotFill(rect, result) {
     screenshotFillEl = document.createElement("div");
     screenshotFillEl.className = "bt-shot-fill bt-vars-container";
     applyThemeTo(screenshotFillEl);
+
+    const bar = document.createElement("div");
+    bar.className = "bt-shot-fill-bar";
+    const mkBtn = (m, key) => {
+      const b = document.createElement("button");
+      b.className = "bt-shot-fill-btn";
+      b.dataset.mode = m;
+      b.textContent = i18n.t(key);
+      return b;
+    };
+    const btnTranslate = mkBtn("translate", "screenshot.actionTranslate");
+    const btnExplain = mkBtn("explain", "screenshot.actionExplain");
     const close = document.createElement("button");
     close.className = "bt-shot-fill-close";
     close.textContent = "×";
@@ -3313,12 +3327,26 @@ function renderShotFill(rect, result) {
       screenshotFillEl.remove();
       screenshotFillEl = null;
     });
+    bar.append(btnTranslate, btnExplain);
+    screenshotFillEl.appendChild(bar);
     screenshotFillEl.appendChild(close);
+
     const segs = document.createElement("div");
     segs.className = "bt-shot-fill-segs";
     screenshotFillEl.appendChild(segs);
     document.documentElement.appendChild(screenshotFillEl);
+
+    bar.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-mode]");
+      if (btn && screenshotFillEl?._onMode) {
+        screenshotFillEl._onMode(btn.dataset.mode);
+      }
+    });
   }
+  screenshotFillEl._onMode = onMode;
+  screenshotFillEl.dataset.mode = mode;
+  // The bar sits above the region; flip it inside when near the viewport top
+  screenshotFillEl.dataset.barBelow = rect.y < 36 ? "true" : "false";
 
   const docX = rect.docX ?? rect.x + window.scrollX;
   const docY = rect.docY ?? rect.y + window.scrollY;
@@ -3329,6 +3357,22 @@ function renderShotFill(rect, result) {
 
   const segs = screenshotFillEl.querySelector(".bt-shot-fill-segs");
   segs.innerHTML = "";
+
+  // Explain output is free text — show it as one readable card hanging
+  // below the region instead of cramming it into the segment boxes.
+  if (mode === "explain") {
+    const card = document.createElement("div");
+    card.className = "bt-shot-fill-seg bt-shot-fill-explain";
+    card.textContent =
+      typeof result === "string" ? result : result.translation || "";
+    card.style.top = `${rect.h + 8}px`;
+    card.style.left = "0px";
+    card.style.width = `${Math.max(rect.w, 280)}px`;
+    card.style.height = "auto";
+    segs.appendChild(card);
+    return;
+  }
+
   for (const seg of segments) {
     const [y0, x0, y1, x1] = seg.box;
     const el = document.createElement("div");
@@ -3473,7 +3517,20 @@ async function captureAndTranslateRect(rect) {
       canvas.width,
       canvas.height
     );
-    const base64 = canvas.toDataURL("image/png").split(",")[1];
+
+    // Downscale large captures before upload — vision models don't need
+    // Retina-resolution text, and a smaller JPEG detects noticeably faster.
+    const MAX_DIM = 1280;
+    let out = canvas;
+    const shrink = Math.min(1, MAX_DIM / Math.max(canvas.width, canvas.height));
+    if (shrink < 1) {
+      out = document.createElement("canvas");
+      out.width = Math.round(canvas.width * shrink);
+      out.height = Math.round(canvas.height * shrink);
+      out.getContext("2d").drawImage(canvas, 0, 0, out.width, out.height);
+    }
+    const base64 = out.toDataURL("image/jpeg", 0.85).split(",")[1];
+    const mimeType = "image/jpeg";
 
     const settings = await getSettings();
     const useFill = settings.screenshotFill === true;
@@ -3490,9 +3547,11 @@ async function captureAndTranslateRect(rect) {
       );
     }
 
-    const runTranslation = async (targetLang) => {
+    const runTranslation = async (targetLang, mode = "translate") => {
       if (useFill) {
-        renderShotFill(rect, i18n.t("dialog.translating"));
+        renderShotFill(rect, i18n.t("dialog.translating"), mode, (m) =>
+          runTranslation(targetLang, m)
+        );
       } else {
         targetBox.textContent = i18n.t("dialog.translating");
         targetBox.classList.add("bt-loading-text");
@@ -3501,8 +3560,9 @@ async function captureAndTranslateRect(rect) {
         type: "translate-image",
         payload: {
           imageBase64: base64,
-          mimeType: "image/png",
-          targetLanguage: targetLang
+          mimeType,
+          targetLanguage: targetLang,
+          mode
         }
       });
       if (useFill ? !screenshotFillEl : !popup.isConnected) return;
@@ -3510,7 +3570,9 @@ async function captureAndTranslateRect(rect) {
         const { source, translation } = res.result;
         const out = translation || i18n.t("screenshot.noText");
         if (useFill) {
-          renderShotFill(rect, res.result);
+          renderShotFill(rect, res.result, mode, (m) =>
+            runTranslation(targetLang, m)
+          );
         } else {
           popup.querySelector(".bt-shot-source-text").textContent =
             source || i18n.t("screenshot.noText");
@@ -3520,8 +3582,11 @@ async function captureAndTranslateRect(rect) {
         }
       } else {
         const err = res?.error || i18n.t("toast.translationFailed");
-        if (useFill) renderShotFill(rect, err);
-        else targetBox.textContent = err;
+        if (useFill) {
+          renderShotFill(rect, err, mode, (m) => runTranslation(targetLang, m));
+        } else {
+          targetBox.textContent = err;
+        }
       }
       targetBox?.classList.remove("bt-loading-text");
     };

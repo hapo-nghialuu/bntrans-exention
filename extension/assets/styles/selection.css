@@ -583,14 +583,66 @@ option::checkmark {
   display: flex;
   position: absolute;
   align-items: center;
+  justify-content: center;
   padding: 1px 3px;
   overflow: hidden;
-  border-radius: 2px;
+  border-radius: 3px;
   background: var(--bt-color-paper, #fff);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
   color: var(--bt-color-ink, #1c1c1a);
   font: 500 12px/1.2 var(--bt-font-sans, sans-serif);
+  text-align: center;
   white-space: pre-wrap;
+}
+
+.bt-shot-fill-bar {
+  display: flex;
+  z-index: 2;
+  position: absolute;
+  top: -30px;
+  right: 0;
+  overflow: hidden;
+  border: 1px solid var(--bt-color-border-default, rgba(0, 0, 0, 0.12));
+  border-radius: 999px;
+  background: var(--bt-color-paper, #fff);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  pointer-events: auto;
+}
+
+.bt-shot-fill-btn {
+  padding: 4px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--bt-color-ink, #1c1c1a);
+  font: 500 12px/1.2 var(--bt-font-sans, sans-serif);
+  cursor: pointer;
+}
+
+.bt-shot-fill[data-bar-below="true"] .bt-shot-fill-bar {
+  top: auto;
+  bottom: -30px;
+}
+
+.bt-shot-fill-btn + .bt-shot-fill-btn {
+  border-left: 1px solid var(--bt-color-border-default, rgba(0, 0, 0, 0.12));
+}
+
+.bt-shot-fill[data-mode="translate"] .bt-shot-fill-btn[data-mode="translate"],
+.bt-shot-fill[data-mode="explain"] .bt-shot-fill-btn[data-mode="explain"] {
+  background: var(--bt-color-accent, #2563eb);
+  color: #fff;
+}
+
+.bt-shot-fill-explain {
+  display: block;
+  max-height: 40vh;
+  padding: 8px 10px;
+  overflow: auto;
+  border-radius: 6px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
 }
 
 .bt-shot-fill .bt-shot-fill-close {

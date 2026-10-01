@@ -291,6 +291,30 @@ try {
     fail("fill-only", JSON.stringify(fill));
   }
 
+  // Mode toolbar: click "Explain" → explain card appears below the region
+  await page.click('.bt-shot-fill-btn[data-mode="explain"]');
+  const explainOk = await page
+    .waitForFunction(
+      () => {
+        const el = document.querySelector(".bt-shot-fill-explain");
+        return (
+          el &&
+          el.textContent.length > 20 &&
+          !/Đang dịch|Translating/.test(el.textContent)
+        );
+      },
+      { timeout: 30000 }
+    )
+    .then(() => true)
+    .catch(() => false);
+  const explainText = await page.evaluate(
+    () => document.querySelector(".bt-shot-fill-explain")?.textContent
+  );
+  console.log("  explain:", JSON.stringify(explainText?.slice(0, 120)));
+  explainOk
+    ? pass("explain-mode", explainText?.slice(0, 60))
+    : fail("explain-mode", "no explain card");
+
   // Escape-cancel path: trigger again, press Escape, overlay must go
   await sw.evaluate(async () => {
     const [tab] = await chrome.tabs.query({

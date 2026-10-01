@@ -133,13 +133,21 @@ export class GeminiProvider extends TranslationProvider {
    * OCR + translate in one shot: send the image inline and ask for a
    * delimited source/translation pair so callers can show both.
    */
-  async translateImage(base64Png, targetLang, mimeType = "image/png") {
+  async translateImage(
+    base64Png,
+    targetLang,
+    mimeType = "image/png",
+    mode = "translate"
+  ) {
     const apiKey = this.config.apiKey;
     const model = this.config.model || "gemini-3.1-flash-lite";
 
     if (!apiKey) throw new Error("Gemini API Key is missing");
 
-    const prompt = IMAGE_OCR_PROMPT(targetLang);
+    const prompt =
+      mode === "explain"
+        ? IMAGE_EXPLAIN_PROMPT(targetLang)
+        : IMAGE_OCR_PROMPT(targetLang);
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -165,7 +173,9 @@ export class GeminiProvider extends TranslationProvider {
 
     const data = await response.json();
     const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
-    return parseImageTranslation(raw);
+    return mode === "explain"
+      ? { source: "", translation: raw }
+      : parseImageTranslation(raw);
   }
 }
 
@@ -219,6 +229,11 @@ Rules:
 - Merge nearby lines of the same paragraph into one segment
 - If the image contains no readable text, reply: {"segments":[]}`;
 
+const IMAGE_EXPLAIN_PROMPT = (
+  targetLang
+) => `Look at this image, read the text it contains, and explain its meaning concisely in ${targetLang}.
+Reply with plain text only — 1-3 short paragraphs, no markdown.`;
+
 /**
  * Shared OCR+translate for OpenAI-compatible /chat/completions endpoints
  * (OpenAI, OpenRouter, Groq, Ollama, Codex bridge, custom servers). The
@@ -228,10 +243,16 @@ async function openAiImageTranslate(
   { baseUrl, apiKey, model, extraHeaders = {} },
   base64,
   targetLang,
-  mimeType
+  mimeType,
+  mode = "translate"
 ) {
   const headers = { "Content-Type": "application/json", ...extraHeaders };
   if (apiKey && apiKey.trim()) headers.Authorization = `Bearer ${apiKey}`;
+
+  const prompt =
+    mode === "explain"
+      ? IMAGE_EXPLAIN_PROMPT(targetLang)
+      : IMAGE_OCR_PROMPT(targetLang);
 
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
@@ -242,7 +263,7 @@ async function openAiImageTranslate(
         {
           role: "user",
           content: [
-            { type: "text", text: IMAGE_OCR_PROMPT(targetLang) },
+            { type: "text", text: prompt },
             {
               type: "image_url",
               image_url: { url: `data:${mimeType};base64,${base64}` }
@@ -260,7 +281,9 @@ async function openAiImageTranslate(
 
   const data = await response.json();
   const raw = data.choices?.[0]?.message?.content?.trim() || "";
-  return parseImageTranslation(raw);
+  return mode === "explain"
+    ? { source: "", translation: raw }
+    : parseImageTranslation(raw);
 }
 
 /**
@@ -301,7 +324,12 @@ class OpenAIProvider extends TranslationProvider {
     return data.choices?.[0]?.message?.content?.trim();
   }
 
-  async translateImage(base64, targetLang, mimeType = "image/png") {
+  async translateImage(
+    base64,
+    targetLang,
+    mimeType = "image/png",
+    mode = "translate"
+  ) {
     if (!this.config.apiKey) throw new Error("OpenAI API Key is missing");
     return openAiImageTranslate(
       {
@@ -311,7 +339,8 @@ class OpenAIProvider extends TranslationProvider {
       },
       base64,
       targetLang,
-      mimeType
+      mimeType,
+      mode
     );
   }
 }
@@ -489,7 +518,12 @@ class OpenRouterProvider extends TranslationProvider {
     return data.choices?.[0]?.message?.content?.trim();
   }
 
-  async translateImage(base64, targetLang, mimeType = "image/png") {
+  async translateImage(
+    base64,
+    targetLang,
+    mimeType = "image/png",
+    mode = "translate"
+  ) {
     if (!this.config.apiKey) throw new Error("OpenRouter API Key is missing");
     return openAiImageTranslate(
       {
@@ -503,7 +537,8 @@ class OpenRouterProvider extends TranslationProvider {
       },
       base64,
       targetLang,
-      mimeType
+      mimeType,
+      mode
     );
   }
 }
@@ -546,7 +581,12 @@ class GroqProvider extends TranslationProvider {
     return data.choices?.[0]?.message?.content?.trim();
   }
 
-  async translateImage(base64, targetLang, mimeType = "image/png") {
+  async translateImage(
+    base64,
+    targetLang,
+    mimeType = "image/png",
+    mode = "translate"
+  ) {
     if (!this.config.apiKey) throw new Error("Groq API Key is missing");
     return openAiImageTranslate(
       {
@@ -556,7 +596,8 @@ class GroqProvider extends TranslationProvider {
       },
       base64,
       targetLang,
-      mimeType
+      mimeType,
+      mode
     );
   }
 }
@@ -628,7 +669,12 @@ class CustomProvider extends TranslationProvider {
     }
   }
 
-  async translateImage(base64, targetLang, mimeType = "image/png") {
+  async translateImage(
+    base64,
+    targetLang,
+    mimeType = "image/png",
+    mode = "translate"
+  ) {
     const baseUrl = this.config.baseUrl || "http://localhost:11434/v1";
     if (!baseUrl) throw new Error("Base URL is required for Custom provider");
     return openAiImageTranslate(
@@ -639,7 +685,8 @@ class CustomProvider extends TranslationProvider {
       },
       base64,
       targetLang,
-      mimeType
+      mimeType,
+      mode
     );
   }
 }

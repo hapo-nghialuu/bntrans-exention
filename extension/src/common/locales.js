@@ -71,6 +71,8 @@ export const locales = {
     "popup.screenshotHint":
       "Drag a rectangle on the page — text is read and translated via the provider above",
     "popup.captureArea": "Capture area",
+    "screenshot.actionTranslate": "Translate",
+    "screenshot.actionExplain": "Explain",
     "popup.groupHover": "Hover Translate",
     "popup.groupInstant": "Instant Mode",
     "popup.groupProviders": "Providers",
@@ -289,6 +291,8 @@ export const locales = {
     "popup.screenshotHint":
       "Kéo một hình chữ nhật trên trang — chữ được đọc và dịch qua provider đã chọn ở trên",
     "popup.captureArea": "Chụp vùng màn hình",
+    "screenshot.actionTranslate": "Dịch",
+    "screenshot.actionExplain": "Giải thích",
     "popup.groupHover": "Dịch bằng hover",
     "popup.groupInstant": "Chế độ dịch nhanh",
     "popup.groupProviders": "Nhà cung cấp",
