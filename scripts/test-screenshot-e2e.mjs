@@ -122,7 +122,7 @@ try {
           interfaceLanguage: "en",
           theme: "auto",
           activeProviderId: "google-translate",
-          screenshotFill: true,
+          screenshotFill: false,
           providers: [
             {
               id: "gemini-test",
@@ -228,28 +228,59 @@ try {
     } else {
       fail("target-switch", "no re-translation after select change");
     }
+  }
 
-    // Fill mode: translation painted over the captured region
-    const fill = await page.evaluate(() => {
-      const el = document.querySelector(".bt-shot-fill .bt-shot-fill-text");
-      const box = document.querySelector(".bt-shot-fill");
-      if (!el || !box) return null;
-      const r = box.getBoundingClientRect();
-      return {
-        text: el.textContent,
-        rect: { x: r.x, y: r.y, w: r.width, h: r.height }
-      };
+  // Fill mode: no popup at all — translation painted over the region
+  await sw.evaluate(async () => {
+    const cur = (await chrome.storage.local.get("translatorSettings"))
+      .translatorSettings;
+    await chrome.storage.local.set({
+      translatorSettings: { ...cur, screenshotFill: true }
     });
-    if (
-      fill &&
-      Math.abs(fill.rect.x - 110) < 2 &&
-      Math.abs(fill.rect.y - 105) < 2 &&
-      /[ぁ-んァ-ン一-龥]/.test(fill.text)
-    ) {
-      pass("fill-overlay", `at ${fill.rect.x},${fill.rect.y}`);
-    } else {
-      fail("fill-overlay", JSON.stringify(fill));
-    }
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true
+    });
+    await chrome.tabs.sendMessage(tab.id, { type: "start-screenshot-select" });
+  });
+  await sleep(300);
+  await page.mouse.move(110, 105);
+  await page.mouse.down();
+  await page.mouse.move(570, 215, { steps: 5 });
+  await page.mouse.up();
+  const fillOk = await page
+    .waitForFunction(
+      () => {
+        const el = document.querySelector(".bt-shot-fill .bt-shot-fill-text");
+        return el && !/Đang dịch|Translating/.test(el.textContent || "");
+      },
+      { timeout: 30000 }
+    )
+    .then(() => true)
+    .catch(() => false);
+  const fill = await page.evaluate(() => {
+    const el = document.querySelector(".bt-shot-fill .bt-shot-fill-text");
+    const box = document.querySelector(".bt-shot-fill");
+    const popupGone = !document.querySelector(".bt-shot-popup");
+    if (!el || !box) return null;
+    const r = box.getBoundingClientRect();
+    return {
+      text: el.textContent,
+      popupGone,
+      rect: { x: r.x, y: r.y, w: r.width, h: r.height }
+    };
+  });
+  if (
+    fillOk &&
+    fill &&
+    fill.popupGone &&
+    Math.abs(fill.rect.x - 110) < 2 &&
+    Math.abs(fill.rect.y - 105) < 2 &&
+    fill.text.length > 5
+  ) {
+    pass("fill-only", `no popup, filled at ${fill.rect.x},${fill.rect.y}`);
+  } else {
+    fail("fill-only", JSON.stringify(fill));
   }
 
   // Escape-cancel path: trigger again, press Escape, overlay must go

@@ -3445,18 +3445,27 @@ async function captureAndTranslateRect(rect) {
     const base64 = canvas.toDataURL("image/png").split(",")[1];
 
     const settings = await getSettings();
-    const popup = showScreenshotPopup(rect, "", null);
-    const targetBox = popup.querySelector(".bt-shot-result-text");
-    const targetSelect = popup.querySelector(".bt-shot-target-select");
-    populateLanguageSelector(
-      targetSelect,
-      settings.selectionLastTarget || settings.targetLanguageCode || "en",
-      false
-    );
+    const useFill = settings.screenshotFill === true;
+    // Fill mode replaces the popup entirely — the translation is painted
+    // over the captured region and nothing else appears.
+    const popup = useFill ? null : showScreenshotPopup(rect, "", null);
+    const targetBox = popup?.querySelector(".bt-shot-result-text") || null;
+    const targetSelect = popup?.querySelector(".bt-shot-target-select") || null;
+    if (targetSelect) {
+      populateLanguageSelector(
+        targetSelect,
+        settings.selectionLastTarget || settings.targetLanguageCode || "en",
+        false
+      );
+    }
 
     const runTranslation = async (targetLang) => {
-      targetBox.textContent = i18n.t("dialog.translating");
-      targetBox.classList.add("bt-loading-text");
+      if (useFill) {
+        renderShotFill(rect, i18n.t("dialog.translating"));
+      } else {
+        targetBox.textContent = i18n.t("dialog.translating");
+        targetBox.classList.add("bt-loading-text");
+      }
       const res = await chrome.runtime.sendMessage({
         type: "translate-image",
         payload: {
@@ -3465,26 +3474,30 @@ async function captureAndTranslateRect(rect) {
           targetLanguage: targetLang
         }
       });
-      if (!popup.isConnected) return; // user closed meanwhile
+      if (useFill ? !screenshotFillEl : !popup.isConnected) return;
       if (res?.ok && res.result) {
         const { source, translation } = res.result;
-        popup.querySelector(".bt-shot-source-text").textContent =
-          source || i18n.t("screenshot.noText");
-        targetBox.textContent = translation || i18n.t("screenshot.noText");
-        popup.querySelector(".bt-shot-provider").textContent =
-          res.result.providerName || "Gemini";
-        if (settings.screenshotFill && translation) {
-          renderShotFill(rect, translation);
+        const out = translation || i18n.t("screenshot.noText");
+        if (useFill) {
+          renderShotFill(rect, out);
+        } else {
+          popup.querySelector(".bt-shot-source-text").textContent =
+            source || i18n.t("screenshot.noText");
+          targetBox.textContent = out;
+          popup.querySelector(".bt-shot-provider").textContent =
+            res.result.providerName || "Gemini";
         }
       } else {
-        targetBox.textContent = res?.error || i18n.t("toast.translationFailed");
+        const err = res?.error || i18n.t("toast.translationFailed");
+        if (useFill) renderShotFill(rect, err);
+        else targetBox.textContent = err;
       }
-      targetBox.classList.remove("bt-loading-text");
+      targetBox?.classList.remove("bt-loading-text");
     };
 
     // Re-translate when the user picks a different target language —
     // the cropped PNG is still in scope so this costs no extra capture.
-    targetSelect.addEventListener("change", (e) => {
+    targetSelect?.addEventListener("change", (e) => {
       try {
         safeRuntimeCall(() =>
           chrome.runtime.sendMessage({
@@ -3498,7 +3511,12 @@ async function captureAndTranslateRect(rect) {
       runTranslation(e.target.value);
     });
 
-    await runTranslation(targetSelect.value);
+    await runTranslation(
+      targetSelect?.value ||
+        settings.selectionLastTarget ||
+        settings.targetLanguageCode ||
+        "en"
+    );
   } catch (err) {
     if (String(err?.message).includes("Extension context invalidated")) {
       cleanupExtensionElements();
