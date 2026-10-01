@@ -3275,11 +3275,56 @@ async function toggleHoverDomainForCurrentUrl() {
 
 let screenshotSelecting = false;
 let screenshotPopup = null;
+let screenshotFillEl = null;
 
 function hideScreenshotPopup() {
   if (screenshotPopup) {
     screenshotPopup.remove();
     screenshotPopup = null;
+  }
+  if (screenshotFillEl) {
+    screenshotFillEl.remove();
+    screenshotFillEl = null;
+  }
+}
+
+// Paint the translation straight over the captured region — manga-style
+// in-place replacement for text living in images/canvas/video.
+function renderShotFill(rect, text) {
+  if (!screenshotFillEl) {
+    screenshotFillEl = document.createElement("div");
+    screenshotFillEl.className = "bt-shot-fill bt-vars-container";
+    applyThemeTo(screenshotFillEl);
+    const close = document.createElement("button");
+    close.className = "bt-shot-fill-close";
+    close.textContent = "×";
+    close.addEventListener("click", (e) => {
+      e.stopPropagation();
+      screenshotFillEl.remove();
+      screenshotFillEl = null;
+    });
+    screenshotFillEl.appendChild(close);
+    const body = document.createElement("div");
+    body.className = "bt-shot-fill-text";
+    screenshotFillEl.appendChild(body);
+    document.documentElement.appendChild(screenshotFillEl);
+  }
+  screenshotFillEl.style.left = `${rect.x}px`;
+  screenshotFillEl.style.top = `${rect.y}px`;
+  screenshotFillEl.style.width = `${rect.w}px`;
+  screenshotFillEl.style.height = `${rect.h}px`;
+  const body = screenshotFillEl.querySelector(".bt-shot-fill-text");
+  body.textContent = text;
+  // Shrink font until the translation fits inside the region
+  let size = Math.min(16, Math.max(9, Math.floor(rect.h / 3)));
+  body.style.fontSize = `${size}px`;
+  while (
+    size > 8 &&
+    (body.scrollHeight > screenshotFillEl.clientHeight - 12 ||
+      body.scrollWidth > screenshotFillEl.clientWidth - 16)
+  ) {
+    size -= 1;
+    body.style.fontSize = `${size}px`;
   }
 }
 
@@ -3293,6 +3338,7 @@ function startScreenshotSelection() {
     }
     return;
   }
+  hideScreenshotPopup(); // clear a previous fill/popup before re-selecting
   screenshotSelecting = true;
 
   const overlay = document.createElement("div");
@@ -3427,6 +3473,9 @@ async function captureAndTranslateRect(rect) {
         targetBox.textContent = translation || i18n.t("screenshot.noText");
         popup.querySelector(".bt-shot-provider").textContent =
           res.result.providerName || "Gemini";
+        if (settings.screenshotFill && translation) {
+          renderShotFill(rect, translation);
+        }
       } else {
         targetBox.textContent = res?.error || i18n.t("toast.translationFailed");
       }

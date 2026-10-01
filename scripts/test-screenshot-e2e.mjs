@@ -122,6 +122,7 @@ try {
           interfaceLanguage: "en",
           theme: "auto",
           activeProviderId: "google-translate",
+          screenshotFill: true,
           providers: [
             {
               id: "gemini-test",
@@ -226,6 +227,28 @@ try {
         : fail("target-saved", `got ${saved}`);
     } else {
       fail("target-switch", "no re-translation after select change");
+    }
+
+    // Fill mode: translation painted over the captured region
+    const fill = await page.evaluate(() => {
+      const el = document.querySelector(".bt-shot-fill .bt-shot-fill-text");
+      const box = document.querySelector(".bt-shot-fill");
+      if (!el || !box) return null;
+      const r = box.getBoundingClientRect();
+      return {
+        text: el.textContent,
+        rect: { x: r.x, y: r.y, w: r.width, h: r.height }
+      };
+    });
+    if (
+      fill &&
+      Math.abs(fill.rect.x - 110) < 2 &&
+      Math.abs(fill.rect.y - 105) < 2 &&
+      /[ぁ-んァ-ン一-龥]/.test(fill.text)
+    ) {
+      pass("fill-overlay", `at ${fill.rect.x},${fill.rect.y}`);
+    } else {
+      fail("fill-overlay", JSON.stringify(fill));
     }
   }
 

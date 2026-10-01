@@ -86,6 +86,7 @@ const shotShortcutKey = document.getElementById("shot-shortcut-key");
 const shotShortcutPreview = document.getElementById("shot-shortcut-preview");
 const shotModel = document.getElementById("shot-model");
 const shotProvider = document.getElementById("shot-provider");
+const shotFill = document.getElementById("shot-fill");
 
 const hoverShortcutCtrl = document.getElementById("hover-shortcut-ctrl");
 const hoverShortcutShift = document.getElementById("hover-shortcut-shift");
@@ -1018,6 +1019,7 @@ async function loadSettings() {
       shotProvider.value = res.settings.screenshotProviderId || "";
     updateShotModelPlaceholder();
     updateShotShortcutPreview();
+    if (shotFill) shotFill.checked = res.settings.screenshotFill === true;
 
     // Load style settings
     const hoverStyle = res.settings.hoverInjectStyle || {};
@@ -1128,6 +1130,7 @@ async function saveSettings() {
     },
     screenshotProviderId: shotProvider?.value || "",
     screenshotModel: shotModel?.value.trim() || "",
+    screenshotFill: shotFill?.checked === true,
     screenshotShortcut: {
       key: shotShortcutKey?.value.toUpperCase() || "S",
       ctrl: shotShortcutCtrl?.checked || false,
@@ -1424,6 +1427,7 @@ if (
     updateShotModelPlaceholder();
     saveSettings();
   });
+  shotFill?.addEventListener("change", saveSettings);
 }
 
 // Screenshot translation only works with Gemini vision today — list the

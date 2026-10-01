@@ -572,3 +572,37 @@ option::checkmark {
 .bt-shot-target-select {
   max-width: 110px;
 }
+
+.bt-shot-fill {
+  display: flex;
+  z-index: 9999999990;
+  position: fixed;
+  align-items: flex-start;
+  padding: 6px 8px;
+  overflow: auto;
+  border: 1.5px solid var(--bt-color-accent, #2563eb);
+  border-radius: 4px;
+  background: var(--bt-color-paper, #fff);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  color: var(--bt-color-ink, #1c1c1a);
+  font: 500 13px/1.45 var(--bt-font-sans, sans-serif);
+  white-space: pre-wrap;
+  cursor: default;
+}
+
+.bt-shot-fill .bt-shot-fill-close {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.5;
+}
+
+.bt-shot-fill .bt-shot-fill-close:hover {
+  opacity: 1;
+}
