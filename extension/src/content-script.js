@@ -3407,7 +3407,8 @@ async function captureAndTranslateRect(rect) {
       payload: {
         imageBase64: base64,
         mimeType: "image/png",
-        targetLanguage: settings.targetLanguageCode || "en"
+        targetLanguage:
+          settings.selectionLastTarget || settings.targetLanguageCode || "en"
       }
     });
 
