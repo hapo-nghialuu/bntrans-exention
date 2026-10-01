@@ -3288,9 +3288,19 @@ function hideScreenshotPopup() {
   }
 }
 
-// Paint the translation straight over the captured region — manga-style
-// in-place replacement for text living in images/canvas/video.
-function renderShotFill(rect, text) {
+// Paint translations over the captured region segment-by-segment — each
+// OCR'd line/block gets its own overlay at the detected bounding box, so
+// translated text lands exactly where the original text was (manga-style).
+// `result` is either a plain string (loading/error) or
+// { translation, segments: [{box:[y0,x0,y1,x1], source, translation}] }.
+function renderShotFill(rect, result) {
+  const segments =
+    typeof result === "string"
+      ? [{ box: [0, 0, 1000, 1000], translation: result }]
+      : Array.isArray(result.segments) && result.segments.length
+        ? result.segments
+        : [{ box: [0, 0, 1000, 1000], translation: result.translation || "" }];
+
   if (!screenshotFillEl) {
     screenshotFillEl = document.createElement("div");
     screenshotFillEl.className = "bt-shot-fill bt-vars-container";
@@ -3304,27 +3314,44 @@ function renderShotFill(rect, text) {
       screenshotFillEl = null;
     });
     screenshotFillEl.appendChild(close);
-    const body = document.createElement("div");
-    body.className = "bt-shot-fill-text";
-    screenshotFillEl.appendChild(body);
+    const segs = document.createElement("div");
+    segs.className = "bt-shot-fill-segs";
+    screenshotFillEl.appendChild(segs);
     document.documentElement.appendChild(screenshotFillEl);
   }
-  screenshotFillEl.style.left = `${rect.x}px`;
-  screenshotFillEl.style.top = `${rect.y}px`;
+
+  const docX = rect.docX ?? rect.x + window.scrollX;
+  const docY = rect.docY ?? rect.y + window.scrollY;
+  screenshotFillEl.style.left = `${docX}px`;
+  screenshotFillEl.style.top = `${docY}px`;
   screenshotFillEl.style.width = `${rect.w}px`;
   screenshotFillEl.style.height = `${rect.h}px`;
-  const body = screenshotFillEl.querySelector(".bt-shot-fill-text");
-  body.textContent = text;
-  // Shrink font until the translation fits inside the region
-  let size = Math.min(16, Math.max(9, Math.floor(rect.h / 3)));
-  body.style.fontSize = `${size}px`;
-  while (
-    size > 8 &&
-    (body.scrollHeight > screenshotFillEl.clientHeight - 12 ||
-      body.scrollWidth > screenshotFillEl.clientWidth - 16)
-  ) {
-    size -= 1;
-    body.style.fontSize = `${size}px`;
+
+  const segs = screenshotFillEl.querySelector(".bt-shot-fill-segs");
+  segs.innerHTML = "";
+  for (const seg of segments) {
+    const [y0, x0, y1, x1] = seg.box;
+    const el = document.createElement("div");
+    el.className = "bt-shot-fill-seg";
+    el.textContent = seg.translation;
+    el.style.left = `${(x0 / 1000) * rect.w}px`;
+    el.style.top = `${(y0 / 1000) * rect.h}px`;
+    el.style.width = `${((x1 - x0) / 1000) * rect.w}px`;
+    el.style.height = `${((y1 - y0) / 1000) * rect.h}px`;
+    segs.appendChild(el);
+    // Shrink font until the text fits inside its box
+    let size = Math.min(
+      20,
+      Math.max(7, Math.floor(((y1 - y0) / 1000) * rect.h))
+    );
+    el.style.fontSize = `${size}px`;
+    while (
+      size > 6 &&
+      (el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth)
+    ) {
+      size -= 1;
+      el.style.fontSize = `${size}px`;
+    }
   }
 }
 
@@ -3395,7 +3422,11 @@ function startScreenshotSelection() {
       x: Math.min(start.x, e.clientX),
       y: Math.min(start.y, e.clientY),
       w: Math.abs(e.clientX - start.x),
-      h: Math.abs(e.clientY - start.y)
+      h: Math.abs(e.clientY - start.y),
+      // Document coords at capture time so the fill overlay stays glued to
+      // the underlying content when the page scrolls.
+      docX: Math.min(start.x, e.clientX) + window.scrollX,
+      docY: Math.min(start.y, e.clientY) + window.scrollY
     };
     finish();
     if (rect.w >= 10 && rect.h >= 10) {
@@ -3479,7 +3510,7 @@ async function captureAndTranslateRect(rect) {
         const { source, translation } = res.result;
         const out = translation || i18n.t("screenshot.noText");
         if (useFill) {
-          renderShotFill(rect, out);
+          renderShotFill(rect, res.result);
         } else {
           popup.querySelector(".bt-shot-source-text").textContent =
             source || i18n.t("screenshot.noText");

@@ -251,21 +251,29 @@ try {
   const fillOk = await page
     .waitForFunction(
       () => {
-        const el = document.querySelector(".bt-shot-fill .bt-shot-fill-text");
-        return el && !/Đang dịch|Translating/.test(el.textContent || "");
+        const segs = document.querySelectorAll(
+          ".bt-shot-fill .bt-shot-fill-seg"
+        );
+        return (
+          segs.length > 0 &&
+          ![...segs].some((el) =>
+            /Đang dịch|Translating/.test(el.textContent || "")
+          )
+        );
       },
       { timeout: 30000 }
     )
     .then(() => true)
     .catch(() => false);
   const fill = await page.evaluate(() => {
-    const el = document.querySelector(".bt-shot-fill .bt-shot-fill-text");
+    const segs = [...document.querySelectorAll(".bt-shot-fill-seg")];
     const box = document.querySelector(".bt-shot-fill");
     const popupGone = !document.querySelector(".bt-shot-popup");
-    if (!el || !box) return null;
+    if (!segs.length || !box) return null;
     const r = box.getBoundingClientRect();
     return {
-      text: el.textContent,
+      text: segs.map((s) => s.textContent).join(" "),
+      segCount: segs.length,
       popupGone,
       rect: { x: r.x, y: r.y, w: r.width, h: r.height }
     };

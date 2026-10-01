@@ -174,6 +174,32 @@ export class GeminiProvider extends TranslationProvider {
  * {source, translation}. Tolerates whitespace/casing variance.
  */
 function parseImageTranslation(raw) {
+  // Preferred shape: {"segments":[{box:[y0,x0,y1,x1],source,translation}]}
+  const cleaned = raw.replace(/```(?:json)?/gi, "").trim();
+  try {
+    const obj = JSON.parse(cleaned);
+    if (obj && Array.isArray(obj.segments)) {
+      return {
+        source: obj.segments
+          .map((s) => s?.source || "")
+          .filter(Boolean)
+          .join("\n"),
+        translation: obj.segments
+          .map((s) => s?.translation || "")
+          .filter(Boolean)
+          .join("\n"),
+        segments: obj.segments.filter(
+          (s) =>
+            s &&
+            Array.isArray(s.box) &&
+            s.box.length === 4 &&
+            typeof s.translation === "string"
+        )
+      };
+    }
+  } catch {
+    /* fall through to legacy formats */
+  }
   const m = raw.match(
     /<<<SOURCE>>>\s*([\s\S]*?)\s*<<<TRANSLATION>>>\s*([\s\S]*?)\s*$/i
   );
@@ -185,13 +211,13 @@ function parseImageTranslation(raw) {
 
 const IMAGE_OCR_PROMPT = (
   targetLang
-) => `Extract ALL text visible in this image, then translate it to ${targetLang}.
-Reply in EXACTLY this format, nothing else:
-<<<SOURCE>>>
-<the extracted text, preserving line breaks>
-<<<TRANSLATION>>>
-<the translation into ${targetLang}>
-If the image contains no readable text, reply with exactly: <<<EMPTY>>>`;
+) => `Extract ALL text visible in this image and translate it to ${targetLang}.
+Reply with ONLY a JSON object — no markdown fences, no extra text:
+{"segments":[{"box":[yMin,xMin,yMax,xMax],"source":"...","translation":"..."}]}
+Rules:
+- box: bounding box of EACH text line/block in the image, normalized to 0-1000
+- Merge nearby lines of the same paragraph into one segment
+- If the image contains no readable text, reply: {"segments":[]}`;
 
 /**
  * Shared OCR+translate for OpenAI-compatible /chat/completions endpoints
