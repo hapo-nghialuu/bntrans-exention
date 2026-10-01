@@ -139,13 +139,7 @@ export class GeminiProvider extends TranslationProvider {
 
     if (!apiKey) throw new Error("Gemini API Key is missing");
 
-    const prompt = `Extract ALL text visible in this image, then translate it to ${targetLang}.
-Reply in EXACTLY this format, nothing else:
-<<<SOURCE>>>
-<the extracted text, preserving line breaks>
-<<<TRANSLATION>>>
-<the translation into ${targetLang}>
-If the image contains no readable text, reply with exactly: <<<EMPTY>>>`;
+    const prompt = IMAGE_OCR_PROMPT(targetLang);
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -189,6 +183,60 @@ function parseImageTranslation(raw) {
   return { source: "", translation: raw };
 }
 
+const IMAGE_OCR_PROMPT = (
+  targetLang
+) => `Extract ALL text visible in this image, then translate it to ${targetLang}.
+Reply in EXACTLY this format, nothing else:
+<<<SOURCE>>>
+<the extracted text, preserving line breaks>
+<<<TRANSLATION>>>
+<the translation into ${targetLang}>
+If the image contains no readable text, reply with exactly: <<<EMPTY>>>`;
+
+/**
+ * Shared OCR+translate for OpenAI-compatible /chat/completions endpoints
+ * (OpenAI, OpenRouter, Groq, Ollama, Codex bridge, custom servers). The
+ * configured model must be vision-capable or the endpoint will error.
+ */
+async function openAiImageTranslate(
+  { baseUrl, apiKey, model, extraHeaders = {} },
+  base64,
+  targetLang,
+  mimeType
+) {
+  const headers = { "Content-Type": "application/json", ...extraHeaders };
+  if (apiKey && apiKey.trim()) headers.Authorization = `Bearer ${apiKey}`;
+
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: IMAGE_OCR_PROMPT(targetLang) },
+            {
+              type: "image_url",
+              image_url: { url: `data:${mimeType};base64,${base64}` }
+            }
+          ]
+        }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API Error ${response.status}`);
+  }
+
+  const data = await response.json();
+  const raw = data.choices?.[0]?.message?.content?.trim() || "";
+  return parseImageTranslation(raw);
+}
+
 /**
  * OpenAI Provider
  */
@@ -225,6 +273,20 @@ class OpenAIProvider extends TranslationProvider {
 
     const data = await response.json();
     return data.choices?.[0]?.message?.content?.trim();
+  }
+
+  async translateImage(base64, targetLang, mimeType = "image/png") {
+    if (!this.config.apiKey) throw new Error("OpenAI API Key is missing");
+    return openAiImageTranslate(
+      {
+        baseUrl: this.config.baseUrl || "https://api.openai.com/v1",
+        apiKey: this.config.apiKey,
+        model: this.config.model || "gpt-4o-mini"
+      },
+      base64,
+      targetLang,
+      mimeType
+    );
   }
 }
 
@@ -400,6 +462,24 @@ class OpenRouterProvider extends TranslationProvider {
     const data = await response.json();
     return data.choices?.[0]?.message?.content?.trim();
   }
+
+  async translateImage(base64, targetLang, mimeType = "image/png") {
+    if (!this.config.apiKey) throw new Error("OpenRouter API Key is missing");
+    return openAiImageTranslate(
+      {
+        baseUrl: "https://openrouter.ai/api/v1",
+        apiKey: this.config.apiKey,
+        model: this.config.model || "openai/gpt-4o-mini",
+        extraHeaders: {
+          "HTTP-Referer": "https://github.com/hapo-nghialuu/bntrans-exention",
+          "X-Title": "BNTrans Extension"
+        }
+      },
+      base64,
+      targetLang,
+      mimeType
+    );
+  }
 }
 
 /**
@@ -438,6 +518,20 @@ class GroqProvider extends TranslationProvider {
 
     const data = await response.json();
     return data.choices?.[0]?.message?.content?.trim();
+  }
+
+  async translateImage(base64, targetLang, mimeType = "image/png") {
+    if (!this.config.apiKey) throw new Error("Groq API Key is missing");
+    return openAiImageTranslate(
+      {
+        baseUrl: "https://api.groq.com/openai/v1",
+        apiKey: this.config.apiKey,
+        model: this.config.model || "llama-3.3-70b-versatile"
+      },
+      base64,
+      targetLang,
+      mimeType
+    );
   }
 }
 
@@ -506,6 +600,21 @@ class CustomProvider extends TranslationProvider {
       }
       throw error;
     }
+  }
+
+  async translateImage(base64, targetLang, mimeType = "image/png") {
+    const baseUrl = this.config.baseUrl || "http://localhost:11434/v1";
+    if (!baseUrl) throw new Error("Base URL is required for Custom provider");
+    return openAiImageTranslate(
+      {
+        baseUrl,
+        apiKey: this.config.apiKey,
+        model: this.config.model || "llama3.1"
+      },
+      base64,
+      targetLang,
+      mimeType
+    );
   }
 }
 

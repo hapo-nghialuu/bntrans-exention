@@ -290,7 +290,7 @@ try {
         const el = document.querySelector(
           ".bt-shot-popup .bt-shot-result-text"
         );
-        return el && /Gemini API key/i.test(el.textContent || "");
+        return el && /image-capable|Gemini/i.test(el.textContent || "");
       },
       { timeout: 15000 }
     )

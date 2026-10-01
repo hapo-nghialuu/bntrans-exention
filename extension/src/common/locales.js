@@ -60,8 +60,8 @@ export const locales = {
     "popup.screenshotShortcut": "Screenshot Translate Shortcut",
     "popup.screenshotProvider": "Provider",
     "popup.screenshotProviderHint":
-      "Gemini provider used for OCR + translate (needs an API key)",
-    "popup.screenshotProviderAuto": "Auto (first Gemini provider)",
+      "Provider used for OCR + translate — must be vision-capable (Gemini, OpenAI, Groq…)",
+    "popup.screenshotProviderAuto": "Auto (first image-capable provider)",
     "popup.screenshotModel": "Screenshot Model",
     "popup.screenshotModelHint":
       "Vision model for OCR + translate. Empty = the selected provider's model",
@@ -69,7 +69,7 @@ export const locales = {
     "popup.screenshotFillHint":
       "Paint the translation on top of the selected region instead of only showing it in the popup",
     "popup.screenshotHint":
-      "Drag a rectangle on the page — text is read and translated via your Gemini provider",
+      "Drag a rectangle on the page — text is read and translated via the provider above",
     "popup.captureArea": "Capture area",
     "popup.groupHover": "Hover Translate",
     "popup.groupInstant": "Instant Mode",
@@ -278,8 +278,8 @@ export const locales = {
     "popup.screenshotShortcut": "Phím tắt dịch ảnh chụp",
     "popup.screenshotProvider": "Provider",
     "popup.screenshotProviderHint":
-      "Provider Gemini dùng để đọc chữ + dịch (cần API key)",
-    "popup.screenshotProviderAuto": "Tự động (provider Gemini đầu tiên)",
+      "Provider dùng để đọc chữ + dịch — phải là model có vision (Gemini, OpenAI, Groq…)",
+    "popup.screenshotProviderAuto": "Tự động (provider đọc ảnh đầu tiên)",
     "popup.screenshotModel": "Model cho ảnh chụp",
     "popup.screenshotModelHint":
       "Model vision để đọc chữ + dịch. Để trống = dùng model của provider đã chọn",
@@ -287,7 +287,7 @@ export const locales = {
     "popup.screenshotFillHint":
       "Vẽ bản dịch đè lên vùng đã chọn thay vì chỉ hiển thị trong popup",
     "popup.screenshotHint":
-      "Kéo một hình chữ nhật trên trang — chữ được đọc và dịch qua provider Gemini",
+      "Kéo một hình chữ nhật trên trang — chữ được đọc và dịch qua provider đã chọn ở trên",
     "popup.captureArea": "Chụp vùng màn hình",
     "popup.groupHover": "Dịch bằng hover",
     "popup.groupInstant": "Chế độ dịch nhanh",

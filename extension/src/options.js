@@ -1430,8 +1430,8 @@ if (
   shotFill?.addEventListener("change", saveSettings);
 }
 
-// Screenshot translation only works with Gemini vision today — list the
-// configured Gemini providers so users can pick which key/model it uses.
+// Every configured provider is selectable; whether it actually reads images
+// is enforced at translate time (vision-capable model required).
 let shotProviderModels = {}; // providerId -> configured model
 function populateShotProviders(providers) {
   if (!shotProvider) return;
@@ -1441,15 +1441,13 @@ function populateShotProviders(providers) {
   auto.value = "";
   auto.textContent = i18n.t("popup.screenshotProviderAuto");
   shotProvider.appendChild(auto);
-  providers
-    .filter((p) => p.type === "gemini")
-    .forEach((p) => {
-      shotProviderModels[p.id] = p.config?.model || "";
-      const opt = document.createElement("option");
-      opt.value = p.id;
-      opt.textContent = p.name || p.id;
-      shotProvider.appendChild(opt);
-    });
+  providers.forEach((p) => {
+    shotProviderModels[p.id] = p.config?.model || "";
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = p.name || p.id;
+    shotProvider.appendChild(opt);
+  });
 }
 
 function updateShotModelPlaceholder() {

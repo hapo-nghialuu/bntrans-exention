@@ -1,4 +1,4 @@
-import { AIProviderService, GeminiProvider } from "./services/ai-providers.js";
+import { AIProviderService } from "./services/ai-providers.js";
 import {
   htmlToMarkdown,
   markdownToHtml,
@@ -312,25 +312,52 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     readSettings()
       .then(async (settings) => {
         try {
-          const geminiProviders = (settings.providers || []).filter(
-            (p) => p.type === "gemini" && p.config?.apiKey
-          );
-          const gemini =
-            geminiProviders.find(
-              (p) => p.id === settings.screenshotProviderId
-            ) || geminiProviders[0];
-          if (!gemini) {
+          const providers = settings.providers || [];
+          // Explicit choice wins; otherwise prefer a keyed Gemini, then any
+          // provider type that can accept image input.
+          const IMAGE_CAPABLE = new Set([
+            "gemini",
+            "openai",
+            "openrouter",
+            "groq",
+            "ollama",
+            "custom",
+            "codex"
+          ]);
+          const chosen =
+            providers.find((p) => p.id === settings.screenshotProviderId) ||
+            providers.find((p) => p.type === "gemini" && p.config?.apiKey) ||
+            providers.find((p) => IMAGE_CAPABLE.has(p.type));
+          if (!chosen) {
             sendResponse({
               ok: false,
               error:
-                "Screenshot translation needs a Gemini API key. Add a Gemini provider in Options → Providers."
+                "Screenshot translation needs an image-capable provider (Gemini, OpenAI…). Configure one in Options → Screenshot."
             });
             return;
           }
-          const provider = new GeminiProvider({
-            ...gemini.config,
-            model: settings.screenshotModel || gemini.config.model
+          if (!IMAGE_CAPABLE.has(chosen.type)) {
+            sendResponse({
+              ok: false,
+              error: `Provider "${chosen.name || chosen.type}" cannot read images — pick a vision-capable one in Options → Screenshot.`
+            });
+            return;
+          }
+          const service = new AIProviderService({
+            ...settings,
+            providers: providers.map((p) =>
+              p.id === chosen.id
+                ? {
+                    ...p,
+                    config: {
+                      ...p.config,
+                      model: settings.screenshotModel || p.config?.model
+                    }
+                  }
+                : p
+            )
           });
+          const provider = service.getProvider(chosen.id, "");
           const targetLang =
             message.payload?.targetLanguage ||
             settings.targetLanguageCode ||
@@ -344,7 +371,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             ok: true,
             result: {
               ...result,
-              providerName: gemini.name || "Gemini",
+              providerName: chosen.name || chosen.type,
               targetLanguage: targetLang
             }
           });
