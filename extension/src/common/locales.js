@@ -57,6 +57,9 @@ export const locales = {
     "popup.groupAliases": "Aliases",
     "popup.groupScreenshot": "Screenshot",
     "popup.screenshotShortcut": "Screenshot Translate Shortcut",
+    "popup.screenshotModel": "Screenshot Model",
+    "popup.screenshotModelHint":
+      "Vision model for OCR + translate. Empty = the Gemini provider's own model",
     "popup.screenshotHint":
       "Drag a rectangle on the page — text is read and translated via your Gemini provider",
     "popup.captureArea": "Capture area",
@@ -264,6 +267,9 @@ export const locales = {
     "popup.groupAliases": "Alias",
     "popup.groupScreenshot": "Ảnh chụp",
     "popup.screenshotShortcut": "Phím tắt dịch ảnh chụp",
+    "popup.screenshotModel": "Model cho ảnh chụp",
+    "popup.screenshotModelHint":
+      "Model vision để đọc chữ + dịch. Để trống = dùng model của Gemini provider",
     "popup.screenshotHint":
       "Kéo một hình chữ nhật trên trang — chữ được đọc và dịch qua provider Gemini",
     "popup.captureArea": "Chụp vùng màn hình",

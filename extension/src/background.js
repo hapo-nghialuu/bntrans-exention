@@ -323,7 +323,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             });
             return;
           }
-          const provider = new GeminiProvider(gemini.config);
+          const provider = new GeminiProvider({
+            ...gemini.config,
+            model: settings.screenshotModel || gemini.config.model
+          });
           const targetLang =
             message.payload?.targetLanguage ||
             settings.targetLanguageCode ||

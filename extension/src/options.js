@@ -84,6 +84,7 @@ const shotShortcutShift = document.getElementById("shot-shortcut-shift");
 const shotShortcutAlt = document.getElementById("shot-shortcut-alt");
 const shotShortcutKey = document.getElementById("shot-shortcut-key");
 const shotShortcutPreview = document.getElementById("shot-shortcut-preview");
+const shotModel = document.getElementById("shot-model");
 
 const hoverShortcutCtrl = document.getElementById("hover-shortcut-ctrl");
 const hoverShortcutShift = document.getElementById("hover-shortcut-shift");
@@ -1010,6 +1011,7 @@ async function loadSettings() {
     if (shotShortcutShift) shotShortcutShift.checked = shotShortcut.shift;
     if (shotShortcutAlt) shotShortcutAlt.checked = shotShortcut.alt;
     if (shotShortcutKey) shotShortcutKey.value = shotShortcut.key;
+    if (shotModel) shotModel.value = res.settings.screenshotModel || "";
     updateShotShortcutPreview();
 
     // Load style settings
@@ -1119,6 +1121,7 @@ async function saveSettings() {
       shift: shortcutShiftCheckbox?.checked || false,
       alt: shortcutAltCheckbox?.checked || false
     },
+    screenshotModel: shotModel?.value.trim() || "",
     screenshotShortcut: {
       key: shotShortcutKey?.value.toUpperCase() || "S",
       ctrl: shotShortcutCtrl?.checked || false,
@@ -1409,6 +1412,8 @@ if (
     updateShotShortcutPreview();
   });
   shotShortcutKey.addEventListener("change", saveSettings);
+
+  shotModel?.addEventListener("change", saveSettings);
 }
 
 function updateShotShortcutPreview() {
