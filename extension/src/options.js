@@ -1479,8 +1479,11 @@ async function loadShotModelsIntoDatalist() {
     providers[0];
   if (!chosen) return;
 
+  const hint = document.getElementById("shot-model-hint");
+  const defaultHint = i18n.t("popup.screenshotModelHint");
   btn.disabled = true;
   btn.textContent = "…";
+  if (hint) hint.textContent = i18n.t("popup.loadingModels") || "Loading…";
   try {
     const models = await fetchProviderModels(chosen.type, {
       apiKey: chosen.config?.apiKey || "",
@@ -1490,9 +1493,19 @@ async function loadShotModelsIntoDatalist() {
       .map((m) => `<option value="${m}"></option>`)
       .join("");
     updateShotModelPlaceholder();
-    if (!models.length) shotModel.placeholder = "No models returned";
+    if (hint) {
+      hint.textContent = models.length
+        ? `${models.length} models — ${models.slice(0, 3).join(", ")}${models.length > 3 ? "…" : ""}`
+        : defaultHint;
+    }
+    // Datalist suggestions filter by the input's current text — focus and
+    // select-all so the user sees the full list / can replace in one key.
+    if (models.length) {
+      shotModel.focus();
+      shotModel.select();
+    }
   } catch (err) {
-    shotModel.placeholder = `⚠ ${err.message}`;
+    if (hint) hint.textContent = `⚠ ${err.message}`;
   } finally {
     btn.disabled = false;
     btn.textContent = "↻";
