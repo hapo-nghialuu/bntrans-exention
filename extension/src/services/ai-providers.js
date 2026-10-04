@@ -276,7 +276,18 @@ async function openAiImageTranslate(
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.error?.message || `API Error ${response.status}`);
+    const msg = err.error?.message || `API Error ${response.status}`;
+    // Groq (and others) reject multimodal content on text-only models with
+    // "messages[0].content must be a string" — translate that into an
+    // actionable hint instead of leaking the raw validation error.
+    if (
+      /must be a string|does not support image|multimodal|vision/i.test(msg)
+    ) {
+      throw new Error(
+        `Model "${model}" cannot read images — pick a vision-capable model in Options → Screenshot.`
+      );
+    }
+    throw new Error(msg);
   }
 
   const data = await response.json();
@@ -592,7 +603,8 @@ class GroqProvider extends TranslationProvider {
       {
         baseUrl: "https://api.groq.com/openai/v1",
         apiKey: this.config.apiKey,
-        model: this.config.model || "llama-3.3-70b-versatile"
+        // image calls need a vision model — the text default would 400
+        model: this.config.model || "meta-llama/llama-4-scout-17b-16e-instruct"
       },
       base64,
       targetLang,
