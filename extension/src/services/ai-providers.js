@@ -599,12 +599,21 @@ class GroqProvider extends TranslationProvider {
     mode = "translate"
   ) {
     if (!this.config.apiKey) throw new Error("Groq API Key is missing");
+    // Groq rejects image input on text-only models — keep the configured
+    // model only if it is one of Groq's vision models, else fall back.
+    const VISION = [
+      "meta-llama/llama-4-scout-17b-16e-instruct",
+      "meta-llama/llama-4-maverick-17b-128e-instruct",
+      "qwen/qwen3.8-27b"
+    ];
+    const model = VISION.includes(this.config.model)
+      ? this.config.model
+      : VISION[0];
     return openAiImageTranslate(
       {
         baseUrl: "https://api.groq.com/openai/v1",
         apiKey: this.config.apiKey,
-        // image calls need a vision model — the text default would 400
-        model: this.config.model || "meta-llama/llama-4-scout-17b-16e-instruct"
+        model
       },
       base64,
       targetLang,
