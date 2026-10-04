@@ -562,12 +562,24 @@
 
             <div class="bt-field">
               <label data-i18n="popup.screenshotModel">Screenshot Model</label>
-              <input
-                type="text"
-                id="shot-model"
-                class="bt-input"
-                placeholder="gemini-3.1-flash-lite"
-              />
+              <div class="bt-model-row">
+                <input
+                  type="text"
+                  id="shot-model"
+                  class="bt-input"
+                  list="shot-model-datalist"
+                  placeholder="gemini-3.1-flash-lite"
+                />
+                <button
+                  type="button"
+                  id="btn-load-shot-models"
+                  class="bt-button-small"
+                  title="Load available models"
+                >
+                  ↻
+                </button>
+              </div>
+              <datalist id="shot-model-datalist"></datalist>
               <small class="bt-hint" data-i18n="popup.screenshotModelHint">
                 Vision model for OCR + translate. Empty = the selected
                 provider's model

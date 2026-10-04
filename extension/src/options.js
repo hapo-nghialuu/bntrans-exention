@@ -1425,8 +1425,13 @@ if (
   shotModel?.addEventListener("change", saveSettings);
   shotProvider?.addEventListener("change", () => {
     updateShotModelPlaceholder();
+    const dl = document.getElementById("shot-model-datalist");
+    if (dl) dl.innerHTML = "";
     saveSettings();
   });
+  document
+    .getElementById("btn-load-shot-models")
+    ?.addEventListener("click", loadShotModelsIntoDatalist);
   shotFill?.addEventListener("change", saveSettings);
 }
 
@@ -1458,6 +1463,40 @@ function updateShotModelPlaceholder() {
     (shotProvider.value
       ? i18n.t("popup.screenshotModel")
       : "gemini-3.1-flash-lite");
+}
+
+/**
+ * Resolve the screenshot provider the same way background.js does, then
+ * pull its live /models list into the shot-model datalist.
+ */
+async function loadShotModelsIntoDatalist() {
+  const btn = document.getElementById("btn-load-shot-models");
+  const datalist = document.getElementById("shot-model-datalist");
+  if (!btn || !datalist || !shotProvider) return;
+  const chosen =
+    providers.find((p) => p.id === shotProvider.value) ||
+    providers.find((p) => p.type === "gemini" && p.config?.apiKey) ||
+    providers[0];
+  if (!chosen) return;
+
+  btn.disabled = true;
+  btn.textContent = "…";
+  try {
+    const models = await fetchProviderModels(chosen.type, {
+      apiKey: chosen.config?.apiKey || "",
+      baseUrl: chosen.config?.baseUrl || ""
+    });
+    datalist.innerHTML = models
+      .map((m) => `<option value="${m}"></option>`)
+      .join("");
+    updateShotModelPlaceholder();
+    if (!models.length) shotModel.placeholder = "No models returned";
+  } catch (err) {
+    shotModel.placeholder = `⚠ ${err.message}`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "↻";
+  }
 }
 
 function updateShotShortcutPreview() {
