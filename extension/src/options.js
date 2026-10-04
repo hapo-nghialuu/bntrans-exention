@@ -459,6 +459,27 @@ async function fetchProviderModels(type, { apiKey = "", baseUrl = "" } = {}) {
     );
 }
 
+// Curated picks per provider type — surfaced first and tagged in pickers.
+const SUGGESTED_TEXT_MODELS = {
+  gemini: ["gemini-3.1-flash-lite", "gemini-2.5-flash"],
+  openai: ["gpt-4o-mini", "gpt-4.1-mini"],
+  openrouter: ["openai/gpt-4o-mini", "google/gemini-2.5-flash"],
+  groq: ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]
+};
+const SUGGESTED_IMAGE_MODELS = {
+  gemini: ["gemini-3.1-flash-lite", "gemini-2.5-flash"],
+  openai: ["gpt-4o-mini", "gpt-4o"],
+  openrouter: ["openai/gpt-4o-mini", "google/gemini-2.5-flash"],
+  groq: ["qwen/qwen3.8-27b"]
+};
+
+function orderSuggested(models, picked) {
+  return [
+    ...picked.filter((m) => models.includes(m)),
+    ...models.filter((m) => !picked.includes(m))
+  ];
+}
+
 async function loadModelsIntoDatalist() {
   const type = formType.value;
   const apiKey = document.querySelector("#field-apiKey")?.value.trim() || "";
@@ -474,8 +495,13 @@ async function loadModelsIntoDatalist() {
 
   try {
     const models = await fetchProviderModels(type, { apiKey, baseUrl });
-    datalist.innerHTML = models
-      .map((m) => `<option value="${m}"></option>`)
+    const suggested = SUGGESTED_TEXT_MODELS[type] || [];
+    const tag = i18n.t("popup.modelSuggested");
+    datalist.innerHTML = orderSuggested(models, suggested)
+      .map((m) => {
+        const label = suggested.includes(m) ? `${m} · ${tag}` : m;
+        return `<option value="${m}" label="${label}"></option>`;
+      })
       .join("");
     if (hint) {
       hint.textContent = models.length
@@ -1472,6 +1498,7 @@ function populateShotProviders(providers) {
 }
 
 let savedScreenshotModel = ""; // last value read from / written to settings
+let shotModelProviderType = ""; // type used for the last loaded model list
 const SHOT_MODEL_CUSTOM = "__custom__";
 
 function shotModelEffective() {
@@ -1500,7 +1527,11 @@ function renderShotModelOptions(models = []) {
         : i18n.t("popup.screenshotModelAuto")
     )
   );
-  models.forEach((m) => shotModel.appendChild(mk(m, m)));
+  const suggested = SUGGESTED_IMAGE_MODELS[shotModelProviderType] || [];
+  const tag = i18n.t("popup.modelSuggested");
+  orderSuggested(models, suggested).forEach((m) =>
+    shotModel.appendChild(mk(m, suggested.includes(m) ? `${m} · ${tag}` : m))
+  );
   if (current && !models.includes(current)) {
     shotModel.appendChild(
       mk(current, `${current} ${i18n.t("popup.screenshotModelNotInList")}`)
@@ -1528,9 +1559,11 @@ async function refreshShotModels() {
     providers.find((p) => p.type === "gemini" && p.config?.apiKey) ||
     providers[0];
   if (!chosen) {
+    shotModelProviderType = "";
     renderShotModelOptions([]);
     return;
   }
+  shotModelProviderType = chosen.type;
   if (btn) {
     btn.disabled = true;
     btn.textContent = "…";

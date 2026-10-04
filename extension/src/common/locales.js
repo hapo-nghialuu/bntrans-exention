@@ -68,6 +68,7 @@ export const locales = {
     "popup.screenshotModelCustomPh":
       "Type a model name, e.g. gemini-3.1-flash-lite",
     "popup.screenshotModelNotInList": "(not in provider's model list)",
+    "popup.modelSuggested": "suggested",
     "popup.screenshotModelHint":
       "Vision model for OCR + translate. Empty = the selected provider's model",
     "popup.screenshotFill": "Fill translation over the captured area",
@@ -293,6 +294,7 @@ export const locales = {
     "popup.screenshotModelCustomPh":
       "Nhập tên model, vd: gemini-3.1-flash-lite",
     "popup.screenshotModelNotInList": "(không có trong danh sách của provider)",
+    "popup.modelSuggested": "gợi ý",
     "popup.screenshotModelHint":
       "Model vision để đọc chữ + dịch. Để trống = dùng model của provider đã chọn",
     "popup.screenshotFill": "Phủ bản dịch lên vùng đã chụp",
