@@ -63,6 +63,11 @@ export const locales = {
       "Provider used for OCR + translate — must be vision-capable (Gemini, OpenAI, Groq…)",
     "popup.screenshotProviderAuto": "Auto (first image-capable provider)",
     "popup.screenshotModel": "Screenshot Model",
+    "popup.screenshotModelAuto": "Auto (provider's model)",
+    "popup.screenshotModelCustom": "Custom model…",
+    "popup.screenshotModelCustomPh":
+      "Type a model name, e.g. gemini-3.1-flash-lite",
+    "popup.screenshotModelNotInList": "(not in provider's model list)",
     "popup.screenshotModelHint":
       "Vision model for OCR + translate. Empty = the selected provider's model",
     "popup.screenshotFill": "Fill translation over the captured area",
@@ -283,6 +288,11 @@ export const locales = {
       "Provider dùng để đọc chữ + dịch — phải là model có vision (Gemini, OpenAI, Groq…)",
     "popup.screenshotProviderAuto": "Tự động (provider đọc ảnh đầu tiên)",
     "popup.screenshotModel": "Model cho ảnh chụp",
+    "popup.screenshotModelAuto": "Tự động (model của provider)",
+    "popup.screenshotModelCustom": "Nhập model khác…",
+    "popup.screenshotModelCustomPh":
+      "Nhập tên model, vd: gemini-3.1-flash-lite",
+    "popup.screenshotModelNotInList": "(không có trong danh sách của provider)",
     "popup.screenshotModelHint":
       "Model vision để đọc chữ + dịch. Để trống = dùng model của provider đã chọn",
     "popup.screenshotFill": "Phủ bản dịch lên vùng đã chụp",

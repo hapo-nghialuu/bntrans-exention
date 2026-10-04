@@ -85,6 +85,7 @@ const shotShortcutAlt = document.getElementById("shot-shortcut-alt");
 const shotShortcutKey = document.getElementById("shot-shortcut-key");
 const shotShortcutPreview = document.getElementById("shot-shortcut-preview");
 const shotModel = document.getElementById("shot-model");
+const shotModelCustom = document.getElementById("shot-model-custom");
 const shotProvider = document.getElementById("shot-provider");
 const shotFill = document.getElementById("shot-fill");
 
@@ -1013,11 +1014,12 @@ async function loadSettings() {
     if (shotShortcutShift) shotShortcutShift.checked = shotShortcut.shift;
     if (shotShortcutAlt) shotShortcutAlt.checked = shotShortcut.alt;
     if (shotShortcutKey) shotShortcutKey.value = shotShortcut.key;
-    if (shotModel) shotModel.value = res.settings.screenshotModel || "";
+    savedScreenshotModel = res.settings.screenshotModel || "";
     populateShotProviders(res.settings.providers || []);
     if (shotProvider)
       shotProvider.value = res.settings.screenshotProviderId || "";
-    updateShotModelPlaceholder();
+    renderShotModelOptions([]);
+    refreshShotModels();
     updateShotShortcutPreview();
     if (shotFill) shotFill.checked = res.settings.screenshotFill === true;
 
@@ -1129,7 +1131,7 @@ async function saveSettings() {
       alt: shortcutAltCheckbox?.checked || false
     },
     screenshotProviderId: shotProvider?.value || "",
-    screenshotModel: shotModel?.value.trim() || "",
+    screenshotModel: shotModelEffective(),
     screenshotFill: shotFill?.checked === true,
     screenshotShortcut: {
       key: shotShortcutKey?.value.toUpperCase() || "S",
@@ -1422,16 +1424,30 @@ if (
   });
   shotShortcutKey.addEventListener("change", saveSettings);
 
-  shotModel?.addEventListener("change", saveSettings);
-  shotProvider?.addEventListener("change", () => {
-    updateShotModelPlaceholder();
-    const dl = document.getElementById("shot-model-datalist");
-    if (dl) dl.innerHTML = "";
+  shotModel?.addEventListener("change", () => {
+    if (shotModel.value === SHOT_MODEL_CUSTOM) {
+      shotModelCustom.hidden = false;
+      shotModelCustom.value = savedScreenshotModel || "";
+      shotModelCustom.focus();
+      return;
+    }
+    shotModelCustom.hidden = true;
+    savedScreenshotModel = shotModel.value;
     saveSettings();
+  });
+  shotModelCustom?.addEventListener("change", () => {
+    savedScreenshotModel = shotModelCustom.value.trim();
+    saveSettings();
+  });
+  shotProvider?.addEventListener("change", () => {
+    // Model list belongs to the old provider — reset to Auto and reload.
+    savedScreenshotModel = "";
+    saveSettings();
+    refreshShotModels();
   });
   document
     .getElementById("btn-load-shot-models")
-    ?.addEventListener("click", loadShotModelsIntoDatalist);
+    ?.addEventListener("click", refreshShotModels);
   shotFill?.addEventListener("change", saveSettings);
 }
 
@@ -1455,60 +1471,90 @@ function populateShotProviders(providers) {
   });
 }
 
-function updateShotModelPlaceholder() {
-  if (!shotModel || !shotProvider) return;
-  const model = shotProviderModels[shotProvider.value];
-  shotModel.placeholder =
-    model ||
-    (shotProvider.value
-      ? i18n.t("popup.screenshotModel")
-      : "gemini-3.1-flash-lite");
+let savedScreenshotModel = ""; // last value read from / written to settings
+const SHOT_MODEL_CUSTOM = "__custom__";
+
+function shotModelEffective() {
+  if (!shotModel) return "";
+  if (shotModel.value === SHOT_MODEL_CUSTOM)
+    return (shotModelCustom?.value || "").trim();
+  return shotModel.value || "";
+}
+
+function renderShotModelOptions(models = []) {
+  if (!shotModel) return;
+  const current = savedScreenshotModel;
+  shotModel.innerHTML = "";
+  const mk = (v, label) => {
+    const o = document.createElement("option");
+    o.value = v;
+    o.textContent = label;
+    return o;
+  };
+  const providerModel = shotProviderModels[shotProvider?.value || ""];
+  shotModel.appendChild(
+    mk(
+      "",
+      providerModel
+        ? `${i18n.t("popup.screenshotModelAuto")} — ${providerModel}`
+        : i18n.t("popup.screenshotModelAuto")
+    )
+  );
+  models.forEach((m) => shotModel.appendChild(mk(m, m)));
+  if (current && !models.includes(current)) {
+    shotModel.appendChild(
+      mk(current, `${current} ${i18n.t("popup.screenshotModelNotInList")}`)
+    );
+  }
+  shotModel.appendChild(
+    mk(SHOT_MODEL_CUSTOM, i18n.t("popup.screenshotModelCustom"))
+  );
+  shotModel.value = current || "";
+  if (shotModelCustom)
+    shotModelCustom.hidden = shotModel.value !== SHOT_MODEL_CUSTOM;
 }
 
 /**
  * Resolve the screenshot provider the same way background.js does, then
- * pull its live /models list into the shot-model datalist.
+ * pull its live /models list into the shot-model select.
  */
-async function loadShotModelsIntoDatalist() {
+async function refreshShotModels() {
   const btn = document.getElementById("btn-load-shot-models");
-  const datalist = document.getElementById("shot-model-datalist");
-  if (!btn || !datalist || !shotProvider) return;
+  const hint = document.getElementById("shot-model-hint");
+  const defaultHint = i18n.t("popup.screenshotModelHint");
+  if (!shotProvider) return;
   const chosen =
     providers.find((p) => p.id === shotProvider.value) ||
     providers.find((p) => p.type === "gemini" && p.config?.apiKey) ||
     providers[0];
-  if (!chosen) return;
-
-  const hint = document.getElementById("shot-model-hint");
-  const defaultHint = i18n.t("popup.screenshotModelHint");
-  btn.disabled = true;
-  btn.textContent = "…";
+  if (!chosen) {
+    renderShotModelOptions([]);
+    return;
+  }
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "…";
+  }
   if (hint) hint.textContent = i18n.t("popup.loadingModels") || "Loading…";
   try {
     const models = await fetchProviderModels(chosen.type, {
       apiKey: chosen.config?.apiKey || "",
       baseUrl: chosen.config?.baseUrl || ""
     });
-    datalist.innerHTML = models
-      .map((m) => `<option value="${m}"></option>`)
-      .join("");
-    updateShotModelPlaceholder();
+    renderShotModelOptions(models);
     if (hint) {
       hint.textContent = models.length
         ? `${models.length} models — ${models.slice(0, 3).join(", ")}${models.length > 3 ? "…" : ""}`
         : defaultHint;
     }
-    // Datalist suggestions filter by the input's current text — focus and
-    // select-all so the user sees the full list / can replace in one key.
-    if (models.length) {
-      shotModel.focus();
-      shotModel.select();
-    }
   } catch (err) {
+    renderShotModelOptions([]);
     if (hint) hint.textContent = `⚠ ${err.message}`;
   } finally {
-    btn.disabled = false;
-    btn.textContent = "↻";
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "↻";
+    }
   }
 }
 

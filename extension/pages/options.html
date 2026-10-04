@@ -563,23 +563,24 @@
             <div class="bt-field">
               <label data-i18n="popup.screenshotModel">Screenshot Model</label>
               <div class="bt-model-row">
-                <input
-                  type="text"
-                  id="shot-model"
-                  class="bt-input"
-                  list="shot-model-datalist"
-                  placeholder="gemini-3.1-flash-lite"
-                />
+                <select id="shot-model" class="bt-input"></select>
                 <button
                   type="button"
                   id="btn-load-shot-models"
                   class="bt-button-small"
-                  title="Load available models"
+                  title="Refresh model list"
                 >
                   ↻
                 </button>
               </div>
-              <datalist id="shot-model-datalist"></datalist>
+              <input
+                type="text"
+                id="shot-model-custom"
+                class="bt-input"
+                hidden
+                data-i18n-placeholder="popup.screenshotModelCustomPh"
+                placeholder="Type a model name…"
+              />
               <small
                 id="shot-model-hint"
                 class="bt-hint"
