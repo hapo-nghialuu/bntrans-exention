@@ -178,6 +178,7 @@ const providerCases = [
   "deepl",
   "google-translate",
   "groq",
+  "claude",
   "ollama",
   "custom",
   "gemini-nano"

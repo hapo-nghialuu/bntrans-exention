@@ -320,6 +320,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             "openai",
             "openrouter",
             "groq",
+            "claude",
             "ollama",
             "custom",
             "codex"

@@ -622,6 +622,109 @@ class GroqProvider extends TranslationProvider {
 }
 
 /**
+ * Claude (Anthropic) Provider — Messages API.
+ * anthropic-dangerous-direct-browser-access is required for calling the
+ * API straight from the extension (CORS), and max_tokens is mandatory.
+ */
+class ClaudeProvider extends TranslationProvider {
+  anthropicHeaders() {
+    return {
+      "Content-Type": "application/json",
+      "x-api-key": this.config.apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    };
+  }
+
+  async translate(text, sourceLang, targetLang, context = "") {
+    const apiKey = this.config.apiKey;
+    const model = this.config.model || "claude-haiku-5-5";
+
+    if (!apiKey) throw new Error("Claude API Key is missing");
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: this.anthropicHeaders(),
+      body: JSON.stringify({
+        model: model,
+        max_tokens: 4096,
+        system: this.buildSystemPrompt(sourceLang, targetLang, context),
+        messages: [{ role: "user", content: text }]
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || "Claude API Error");
+    }
+
+    const data = await response.json();
+    return (data.content || [])
+      .filter((b) => b.type === "text")
+      .map((b) => b.text)
+      .join("")
+      .trim();
+  }
+
+  async translateImage(
+    base64,
+    targetLang,
+    mimeType = "image/png",
+    mode = "translate"
+  ) {
+    const apiKey = this.config.apiKey;
+    const model = this.config.model || "claude-haiku-5-5";
+
+    if (!apiKey) throw new Error("Claude API Key is missing");
+
+    const prompt =
+      mode === "explain"
+        ? IMAGE_EXPLAIN_PROMPT(targetLang)
+        : IMAGE_OCR_PROMPT(targetLang);
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: this.anthropicHeaders(),
+      body: JSON.stringify({
+        model: model,
+        max_tokens: 4096,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: mimeType,
+                  data: base64
+                }
+              }
+            ]
+          }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || "Claude API Error");
+    }
+
+    const data = await response.json();
+    const raw = (data.content || [])
+      .filter((b) => b.type === "text")
+      .map((b) => b.text)
+      .join("")
+      .trim();
+    return mode === "explain"
+      ? { source: "", translation: raw }
+      : parseImageTranslation(raw);
+  }
+}
+
+/**
  * Custom Provider for OpenAI-compatible endpoints (Ollama, LM Studio, etc.)
  */
 class CustomProvider extends TranslationProvider {
@@ -758,6 +861,8 @@ export class AIProviderService {
       //   return new MicrosoftTranslateProvider(config, prompt, opts);
       case "groq":
         return new GroqProvider(config, prompt, opts);
+      case "claude":
+        return new ClaudeProvider(config, prompt, opts);
       case "ollama":
         return new CustomProvider(config, prompt, opts);
       case "codex":

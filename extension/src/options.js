@@ -403,6 +403,11 @@ function getProviderInfo(type) {
         link: "https://console.groq.com/keys",
         text: "Groq Console"
       };
+    case "claude":
+      return {
+        link: "https://console.anthropic.com/settings/keys",
+        text: "Anthropic Console"
+      };
     default:
       return null;
   }
@@ -430,6 +435,20 @@ async function fetchProviderModels(type, { apiKey = "", baseUrl = "" } = {}) {
             n
           )
       );
+  }
+
+  if (type === "claude") {
+    if (!apiKey) throw new Error("API key required to list models");
+    const res = await fetch("https://api.anthropic.com/v1/models?limit=100", {
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`);
+    return (data.data || []).map((m) => m.id);
   }
 
   const bases = {
@@ -464,13 +483,15 @@ const SUGGESTED_TEXT_MODELS = {
   gemini: ["gemini-3.1-flash-lite", "gemini-2.5-flash"],
   openai: ["gpt-4o-mini", "gpt-4.1-mini"],
   openrouter: ["openai/gpt-4o-mini", "google/gemini-2.5-flash"],
-  groq: ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]
+  groq: ["openai/gpt-oss-120b", "openai/gpt-oss-20b"],
+  claude: ["claude-haiku-5-5", "claude-sonnet-5-5"]
 };
 const SUGGESTED_IMAGE_MODELS = {
   gemini: ["gemini-3.1-flash-lite", "gemini-2.5-flash"],
   openai: ["gpt-4o-mini", "gpt-4o"],
   openrouter: ["openai/gpt-4o-mini", "google/gemini-2.5-flash"],
-  groq: ["qwen/qwen3.8-27b"]
+  groq: ["qwen/qwen3.8-27b"],
+  claude: ["claude-haiku-5-5", "claude-sonnet-5-5"]
 };
 
 function orderSuggested(models, picked) {
@@ -607,6 +628,18 @@ function renderFormFields(type, config = {}) {
         <input type="password" id="field-apiKey" class="bt-input api-key-input" value="${config.apiKey || ""}" />
       </div>
       ${modelFieldHtml(model, "llama-3.3-70b-versatile", "Lightning-fast inference")}
+    `
+    );
+  } else if (type === "claude") {
+    const model = config.model || "claude-haiku-5-5";
+    formDynamicFields.insertAdjacentHTML(
+      "beforeend",
+      `
+      <div class="bt-field">
+        <label>API Key</label>
+        <input type="password" id="field-apiKey" class="bt-input api-key-input" value="${config.apiKey || ""}" />
+      </div>
+      ${modelFieldHtml(model, "claude-haiku-5-5")}
     `
     );
   } else if (type === "ollama") {
