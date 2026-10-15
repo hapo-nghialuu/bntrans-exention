@@ -86,8 +86,23 @@ async function loadSettings() {
     i18n.setLanguage(res.settings.interfaceLanguage || "en");
     populateLangs();
     translateUI();
-    quickTarget.value = res.settings.targetLanguageCode || "en";
-    activeProviderId = res.settings.activeProviderId || activeProviderId;
+    // Same default direction as the selection popup: fixed mode goes
+    // target→native; auto-detect keeps the configured target. Last-used
+    // picks win when present.
+    const s = res.settings;
+    let defaultSource, defaultTarget;
+    if (!s.useAutoDetect) {
+      defaultSource = s.targetLanguageCode || "en";
+      defaultTarget = s.nativeLanguageCode || "vi";
+    } else {
+      defaultSource = "auto";
+      defaultTarget = s.targetLanguageCode || "en";
+    }
+    if (s.selectionLastSource) defaultSource = s.selectionLastSource;
+    if (s.selectionLastTarget) defaultTarget = s.selectionLastTarget;
+    quickSource.value = defaultSource;
+    quickTarget.value = defaultTarget;
+    activeProviderId = s.activeProviderId || activeProviderId;
   } catch {
     // background not ready
   }
@@ -141,6 +156,22 @@ quickSwap?.addEventListener("click", () => {
   const s = quickSource.value;
   quickSource.value = quickTarget.value;
   quickTarget.value = s;
+});
+
+// Persist picks the same way the selection popup does, so surfaces share
+// the last-used direction.
+quickSource?.addEventListener("change", (e) => {
+  chrome.runtime.sendMessage({
+    type: "set-settings",
+    settings: { selectionLastSource: e.target.value }
+  });
+});
+
+quickTarget?.addEventListener("change", (e) => {
+  chrome.runtime.sendMessage({
+    type: "set-settings",
+    settings: { selectionLastTarget: e.target.value }
+  });
 });
 
 quickCopy?.addEventListener("click", async () => {
