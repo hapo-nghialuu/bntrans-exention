@@ -3760,6 +3760,16 @@ function registerScreenshotTranslate() {
   chrome.runtime.onMessage.addListener((message) => {
     if (message?.type === "start-screenshot-select") {
       startScreenshotSelection();
+    } else if (message?.type === "translate-selection") {
+      // Right-click "Translate selection": open the popup directly on the
+      // current selection, skipping the icon step.
+      const selection = window.getSelection();
+      const text = selection?.toString().trim();
+      if (text && selection.rangeCount > 0) {
+        selectedText = text;
+        const rect = selection.getRangeAt(0).getBoundingClientRect();
+        showTranslationPopup(rect, text, "bottom");
+      }
     }
   });
 
