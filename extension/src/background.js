@@ -287,6 +287,45 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
       } catch (err) {
         console.error("Translation Error:", err);
+
+        // Retry once through Google Translate so a provider outage/quota
+        // still yields a translation instead of a dead error.
+        const used = providerId
+          ? settings.providers?.find((p) => p.id === providerId)
+          : aiService.activeProvider;
+        if (used?.type !== "google-translate") {
+          try {
+            const fallback = new AIProviderService({
+              ...settings,
+              activeProviderId: "google-translate"
+            });
+            const fb = await fallback.translate(
+              text,
+              sourceLang,
+              targetLang,
+              "google-translate",
+              "",
+              ""
+            );
+            if (fb && typeof fb === "object" && !fb.useOffscreen) {
+              sendResponse({
+                ok: true,
+                result: {
+                  translation: fb.translation,
+                  providerName: "Google Translate (fallback)",
+                  providerType: "google-translate",
+                  sourceLanguage: sourceLang,
+                  targetLanguage: targetLang,
+                  fellBackFrom: used?.name || used?.type
+                }
+              });
+              return;
+            }
+          } catch (fbErr) {
+            console.error("Fallback Error:", fbErr);
+          }
+        }
+
         sendResponse({ ok: false, error: String(err?.message || err) });
       }
     });
