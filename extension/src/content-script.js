@@ -3757,9 +3757,14 @@ function registerScreenshotTranslate() {
   );
 
   // Triggered from the extension context menu / quick popup button
-  chrome.runtime.onMessage.addListener((message) => {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "start-screenshot-select") {
       startScreenshotSelection();
+    } else if (message?.type === "get-selection-text") {
+      sendResponse({
+        ok: true,
+        text: window.getSelection()?.toString() || ""
+      });
     }
   });
 

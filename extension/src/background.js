@@ -410,28 +410,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // --- Screenshot-area translation context menu -----------------------------
 
 const SCREENSHOT_MENU_ID = "bntrans-screenshot-area";
+const SIDE_PANEL_MENU_ID = "bntrans-open-side-panel";
 
 let screenshotMenuPromise = null;
 // onInstalled + onStartup + the eager call below can all fire during one
 // service-worker boot; funnel them through a single remove→create so two
 // concurrent runs can't race into "duplicate id" on create().
-function registerScreenshotMenu() {
+function registerContextMenus() {
   if (!screenshotMenuPromise) {
     screenshotMenuPromise = (async () => {
       // Callback form + lastError swallow: the promise form does not
       // reliably reject on a missing id and would spam the console on
       // every SW start.
       await new Promise((resolve) =>
-        chrome.contextMenus.remove(SCREENSHOT_MENU_ID, () => {
+        chrome.contextMenus.removeAll(() => {
           void chrome.runtime.lastError;
           resolve();
         })
       );
       let title = "Translate screenshot area";
+      let panelTitle = "Open BNTrans side panel";
       try {
         const settings = await readSettings();
         if ((settings.interfaceLanguage || "en") === "vi") {
           title = "Dịch vùng chụp màn hình";
+          panelTitle = "Mở bảng dịch BNTrans";
         }
       } catch {
         /* keep English fallback */
@@ -444,18 +447,31 @@ function registerScreenshotMenu() {
         },
         () => void chrome.runtime.lastError
       );
+      chrome.contextMenus.create(
+        {
+          id: SIDE_PANEL_MENU_ID,
+          title: panelTitle,
+          contexts: ["all", "action"]
+        },
+        () => void chrome.runtime.lastError
+      );
     })();
   }
   return screenshotMenuPromise;
 }
 
-chrome.runtime.onInstalled.addListener(registerScreenshotMenu);
-chrome.runtime.onStartup.addListener(registerScreenshotMenu);
+chrome.runtime.onInstalled.addListener(registerContextMenus);
+chrome.runtime.onStartup.addListener(registerContextMenus);
 // MV3 service workers restart often; menu items persist per session but a
 // dev reload clears them, so register eagerly too (remove+create is safe).
-registerScreenshotMenu();
+registerContextMenus();
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === SIDE_PANEL_MENU_ID) {
+    // User gesture from the menu click; needs the "sidePanel" permission.
+    chrome.sidePanel?.open({ windowId: tab?.windowId }).catch(() => {});
+    return;
+  }
   if (info.menuItemId !== SCREENSHOT_MENU_ID || !tab?.id) return;
   chrome.tabs
     .sendMessage(tab.id, { type: "start-screenshot-select" })

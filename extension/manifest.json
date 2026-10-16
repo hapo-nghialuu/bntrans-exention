@@ -24,6 +24,9 @@
     "page": "pages/options.html",
     "open_in_tab": true
   },
+  "side_panel": {
+    "default_path": "pages/sidepanel.html"
+  },
   "background": {
     "service_worker": "src/background.js",
     "type": "module"
@@ -41,7 +44,7 @@
       "all_frames": true
     }
   ],
-  "permissions": ["storage", "offscreen", "contextMenus"],
+  "permissions": ["storage", "offscreen", "contextMenus", "sidePanel"],
   "host_permissions": [
     "<all_urls>",
     "http://localhost/*",
