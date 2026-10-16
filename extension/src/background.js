@@ -132,9 +132,33 @@ async function readSettings() {
       },
       // Last used languages in Selection Popup
       selectionLastSource: null,
-      selectionLastTarget: null
+      selectionLastTarget: null,
+      // Recent translations (newest first), capped at 50
+      translationHistory: []
     }
   );
+}
+
+const HISTORY_LIMIT = 50;
+
+/**
+ * Append one entry to settings.translationHistory (newest first, capped).
+ * Callers opt out with payload.skipHistory (instant/hover are too noisy).
+ * Fire-and-forget: history must never block or fail a translation.
+ */
+function recordHistory(settings, entry) {
+  const prev = settings.translationHistory || [];
+  const head = prev[0];
+  // Skip an immediate repeat of the same pair (e.g. provider re-pick).
+  if (
+    head &&
+    head.text === entry.text &&
+    head.targetLanguage === entry.targetLanguage
+  ) {
+    return;
+  }
+  const translationHistory = [entry, ...prev].slice(0, HISTORY_LIMIT);
+  writeSettings({ translationHistory }).catch(() => {});
 }
 
 async function writeSettings(next) {
@@ -259,6 +283,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               providerType: offscreenResult.providerType || "Built-in"
             };
 
+            if (!message.payload.skipHistory && translation) {
+              recordHistory(settings, {
+                text: String(text).slice(0, 500),
+                translation: String(translation).slice(0, 1000),
+                sourceLanguage: resultObj.sourceLanguage,
+                targetLanguage: targetLang,
+                providerName: resultObj.providerName,
+                ts: Date.now()
+              });
+            }
+
             sendResponse({ ok: true, result: resultObj });
           } else {
             sendResponse({
@@ -271,6 +306,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           let translation = result.translation;
           if (hasFormatting && translation) {
             translation = markdownToHtml(translation);
+          }
+
+          if (!message.payload.skipHistory && translation) {
+            recordHistory(settings, {
+              text: String(text).slice(0, 500),
+              translation: String(translation).slice(0, 1000),
+              sourceLanguage: sourceLang,
+              targetLanguage: targetLang,
+              providerName: result.providerName,
+              ts: Date.now()
+            });
           }
 
           // Result is the object { translation, providerName, providerType }

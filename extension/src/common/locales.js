@@ -57,6 +57,10 @@ export const locales = {
     "popup.groupAliases": "Aliases",
     "popup.groupScreenshot": "Screenshot",
     "popup.tabScreenshot": "Screenshot",
+    "popup.tabHistory": "History",
+    "popup.descHistory": "Recent translations — stored locally, capped at 50",
+    "popup.clearHistory": "Clear history",
+    "popup.historyEmpty": "No translations yet",
     "popup.screenshotShortcut": "Screenshot Translate Shortcut",
     "popup.screenshotProvider": "Provider",
     "popup.screenshotProviderHint":
@@ -283,6 +287,10 @@ export const locales = {
     "popup.groupAliases": "Alias",
     "popup.groupScreenshot": "Ảnh chụp",
     "popup.tabScreenshot": "Ảnh chụp",
+    "popup.tabHistory": "Lịch sử",
+    "popup.descHistory": "Các bản dịch gần đây — lưu local, tối đa 50 mục",
+    "popup.clearHistory": "Xoá lịch sử",
+    "popup.historyEmpty": "Chưa có bản dịch nào",
     "popup.screenshotShortcut": "Phím tắt dịch ảnh chụp",
     "popup.screenshotProvider": "Provider",
     "popup.screenshotProviderHint":
