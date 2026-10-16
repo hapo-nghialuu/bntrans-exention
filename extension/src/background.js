@@ -410,6 +410,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // --- Screenshot-area translation context menu -----------------------------
 
 const SCREENSHOT_MENU_ID = "bntrans-screenshot-area";
+const PAGE_TRANSLATE_MENU_ID = "bntrans-page-translate";
 
 let screenshotMenuPromise = null;
 // onInstalled + onStartup + the eager call below can all fire during one
@@ -428,10 +429,12 @@ function registerScreenshotMenu() {
         })
       );
       let title = "Translate screenshot area";
+      let pageTitle = "Translate page (bilingual)";
       try {
         const settings = await readSettings();
         if ((settings.interfaceLanguage || "en") === "vi") {
           title = "Dịch vùng chụp màn hình";
+          pageTitle = "Dịch trang này (song ngữ)";
         }
       } catch {
         /* keep English fallback */
@@ -441,6 +444,14 @@ function registerScreenshotMenu() {
           id: SCREENSHOT_MENU_ID,
           title,
           contexts: ["page", "selection", "image", "frame", "link", "video"]
+        },
+        () => void chrome.runtime.lastError
+      );
+      chrome.contextMenus.create(
+        {
+          id: PAGE_TRANSLATE_MENU_ID,
+          title: pageTitle,
+          contexts: ["page", "frame"]
         },
         () => void chrome.runtime.lastError
       );
@@ -456,6 +467,14 @@ chrome.runtime.onStartup.addListener(registerScreenshotMenu);
 registerScreenshotMenu();
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === PAGE_TRANSLATE_MENU_ID) {
+    if (tab?.id) {
+      chrome.tabs
+        .sendMessage(tab.id, { type: "toggle-page-translation" })
+        .catch(() => {});
+    }
+    return;
+  }
   if (info.menuItemId !== SCREENSHOT_MENU_ID || !tab?.id) return;
   chrome.tabs
     .sendMessage(tab.id, { type: "start-screenshot-select" })
