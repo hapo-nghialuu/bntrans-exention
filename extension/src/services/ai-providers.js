@@ -71,6 +71,28 @@ class TranslationProvider {
     return prompt;
   }
 
+  /**
+   * Style + glossary suffix appended to the image OCR/explain prompts so
+   * screenshot translation follows the same prefs as text translation.
+   */
+  imagePromptSuffix() {
+    let suffix = "";
+    const styleInstruction =
+      STYLE_INSTRUCTIONS[this.style] || STYLE_INSTRUCTIONS.natural;
+    suffix += `\n\n${styleInstruction}`;
+
+    const glossaryEntries = Object.entries(this.glossary || {}).filter(
+      ([term, translation]) => term.trim() && translation.trim()
+    );
+    if (glossaryEntries.length > 0) {
+      const lines = glossaryEntries
+        .map(([term, translation]) => `- ${term} → ${translation}`)
+        .join("\n");
+      suffix += `\n\nGLOSSARY (always translate these terms exactly as specified):\n${lines}`;
+    }
+    return suffix;
+  }
+
   async translate() {
     throw new Error("Not implemented");
   }
@@ -145,9 +167,9 @@ export class GeminiProvider extends TranslationProvider {
     if (!apiKey) throw new Error("Gemini API Key is missing");
 
     const prompt =
-      mode === "explain"
+      (mode === "explain"
         ? IMAGE_EXPLAIN_PROMPT(targetLang)
-        : IMAGE_OCR_PROMPT(targetLang);
+        : IMAGE_OCR_PROMPT(targetLang)) + this.imagePromptSuffix();
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -240,7 +262,7 @@ Reply with plain text only — 1-3 short paragraphs, no markdown.`;
  * configured model must be vision-capable or the endpoint will error.
  */
 async function openAiImageTranslate(
-  { baseUrl, apiKey, model, extraHeaders = {} },
+  { baseUrl, apiKey, model, extraHeaders = {}, promptSuffix = "" },
   base64,
   targetLang,
   mimeType,
@@ -250,9 +272,9 @@ async function openAiImageTranslate(
   if (apiKey && apiKey.trim()) headers.Authorization = `Bearer ${apiKey}`;
 
   const prompt =
-    mode === "explain"
+    (mode === "explain"
       ? IMAGE_EXPLAIN_PROMPT(targetLang)
-      : IMAGE_OCR_PROMPT(targetLang);
+      : IMAGE_OCR_PROMPT(targetLang)) + promptSuffix;
 
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
@@ -346,7 +368,8 @@ class OpenAIProvider extends TranslationProvider {
       {
         baseUrl: this.config.baseUrl || "https://api.openai.com/v1",
         apiKey: this.config.apiKey,
-        model: this.config.model || "gpt-4o-mini"
+        model: this.config.model || "gpt-4o-mini",
+        promptSuffix: this.imagePromptSuffix()
       },
       base64,
       targetLang,
@@ -541,6 +564,7 @@ class OpenRouterProvider extends TranslationProvider {
         baseUrl: "https://openrouter.ai/api/v1",
         apiKey: this.config.apiKey,
         model: this.config.model || "openai/gpt-4o-mini",
+        promptSuffix: this.imagePromptSuffix(),
         extraHeaders: {
           "HTTP-Referer": "https://github.com/hapo-nghialuu/bntrans-exention",
           "X-Title": "BNTrans Extension"
@@ -611,7 +635,8 @@ class GroqProvider extends TranslationProvider {
       {
         baseUrl: "https://api.groq.com/openai/v1",
         apiKey: this.config.apiKey,
-        model
+        model,
+        promptSuffix: this.imagePromptSuffix()
       },
       base64,
       targetLang,
@@ -678,9 +703,9 @@ class ClaudeProvider extends TranslationProvider {
     if (!apiKey) throw new Error("Claude API Key is missing");
 
     const prompt =
-      mode === "explain"
+      (mode === "explain"
         ? IMAGE_EXPLAIN_PROMPT(targetLang)
-        : IMAGE_OCR_PROMPT(targetLang);
+        : IMAGE_OCR_PROMPT(targetLang)) + this.imagePromptSuffix();
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -803,7 +828,8 @@ class CustomProvider extends TranslationProvider {
       {
         baseUrl,
         apiKey: this.config.apiKey,
-        model: this.config.model || "llama3.1"
+        model: this.config.model || "llama3.1",
+        promptSuffix: this.imagePromptSuffix()
       },
       base64,
       targetLang,
