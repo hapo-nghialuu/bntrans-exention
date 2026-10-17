@@ -2,6 +2,8 @@ export const locales = {
   en: {
     // Popup
     "popup.title": "BNTrans",
+    "popup.stopSpeech": "Stop speech",
+    "popup.speechError": "Speech unavailable",
     "popup.subtitle": "Instant AI-powered translation (Open source)",
     "popup.nativeLanguage": "Native Language",
     "popup.defaultTarget": "Default Target",
@@ -249,6 +251,8 @@ export const locales = {
   vi: {
     // Popup
     "popup.title": "BNTrans",
+    "popup.stopSpeech": "Dừng đọc",
+    "popup.speechError": "Không thể đọc nội dung",
     "popup.subtitle": "Dịch thuật tức thì bằng AI (Mã nguồn mở)",
     "popup.nativeLanguage": "Ngôn ngữ của bạn",
     "popup.defaultTarget": "Ngôn ngữ cần dịch",

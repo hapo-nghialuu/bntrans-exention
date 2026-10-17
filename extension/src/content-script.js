@@ -2459,7 +2459,7 @@ async function showTranslationPopup(selectionRect, text, iconPosition) {
             sourceLang === "auto" ? "en" : sourceLang
           );
         } catch (err) {
-          console.error("TTS Error:", err);
+          showToast(err.message || i18n.t("popup.speechError"));
         } finally {
           btn.classList.remove("bt-speak-loading");
         }
@@ -2483,7 +2483,7 @@ async function showTranslationPopup(selectionRect, text, iconPosition) {
           try {
             await tts.play(textToSpeak, targetLang);
           } catch (err) {
-            console.error("TTS Error:", err);
+            showToast(err.message || i18n.t("popup.speechError"));
           } finally {
             btn.classList.remove("bt-speak-loading");
           }
