@@ -21,6 +21,51 @@ const live = {
   labPage: { live: true, requestsPerSecond: 10 }
 };
 
+test("direct page start reports active; restore reports inactive before a pending reply", async (t) => {
+  const pending = deferred();
+  const h = createHarness({
+    count: 1,
+    provider: () => pending.promise
+  });
+  t.after(h.dispose);
+  const task = h.runPageTranslation();
+  assert.deepEqual(h.stateMessages, [true]);
+  await until(() => h.requests.length === 1);
+  h.dispose();
+  assert.deepEqual(h.stateMessages, [true, false]);
+  pending.resolve(translated(h.requests[0].text));
+  await task;
+  assert.equal(h.document.querySelectorAll("[data-bntrans-wrapper]").length, 0);
+});
+
+test("empty non-live page and failed setup reset page state", async (t) => {
+  const empty = createHarness();
+  t.after(empty.dispose);
+  const result = await empty.runPageTranslation();
+  assert.equal(result.active, false);
+  assert.deepEqual(empty.stateMessages, [true, false]);
+
+  const failed = createHarness({
+    settingsError: "Synthetic settings unavailable"
+  });
+  t.after(failed.dispose);
+  const response = await failed.runPageTranslation();
+  assert.equal(response.ok, false);
+  assert.match(response.error, /Synthetic settings unavailable/);
+  assert.deepEqual(failed.stateMessages, [true, false]);
+  assert.equal(failed.pageSnapshot().active, false);
+});
+
+test("empty live observer remains active until explicitly restored", async (t) => {
+  const h = createHarness({ settings: live });
+  t.after(h.dispose);
+  await h.runPageTranslation();
+  assert.equal(h.pageSnapshot().state, "watching");
+  assert.deepEqual(h.stateMessages, [true]);
+  h.dispose();
+  assert.deepEqual(h.stateMessages, [true, false]);
+});
+
 test("deep opt-outs never enter payload, and restore retains exact original nodes", async (t) => {
   const h = createHarness();
   t.after(h.dispose);

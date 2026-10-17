@@ -16,6 +16,7 @@ export function createHarness({
   count = 0,
   visible = [],
   settings = {},
+  settingsError,
   provider,
   fastClock = true
 } = {}) {
@@ -25,6 +26,7 @@ export function createHarness({
   const runtimeListeners = [];
   const storageListeners = [];
   const requests = [];
+  const stateMessages = [];
   const batches = [];
   const paragraphs = [];
   let now = Date.now();
@@ -236,12 +238,18 @@ export function createHarness({
     clearInterval,
     chrome: {
       runtime: {
-        sendMessage: async () => {},
+        sendMessage: async (message) => {
+          if (message.type === "page-translation-state")
+            stateMessages.push(message.active);
+        },
         onMessage: { addListener: (cb) => runtimeListeners.push(cb) }
       },
       storage: { onChanged: { addListener: (cb) => storageListeners.push(cb) } }
     },
-    getSettings: async () => currentSettings,
+    getSettings: async () => {
+      if (settingsError) throw new Error(settingsError);
+      return currentSettings;
+    },
     requestTranslation: async (payload) => {
       requests.push(payload);
       const batch = payload.text.split(" ||| ");
@@ -299,6 +307,7 @@ export function createHarness({
     paragraphs,
     appendParagraph,
     requests,
+    stateMessages,
     batches,
     intersections,
     listeners,
