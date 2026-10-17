@@ -407,31 +407,39 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-// --- Screenshot-area translation context menu -----------------------------
+// --- Context menus ---------------------------------------------------------
 
 const SCREENSHOT_MENU_ID = "bntrans-screenshot-area";
+const SELECTION_MENU_ID = "bntrans-translate-selection";
 
-let screenshotMenuPromise = null;
+let contextMenuPromise = null;
 // onInstalled + onStartup + the eager call below can all fire during one
 // service-worker boot; funnel them through a single remove→create so two
 // concurrent runs can't race into "duplicate id" on create().
-function registerScreenshotMenu() {
-  if (!screenshotMenuPromise) {
-    screenshotMenuPromise = (async () => {
+function registerContextMenus() {
+  if (!contextMenuPromise) {
+    contextMenuPromise = (async () => {
       // Callback form + lastError swallow: the promise form does not
       // reliably reject on a missing id and would spam the console on
       // every SW start.
-      await new Promise((resolve) =>
-        chrome.contextMenus.remove(SCREENSHOT_MENU_ID, () => {
-          void chrome.runtime.lastError;
-          resolve();
-        })
+      await Promise.all(
+        [SCREENSHOT_MENU_ID, SELECTION_MENU_ID].map(
+          (id) =>
+            new Promise((resolve) =>
+              chrome.contextMenus.remove(id, () => {
+                void chrome.runtime.lastError;
+                resolve();
+              })
+            )
+        )
       );
-      let title = "Translate screenshot area";
+      let screenshotTitle = "Translate screenshot area";
+      let selectionTitle = "Translate selection";
       try {
         const settings = await readSettings();
         if ((settings.interfaceLanguage || "en") === "vi") {
-          title = "Dịch vùng chụp màn hình";
+          screenshotTitle = "Dịch vùng chụp màn hình";
+          selectionTitle = "Dịch đoạn đã chọn";
         }
       } catch {
         /* keep English fallback */
@@ -439,25 +447,39 @@ function registerScreenshotMenu() {
       chrome.contextMenus.create(
         {
           id: SCREENSHOT_MENU_ID,
-          title,
+          title: screenshotTitle,
           contexts: ["page", "selection", "image", "frame", "link", "video"]
+        },
+        () => void chrome.runtime.lastError
+      );
+      chrome.contextMenus.create(
+        {
+          id: SELECTION_MENU_ID,
+          title: selectionTitle,
+          contexts: ["selection"]
         },
         () => void chrome.runtime.lastError
       );
     })();
   }
-  return screenshotMenuPromise;
+  return contextMenuPromise;
 }
 
-chrome.runtime.onInstalled.addListener(registerScreenshotMenu);
-chrome.runtime.onStartup.addListener(registerScreenshotMenu);
+chrome.runtime.onInstalled.addListener(registerContextMenus);
+chrome.runtime.onStartup.addListener(registerContextMenus);
 // MV3 service workers restart often; menu items persist per session but a
 // dev reload clears them, so register eagerly too (remove+create is safe).
-registerScreenshotMenu();
+registerContextMenus();
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId !== SCREENSHOT_MENU_ID || !tab?.id) return;
-  chrome.tabs
-    .sendMessage(tab.id, { type: "start-screenshot-select" })
-    .catch(() => {});
+  if (!tab?.id) return;
+  if (info.menuItemId === SCREENSHOT_MENU_ID) {
+    chrome.tabs
+      .sendMessage(tab.id, { type: "start-screenshot-select" })
+      .catch(() => {});
+  } else if (info.menuItemId === SELECTION_MENU_ID) {
+    chrome.tabs
+      .sendMessage(tab.id, { type: "translate-selection" })
+      .catch(() => {});
+  }
 });
