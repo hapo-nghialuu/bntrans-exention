@@ -805,6 +805,23 @@ function renderHistory(history = []) {
     const body = document.createElement("div");
     body.textContent = `${h.text} → ${h.translation}`;
     item.append(meta, body);
+
+    // Click an entry to copy its translation back to the clipboard
+    item.style.cursor = "pointer";
+    item.title = i18n.t("popup.historyCopyHint") || "Click to copy";
+    item.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(h.translation || "");
+        const prev = meta.textContent;
+        meta.textContent = i18n.t("popup.historyCopied") || "Copied ✓";
+        setTimeout(() => {
+          meta.textContent = prev;
+        }, 1200);
+      } catch {
+        // clipboard unavailable
+      }
+    });
+
     historyListEl.appendChild(item);
   });
 }
