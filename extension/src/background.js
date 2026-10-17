@@ -55,6 +55,7 @@ async function readSettings() {
       useAutoDetect: false, // Default to fixed direction (Target→Native)
       showConfirmModal: true,
       dialogTimeout: 10,
+      dualSubtitlesEnabled: false,
       aliases: {
         e: "en",
         v: "vi",
