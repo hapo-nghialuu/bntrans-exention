@@ -498,6 +498,7 @@ const SCREENSHOT_MENU_ID = "bntrans-screenshot-area";
 const SELECTION_MENU_ID = "bntrans-translate-selection";
 const SIDE_PANEL_MENU_ID = "bntrans-open-side-panel";
 const PAGE_TRANSLATE_MENU_ID = "bntrans-page-translate";
+const EDITABLE_MENU_ID = "bntrans-translate-editable";
 
 let contextMenuPromise = null;
 // onInstalled + onStartup + the eager call below can all fire during one
@@ -514,7 +515,8 @@ function registerContextMenus() {
           SCREENSHOT_MENU_ID,
           SELECTION_MENU_ID,
           SIDE_PANEL_MENU_ID,
-          PAGE_TRANSLATE_MENU_ID
+          PAGE_TRANSLATE_MENU_ID,
+          EDITABLE_MENU_ID
         ].map(
           (id) =>
             new Promise((resolve) =>
@@ -529,6 +531,7 @@ function registerContextMenus() {
       let selectionTitle = "Translate selection";
       let panelTitle = "Open BNTrans side panel";
       let pageTitle = "Translate page (bilingual)";
+      let editableTitle = "Translate & replace text";
       try {
         const settings = await readSettings();
         if ((settings.interfaceLanguage || "en") === "vi") {
@@ -536,6 +539,7 @@ function registerContextMenus() {
           selectionTitle = "Dịch đoạn đã chọn";
           panelTitle = "Mở bảng dịch BNTrans";
           pageTitle = "Dịch trang này (song ngữ)";
+          editableTitle = "Dịch & thay thế văn bản";
         }
       } catch {
         /* keep English fallback */
@@ -572,6 +576,14 @@ function registerContextMenus() {
         },
         () => void chrome.runtime.lastError
       );
+      chrome.contextMenus.create(
+        {
+          id: EDITABLE_MENU_ID,
+          title: editableTitle,
+          contexts: ["editable"]
+        },
+        () => void chrome.runtime.lastError
+      );
     })();
   }
   return contextMenuPromise;
@@ -601,6 +613,10 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   } else if (info.menuItemId === PAGE_TRANSLATE_MENU_ID) {
     chrome.tabs
       .sendMessage(tab.id, { type: "toggle-page-translation" })
+      .catch(() => {});
+  } else if (info.menuItemId === EDITABLE_MENU_ID) {
+    chrome.tabs
+      .sendMessage(tab.id, { type: "translate-editable" })
       .catch(() => {});
   }
 });
