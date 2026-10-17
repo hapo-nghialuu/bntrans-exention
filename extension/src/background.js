@@ -438,10 +438,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             translationCacheSet(cacheKey, resultObj);
             sendResponse({ ok: true, result: resultObj });
           } else {
-            sendResponse({
-              ok: false,
-              error: offscreenResult?.error || "Unknown error"
-            });
+            throw new Error(offscreenResult?.error || "Unknown error");
           }
         } else {
           // Convert back to HTML if formatting was converted
