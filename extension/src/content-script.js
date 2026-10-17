@@ -133,6 +133,7 @@ window.addEventListener("unhandledrejection", (event) => {
     registerHoverTranslate();
     registerHoverToggleShortcut();
     registerScreenshotTranslate();
+    registerDualSubtitles();
   } catch (error) {
     console.log("BNTrans: Bootstrap failed:", error.message);
     if (
@@ -1113,6 +1114,82 @@ async function reTranslateSuggestion(element, text, providerId, settings) {
       textEl.classList.remove("bt-loading-text");
     }
   }
+}
+
+// --- Dual subtitles (YouTube) ----------------------------------------------
+// Appends a translated line under each caption segment when enabled.
+// The injected span is excluded when computing the segment's source text so
+// MutationObserver feedback does not retrigger translation.
+function registerDualSubtitles() {
+  if (!location.hostname.includes("youtube.com")) return;
+
+  const SUB_CLASS = "bntrans-sub-translation";
+  const processed = new WeakMap(); // segment element -> last source text
+  let settings = null;
+
+  function segmentSourceText(seg) {
+    return [...seg.childNodes]
+      .filter((n) => !(n.nodeType === 1 && n.classList.contains(SUB_CLASS)))
+      .map((n) => n.textContent)
+      .join("")
+      .trim();
+  }
+
+  async function translateSegment(seg) {
+    const text = segmentSourceText(seg);
+    if (!text || processed.get(seg) === text) return;
+    processed.set(seg, text);
+
+    seg.querySelectorAll(`.${SUB_CLASS}`).forEach((n) => n.remove());
+    try {
+      const res = await requestTranslation({
+        text,
+        sourceLanguage: settings.targetLanguageCode || "auto",
+        targetLanguage: settings.nativeLanguageCode || "vi",
+        skipHistory: true
+      });
+      if (!res?.ok || !res.result?.translation) return;
+      // Cue may have advanced while translating — bail if stale
+      if (segmentSourceText(seg) !== text) return;
+      const sub = document.createElement("span");
+      sub.className = SUB_CLASS;
+      sub.style.cssText =
+        "display:block;color:#a5f3fc;font-size:0.85em;line-height:1.3;";
+      sub.textContent = String(res.result.translation).replace(/<[^>]+>/g, "");
+      seg.appendChild(sub);
+    } catch {
+      /* single cue failure is fine */
+    }
+  }
+
+  function scanCaptions(root) {
+    if (root.nodeType !== 1) return;
+    if (root.matches?.(".ytp-caption-segment")) translateSegment(root);
+    root.querySelectorAll?.(".ytp-caption-segment").forEach(translateSegment);
+  }
+
+  getSettings()
+    .then((s) => {
+      if (!s.dualSubtitlesEnabled) return;
+      settings = s;
+      const observer = new MutationObserver((mutations) => {
+        for (const m of mutations) {
+          if (m.type === "characterData" && m.target.parentElement) {
+            const seg = m.target.parentElement.closest(".ytp-caption-segment");
+            if (seg) translateSegment(seg);
+            continue;
+          }
+          for (const node of m.addedNodes) scanCaptions(node);
+        }
+      });
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true
+      });
+      scanCaptions(document.body);
+    })
+    .catch(() => {});
 }
 
 function registerInstantMode() {

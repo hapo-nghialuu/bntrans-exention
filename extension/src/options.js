@@ -11,6 +11,7 @@ const targetSelect = document.querySelector("#target");
 
 const autoDetect = document.querySelector("#auto-detect");
 const confirmModal = document.querySelector("#confirm-modal");
+const dualSubtitles = document.querySelector("#dual-subtitles");
 const saveStatus = document.querySelector("#save-status");
 const aliasListEl = document.querySelector("#alias-list");
 const aliasKeyInput = document.querySelector("#alias-key");
@@ -1133,6 +1134,7 @@ async function loadSettings() {
     }
 
     confirmModal.checked = res.settings.showConfirmModal !== false;
+    dualSubtitles.checked = res.settings.dualSubtitlesEnabled === true;
     currentAliases = res.settings.aliases || {};
     currentAutoTranslateDomains = res.settings.autoTranslateDomains || [];
     renderAutoTranslateDomains();
@@ -1266,6 +1268,7 @@ async function loadSettings() {
     targetSelect.value = "en";
     autoDetect.checked = false; // Default: fixed direction
     confirmModal.checked = true;
+    dualSubtitles.checked = false;
     currentAliases = {};
 
     updateLangToggleUI("en");
@@ -1330,6 +1333,7 @@ async function saveSettings() {
       : {}),
     useAutoDetect: autoDetect.checked,
     showConfirmModal: confirmModal.checked,
+    dualSubtitlesEnabled: dualSubtitles.checked,
     aliases: currentAliases,
     theme: themeSelect?.value || "auto",
     interfaceLanguage: document
@@ -1445,6 +1449,7 @@ themeSelect?.addEventListener("change", () => {
 
 autoDetect.addEventListener("change", saveSettings);
 confirmModal.addEventListener("change", saveSettings);
+dualSubtitles.addEventListener("change", saveSettings);
 
 const langToggle = document.querySelector("#lang-toggle");
 
