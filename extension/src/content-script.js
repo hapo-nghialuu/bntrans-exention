@@ -4697,13 +4697,13 @@ function registerScreenshotTranslate() {
     };
     pageSession = s;
     pageTranslateActive = true;
+    reportPageTranslateState();
     try {
       s.settings = await getSettings();
       if (pageSession !== s || s.cancelled) return;
       s.options = pageOptions(s.settings);
       s.state = "running";
       document.body.setAttribute("data-bntrans-page-translated", "true");
-      reportPageTranslateState();
       if (typeof IntersectionObserver === "function") {
         s.intersections = new IntersectionObserver(
           (entries) => {
@@ -4720,6 +4720,10 @@ function registerScreenshotTranslate() {
         );
       }
       pageCollect(s);
+      if (!s.records.length && !s.options.live) {
+        removePageTranslation();
+        return pageSnapshot();
+      }
       if (s.options.live && typeof MutationObserver !== "function") {
         s.error = "Live translation unavailable: MutationObserver missing";
       } else if (s.options.live) {
@@ -4739,9 +4743,10 @@ function registerScreenshotTranslate() {
       return pageSnapshot();
     } catch (error) {
       if (pageSession === s) {
-        s.error = error.message;
-        s.state = "error";
-        pageNotice(s);
+        const message = error?.message || "Page translation unavailable";
+        removePageTranslation();
+        showPageProgress(message);
+        return { ...pageSnapshot(), ok: false, error: message };
       }
     }
   }
