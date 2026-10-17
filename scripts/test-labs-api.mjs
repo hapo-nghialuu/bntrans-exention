@@ -118,6 +118,16 @@ test("ask consent rejection never dispatches translation", async () => {
   assert.equal(calls.length, 0);
 });
 
+test("ask consent is per request, not silently reused for later text", async () => {
+  const { api, calls } = fixture({ privacyDefaultMode: "ask" });
+  let prompts = 0;
+  globalThis.window = { confirm: () => ++prompts === 1 };
+  await api.translate("first public fixture");
+  await assert.rejects(api.translate("second public fixture"), /hủy/);
+  assert.equal(prompts, 2);
+  assert.equal(calls.length, 1);
+});
+
 test("most-specific matching privacy rule is selected", async () => {
   const { api, calls } = fixture({
     privacyRules: [

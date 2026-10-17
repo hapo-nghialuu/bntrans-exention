@@ -13,7 +13,6 @@ export function matchesHostname(hostname, rule) {
 }
 
 export function createLabApi({ language = "en", selectedTab, onStatus } = {}) {
-  const consent = new Set();
   const t = (en, vi) => (language === "vi" ? vi : en);
   const status = (message, kind = "info") => onStatus?.(String(message), kind);
   const send = async (type, payload = {}) => {
@@ -121,24 +120,15 @@ export function createLabApi({ language = "en", selectedTab, onStatus } = {}) {
       const provider = settings.providers?.find(
         (item) => item.id === providerId
       );
-      const consentKey = JSON.stringify([
-        hostname,
-        providerId,
-        provider?.config?.baseUrl,
-        mode
-      ]);
       let cloudConsent = false;
       if (mode === "ask") {
-        if (!consent.has(consentKey)) {
-          const accepted = window.confirm(
-            t(
-              `Send this action's text to ${provider?.name || providerId || "your provider"}? Website: ${hostname || "local document"}. No API key is shared with websites.`,
-              `Cho gửi nội dung thao tác này đến ${provider?.name || providerId || "provider đã chọn"}? Website: ${hostname || "tài liệu local"}. Không chia sẻ API key với website.`
-            )
-          );
-          if (!accepted) throw new Error(t("Sending cancelled", "Đã hủy gửi"));
-          consent.add(consentKey);
-        }
+        const accepted = window.confirm(
+          t(
+            `Send this action's text to ${provider?.name || providerId || "your provider"}? Website: ${hostname || "local document"}. No API key is shared with websites.`,
+            `Cho gửi nội dung thao tác này đến ${provider?.name || providerId || "provider đã chọn"}? Website: ${hostname || "tài liệu local"}. Không chia sẻ API key với website.`
+          )
+        );
+        if (!accepted) throw new Error(t("Sending cancelled", "Đã hủy gửi"));
         cloudConsent = true;
       }
       const response = await send("translate", {
