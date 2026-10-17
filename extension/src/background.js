@@ -189,6 +189,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "detect-page-language") {
+    chrome.i18n
+      .detectLanguage(message.text || "")
+      .then((res) =>
+        sendResponse({
+          ok: true,
+          language: res?.languages?.[0]?.language || ""
+        })
+      )
+      .catch(() => sendResponse({ ok: false }));
+    return true;
+  }
+
   if (message?.type === "translate") {
     readSettings().then(async (settings) => {
       // Extract payload using keys sent by content-script.js
