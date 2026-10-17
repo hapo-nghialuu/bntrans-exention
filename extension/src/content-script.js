@@ -1299,11 +1299,17 @@ async function reTranslateSuggestion(element, text, providerId, settings) {
 // The injected span is excluded when computing the segment's source text so
 // MutationObserver feedback does not retrigger translation.
 function registerDualSubtitles() {
-  if (!location.hostname.includes("youtube.com")) return;
+  if (
+    location.hostname !== "youtube.com" &&
+    !location.hostname.endsWith(".youtube.com")
+  )
+    return;
 
   const SUB_CLASS = "bntrans-sub-translation";
-  const processed = new WeakMap(); // segment element -> last source text
+  let processed = new WeakMap();
   let settings = null;
+  let observer = null;
+  let generation = 0;
 
   function segmentSourceText(seg) {
     return [...seg.childNodes]
@@ -1314,21 +1320,35 @@ function registerDualSubtitles() {
   }
 
   async function translateSegment(seg) {
+    if (
+      !settings?.dualSubtitlesEnabled ||
+      globalThis.BNTransMedia?.active ||
+      !seg.isConnected
+    )
+      return;
     const text = segmentSourceText(seg);
     if (!text || processed.get(seg) === text) return;
     processed.set(seg, text);
 
     seg.querySelectorAll(`.${SUB_CLASS}`).forEach((n) => n.remove());
+    const token = generation;
     try {
       const res = await requestTranslation({
         text,
         sourceLanguage: settings.targetLanguageCode || "auto",
         targetLanguage: settings.nativeLanguageCode || "vi",
-        skipHistory: true
+        skipHistory: true,
+        siteUrl: location.href
       });
       if (!res?.ok || !res.result?.translation) return;
       // Cue may have advanced while translating — bail if stale
-      if (segmentSourceText(seg) !== text) return;
+      if (
+        token !== generation ||
+        !settings?.dualSubtitlesEnabled ||
+        !seg.isConnected ||
+        segmentSourceText(seg) !== text
+      )
+        return;
       const sub = document.createElement("span");
       sub.className = SUB_CLASS;
       sub.style.cssText =
@@ -1346,28 +1366,71 @@ function registerDualSubtitles() {
     root.querySelectorAll?.(".ytp-caption-segment").forEach(translateSegment);
   }
 
+  function configure(s) {
+    generation++;
+    observer?.disconnect();
+    observer = null;
+    processed = new WeakMap();
+    settings = s || {};
+    document.querySelectorAll(`.${SUB_CLASS}`).forEach((node) => node.remove());
+    if (!settings.dualSubtitlesEnabled || globalThis.BNTransMedia?.active)
+      return;
+    observer = new MutationObserver((mutations) => {
+      const segments = new Set();
+      for (const m of mutations) {
+        const target =
+          m.target.nodeType === 1 ? m.target : m.target.parentElement;
+        if (target?.closest?.(`.${SUB_CLASS}`)) continue;
+        const segment = target?.closest?.(".ytp-caption-segment");
+        if (segment) segments.add(segment);
+        for (const node of m.addedNodes || []) {
+          if (node.nodeType === 1 && !node.classList.contains(SUB_CLASS)) {
+            if (node.matches?.(".ytp-caption-segment")) segments.add(node);
+            node
+              .querySelectorAll?.(".ytp-caption-segment")
+              .forEach((seg) => segments.add(seg));
+          }
+        }
+      }
+      segments.forEach(translateSegment);
+    });
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true
+    });
+    scanCaptions(document.body);
+  }
+  const initialGeneration = generation;
   getSettings()
     .then((s) => {
-      if (!s.dualSubtitlesEnabled) return;
-      settings = s;
-      const observer = new MutationObserver((mutations) => {
-        for (const m of mutations) {
-          if (m.type === "characterData" && m.target.parentElement) {
-            const seg = m.target.parentElement.closest(".ytp-caption-segment");
-            if (seg) translateSegment(seg);
-            continue;
-          }
-          for (const node of m.addedNodes) scanCaptions(node);
-        }
-      });
-      observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-        characterData: true
-      });
-      scanCaptions(document.body);
+      if (generation === initialGeneration) configure(s);
     })
     .catch(() => {});
+  const onSettings = (changes, namespace) => {
+    if (namespace !== "local" || !changes.translatorSettings) return;
+    const next = changes.translatorSettings.newValue || {};
+    if (
+      next.dualSubtitlesEnabled !== settings?.dualSubtitlesEnabled ||
+      next.nativeLanguageCode !== settings?.nativeLanguageCode ||
+      next.targetLanguageCode !== settings?.targetLanguageCode
+    )
+      configure(next);
+  };
+  chrome.storage.onChanged.addListener(onSettings);
+  const onMediaState = () => {
+    if (settings) configure(settings);
+  };
+  document.addEventListener("bntrans-media-state", onMediaState);
+  window.addEventListener(
+    "pagehide",
+    () => {
+      configure({});
+      chrome.storage.onChanged.removeListener(onSettings);
+      document.removeEventListener("bntrans-media-state", onMediaState);
+    },
+    { once: true }
+  );
 }
 
 function registerInstantMode() {
