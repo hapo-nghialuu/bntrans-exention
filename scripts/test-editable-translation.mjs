@@ -14,6 +14,10 @@ const end = source.indexOf(
 );
 assert.ok(start >= 0 && end > start);
 const handler = source.slice(start, end);
+const editableHelpers = source.slice(
+  source.indexOf("const editableGenerations = new WeakMap();"),
+  source.indexOf("function getDeepActiveElement(")
+);
 
 async function translate(
   settings,
@@ -23,6 +27,7 @@ async function translate(
   const events = [];
   const field = {
     tagName: "TEXTAREA",
+    isConnected: true,
     value,
     selectionStart: start,
     selectionEnd: end,
@@ -45,10 +50,13 @@ async function translate(
     },
     requestTranslation: async (request) => {
       payload = request;
-      return { ok, result: { translation: "<b>Xin chào thế giới</b>" } };
+      return { ok, result: { translation: "Xin chào thế giới" } };
     }
   });
-  await vm.runInContext(`${handler}\ntranslateEditableSelection()`, context);
+  await vm.runInContext(
+    `${editableHelpers}\n${handler}\ntranslateEditableSelection()`,
+    context
+  );
   return { payload, field, events };
 }
 

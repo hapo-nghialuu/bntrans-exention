@@ -170,23 +170,179 @@ function injectGlobalStylesheet() {
   }
 }
 
+const editableGenerations = new WeakMap();
+const editableRevisions = new WeakMap();
+
+function isSensitiveElement(element) {
+  for (
+    let node = element;
+    node;
+    node = node.parentElement || node.getRootNode?.().host
+  ) {
+    if (node.nodeType === 3) continue;
+    if (
+      String(node.type || node.getAttribute?.("type") || "").toLowerCase() ===
+      "password"
+    )
+      return true;
+    const autocomplete = (node.getAttribute?.("autocomplete") || "")
+      .toLowerCase()
+      .split(/\s+/);
+    if (
+      autocomplete.some((token) =>
+        /^(?:current-password|new-password|one-time-code|username|webauthn|cc-.+)$/.test(
+          token
+        )
+      )
+    )
+      return true;
+  }
+  return false;
+}
+
 function isEditableElement(element) {
   if (!element) return false;
+  if (isSensitiveElement(element) || element.disabled || element.readOnly)
+    return false;
 
   const tag = element.tagName?.toLowerCase();
 
   if (tag === "input") {
-    const type = element.getAttribute("type") || "text";
-    return (
-      ["text", "search", "email", "url", "tel", "password"].includes(type) ||
-      !type
-    );
+    const type = (
+      element.type ||
+      element.getAttribute("type") ||
+      "text"
+    ).toLowerCase();
+    return ["text", "search", "email", "url", "tel"].includes(type) || !type;
   }
 
   if (tag === "textarea") return true;
-  if (element.isContentEditable) return true;
+  if (element.isContentEditable) {
+    return !Array.from(
+      element.querySelectorAll?.("input, [autocomplete]") || []
+    ).some(isSensitiveElement);
+  }
 
   return false;
+}
+
+function editableValue(element) {
+  return element.isContentEditable ? element.innerHTML : element.value;
+}
+
+function captureEditableSnapshot(element, selectionOnly = false) {
+  if (!isEditableElement(element) || !element.isConnected) return null;
+  const generation = (editableGenerations.get(element) || 0) + 1;
+  editableGenerations.set(element, generation);
+  const snapshot = {
+    element,
+    generation,
+    revision: editableRevisions.get(element) || 0,
+    value: editableValue(element),
+    text: element.isContentEditable ? element.innerText : element.value,
+    replaceAll: true
+  };
+  if (element.isContentEditable) {
+    const selection = window.getSelection();
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+    if (selectionOnly && range && !range.collapsed) {
+      if (
+        !element.contains(range.startContainer) ||
+        !element.contains(range.endContainer) ||
+        isSensitiveElement(range.startContainer) ||
+        isSensitiveElement(range.endContainer)
+      )
+        return null;
+      snapshot.range = range.cloneRange();
+      snapshot.text = range.toString();
+      snapshot.replaceAll = false;
+    } else {
+      snapshot.range = document.createRange();
+      snapshot.range.selectNodeContents(element);
+    }
+    snapshot.rangeText = snapshot.range.toString();
+  } else {
+    snapshot.start = element.selectionStart ?? 0;
+    snapshot.end = element.selectionEnd ?? 0;
+    if (selectionOnly && snapshot.start !== snapshot.end) {
+      snapshot.text = element.value.slice(snapshot.start, snapshot.end);
+      snapshot.replaceAll = false;
+    }
+  }
+  return snapshot;
+}
+
+function isEditableSnapshotCurrent(snapshot) {
+  if (!snapshot) return false;
+  const { element, range } = snapshot;
+  return (
+    isEditableElement(element) &&
+    element.isConnected &&
+    editableGenerations.get(element) === snapshot.generation &&
+    (editableRevisions.get(element) || 0) === snapshot.revision &&
+    editableValue(element) === snapshot.value &&
+    (!range ||
+      (range.startContainer.isConnected &&
+        range.endContainer.isConnected &&
+        element.contains(range.startContainer) &&
+        element.contains(range.endContainer) &&
+        range.toString() === snapshot.rangeText))
+  );
+}
+
+function showStaleEditableNotice() {
+  showToast(
+    i18n?.language === "vi"
+      ? "Nội dung đã thay đổi; không ghi đè. Hãy dịch lại."
+      : "Content changed; nothing was replaced. Translate again."
+  );
+}
+
+function applyEditableSnapshot(snapshot, text) {
+  if (!isEditableSnapshotCurrent(snapshot)) {
+    showStaleEditableNotice();
+    return false;
+  }
+  const { element, range } = snapshot;
+  if (range) {
+    element.focus();
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range.cloneRange());
+    // Scoped insertText preserves the browser's undo stack where supported.
+    if (
+      !isEditableSnapshotCurrent(snapshot) ||
+      !document.execCommand("insertText", false, text)
+    ) {
+      showToast(i18n.t("toast.translationFailed"));
+      return false;
+    }
+  } else if (snapshot.replaceAll) {
+    element.value = text;
+  } else {
+    element.setRangeText(text, snapshot.start, snapshot.end, "end");
+  }
+  element.dispatchEvent(new Event("input", { bubbles: true }));
+  return true;
+}
+
+function getSafeSelection() {
+  const selection = window.getSelection();
+  if (
+    isSensitiveElement(getDeepActiveElement()) ||
+    isSensitiveElement(selection?.anchorNode) ||
+    isSensitiveElement(selection?.focusNode)
+  )
+    return null;
+  if (selection?.rangeCount) {
+    const range = selection.getRangeAt(0);
+    const root = range.commonAncestorContainer;
+    const candidates = root.querySelectorAll?.("input, [autocomplete]") || [];
+    for (const node of candidates) {
+      if (isSensitiveElement(node) && range.intersectsNode(node)) return null;
+    }
+  }
+  return selection;
 }
 
 function getDeepActiveElement(root = document) {
@@ -203,7 +359,7 @@ function getActiveEditableElement() {
 }
 
 function parseFieldTextAndCommand(element) {
-  if (!element) return null;
+  if (!isEditableElement(element)) return null;
 
   let value = "";
   const tag = element.tagName?.toLowerCase();
@@ -335,7 +491,7 @@ async function requestTranslation(payload) {
 }
 
 function removeTranslationCommandSuffix(element) {
-  if (!element) return "";
+  if (!isEditableElement(element)) return "";
 
   let value = "";
   const tag = element.tagName?.toLowerCase();
@@ -419,10 +575,14 @@ function registerAutoDetection() {
   document.addEventListener("blur", handleUserInputEvent, true);
 }
 
-function handleUserInputEvent() {
+function handleUserInputEvent(event) {
+  const target = event?.composedPath?.()[0] || event?.target;
+  if (target && event.type === "input")
+    editableRevisions.set(target, (editableRevisions.get(target) || 0) + 1);
+  clearTimeout(debounceTimer);
+  clearTimeout(instantTimer);
   const element = getActiveEditableElement();
   if (!element) return;
-  clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => attemptTranslationTrigger(element), 600);
 }
 
@@ -446,6 +606,8 @@ function resolveTargetLanguage(raw, settings) {
 }
 
 async function handleAutoTranslation(element, parsed) {
+  const initialSnapshot = captureEditableSnapshot(element);
+  if (!initialSnapshot) return;
   isTranslating = true;
   let suggestion = null;
 
@@ -465,6 +627,7 @@ async function handleAutoTranslation(element, parsed) {
     }
 
     if (settings.enabled === false) return;
+    if (!isEditableSnapshotCurrent(initialSnapshot)) return;
 
     // Skip if this domain is already handled by instant translation
     if (isInstantDomain(settings)) return;
@@ -478,6 +641,8 @@ async function handleAutoTranslation(element, parsed) {
     }
 
     const cleanSourceValue = removeTranslationCommandSuffix(element);
+    const snapshot = captureEditableSnapshot(element);
+    if (!snapshot) return;
 
     // If confirm is OFF, just translate and replace immediately
     if (!settings.showConfirmModal) {
@@ -499,7 +664,7 @@ async function handleAutoTranslation(element, parsed) {
       }
 
       if (res?.ok && res.result?.translation) {
-        setFieldText(element, res.result.translation);
+        setFieldText(element, res.result.translation, { snapshot });
       } else {
         showToast(
           res?.error ? String(res.error) : i18n.t("toast.translationFailed")
@@ -535,6 +700,10 @@ async function handleAutoTranslation(element, parsed) {
     }
 
     const translation = res.result.translation;
+    if (!isEditableSnapshotCurrent(snapshot)) {
+      showStaleEditableNotice();
+      return;
+    }
     const providerInfo = `${res.result.providerName || "AI"} (${res.result.providerType || "Bot"})`;
 
     // Use buildInlineSuggestion with auto positioning
@@ -549,7 +718,7 @@ async function handleAutoTranslation(element, parsed) {
     const handleKeydown = (ev) => {
       if (ev.key === "Tab") {
         ev.preventDefault();
-        setFieldText(element, translation);
+        setFieldText(element, translation, { snapshot });
         suggestion.destroy();
         document.removeEventListener("keydown", handleKeydown, true);
       } else if (ev.key === "Escape") {
@@ -601,12 +770,20 @@ function shouldTriggerInstant(text) {
 }
 
 function setFieldText(element, text, options = {}) {
-  const { immediate = false } = options;
+  const snapshot = options.snapshot || captureEditableSnapshot(element);
+  if (!isEditableSnapshotCurrent(snapshot)) {
+    showStaleEditableNotice();
+    return;
+  }
   const tag = element.tagName?.toLowerCase();
 
   // Ensure element has focus first
   if (document.activeElement !== element) {
     element.focus();
+  }
+  if (!isEditableSnapshotCurrent(snapshot)) {
+    showStaleEditableNotice();
+    return;
   }
 
   if (tag === "input" || tag === "textarea") {
@@ -628,42 +805,7 @@ function setFieldText(element, text, options = {}) {
     element.dispatchEvent(new Event("input", { bubbles: true }));
     element.dispatchEvent(new Event("change", { bubbles: true }));
   } else if (element.isContentEditable) {
-    const performInsertion = () => {
-      // Ensure focus again
-      if (document.activeElement !== element) {
-        element.focus();
-      }
-
-      try {
-        // SOLUTION: Works with Lexical Editor (Facebook's editor framework)
-        // Key: Need 50ms delay after selectAll for Lexical to process selection
-
-        // Step 1: Focus element
-        element.focus();
-
-        // Step 2: Select all content
-        document.execCommand("selectAll", false, null);
-
-        // Step 3: CRITICAL DELAY - Wait for Lexical to process selection
-        setTimeout(() => {
-          // Step 4: Insert text (replaces selection)
-          document.execCommand("insertText", false, text);
-
-          // Step 5: Dispatch input event for React/Lexical
-          element.dispatchEvent(new InputEvent("input", { bubbles: true }));
-        }, 50);
-      } catch (e) {
-        console.error("[BNTrans] Insertion failed", e);
-      }
-    };
-
-    // For instant translate with Tab, execute IMMEDIATELY and SYNCHRONOUSLY
-    // Based on tests: execCommand works but async delays cause Facebook to revert
-    if (immediate) {
-      performInsertion();
-    } else {
-      setTimeout(performInsertion, 0);
-    }
+    applyEditableSnapshot(snapshot, text);
   }
 }
 
@@ -794,7 +936,7 @@ function buildInlineSuggestion(
   container.innerHTML = `
     <div class="bt-suggestion-content">
       ${iconUrl ? `<img src="${iconUrl}" class="bt-suggestion-icon" alt="BNTrans" />` : '<span class="bt-suggestion-icon">🔄</span>'}
-      <span class="bt-suggestion-text">${translatedText}</span>
+      <span class="bt-suggestion-text"></span>
       <kbd class="bt-suggestion-tab-hint">Tab</kbd>
     </div>
     <div class="bt-suggestion-footer">
@@ -804,6 +946,8 @@ function buildInlineSuggestion(
 
   // Prevent clicking on the suggestion from blurring the input
   // EXCEPT for select elements (allow clicking model selector)
+  container.querySelector(".bt-suggestion-text").textContent = translatedText;
+
   const preventBlur = (e) => {
     // Allow clicks on select elements
     if (e.target.tagName === "SELECT" || e.target.closest("select")) {
@@ -944,7 +1088,9 @@ function setupSuggestionKeyHandlers(element, suggestion) {
     justAppliedTranslation = true;
 
     // Apply translation IMMEDIATELY with Lexical-compatible method
-    setFieldText(element, suggestion.translatedText, { immediate: true });
+    setFieldText(element, suggestion.translatedText, {
+      snapshot: suggestion.snapshot
+    });
 
     // Destroy popup after a tiny delay to ensure insertion completes
     setTimeout(() => {
@@ -1003,6 +1149,8 @@ async function commitIMEComposition(element) {
 async function handleInstantTranslate(element) {
   // Skip if we just applied a translation
   if (justAppliedTranslation) return;
+  const snapshot = captureEditableSnapshot(element);
+  if (!snapshot) return;
 
   const text = element.value?.trim() || element.innerText?.trim();
   if (!shouldTriggerInstant(text)) return;
@@ -1015,7 +1163,12 @@ async function handleInstantTranslate(element) {
   }
 
   const domainConfig = isInstantDomain(settings);
-  if (!domainConfig) return;
+  if (
+    !domainConfig ||
+    settings.enabled === false ||
+    !isEditableSnapshotCurrent(snapshot)
+  )
+    return;
 
   // Clear existing timer
   if (instantTimer) {
@@ -1034,9 +1187,15 @@ async function handleInstantTranslate(element) {
     try {
       // Commit IME composition before translation
       await commitIMEComposition(element);
+      if (
+        !isEditableSnapshotCurrent(snapshot) ||
+        getActiveEditableElement() !== element
+      )
+        return;
 
       // Get fresh text after IME composition is committed
       const freshText = element.value?.trim() || element.innerText?.trim();
+      if (!shouldTriggerInstant(freshText)) return;
 
       // Only show loading for non-builtin models
       if (settings.activeProviderId !== "builtin") {
@@ -1053,6 +1212,11 @@ async function handleInstantTranslate(element) {
       });
 
       if (res?.ok && res.result?.translation) {
+        if (
+          !isEditableSnapshotCurrent(snapshot) ||
+          getActiveEditableElement() !== element
+        )
+          return;
         // Use 'auto' by default for smart positioning
         const position = domainConfig.position || "auto";
         const providerInfo = `${res.result.providerName || "AI"} (${res.result.providerType || "Bot"})`;
@@ -1063,12 +1227,13 @@ async function handleInstantTranslate(element) {
           position,
           settings
         );
+        currentSuggestion.snapshot = snapshot;
         setupSuggestionKeyHandlers(element, currentSuggestion);
 
         // Handle provider change
         if (currentSuggestion.providerSelect) {
           currentSuggestion.providerSelect.addEventListener("change", (e) => {
-            reTranslateSuggestion(element, text, e.target.value, settings);
+            reTranslateSuggestion(element, freshText, e.target.value, settings);
           });
         }
       } else {
@@ -1084,6 +1249,14 @@ async function handleInstantTranslate(element) {
 
 async function reTranslateSuggestion(element, text, providerId, settings) {
   if (!currentSuggestion) return;
+  const suggestion = currentSuggestion;
+  if (!isEditableSnapshotCurrent(suggestion.snapshot)) {
+    suggestion.destroy();
+    currentSuggestion = null;
+    return;
+  }
+  const snapshot = captureEditableSnapshot(element);
+  suggestion.snapshot = snapshot;
 
   const textEl = currentSuggestion.element.querySelector(".bt-suggestion-text");
   if (textEl) {
@@ -1101,11 +1274,16 @@ async function reTranslateSuggestion(element, text, providerId, settings) {
     });
 
     if (res?.ok && res.result?.translation) {
+      if (
+        currentSuggestion !== suggestion ||
+        !isEditableSnapshotCurrent(snapshot)
+      )
+        return;
       if (textEl) {
         textEl.textContent = res.result.translation;
         textEl.classList.remove("bt-loading-text");
       }
-      currentSuggestion.translatedText = res.result.translation;
+      suggestion.translatedText = res.result.translation;
     }
   } catch (err) {
     console.error("Re-translation error:", err);
@@ -1886,6 +2064,13 @@ function readjustPopupAfterContentLoad(popup, selectionRect) {
 }
 
 async function showTranslationPopup(selectionRect, text, iconPosition) {
+  const selection = getSafeSelection();
+  if (!selection) return;
+  const selectionSource = [
+    getDeepActiveElement(),
+    selection.anchorNode,
+    selection.focusNode
+  ];
   // Check if extension context is still valid
   if (!isExtensionContextValid()) {
     console.log("BNTrans: Extension context invalidated, cannot show popup");
@@ -1905,6 +2090,7 @@ async function showTranslationPopup(selectionRect, text, iconPosition) {
     const settings = await getSettings();
 
     const popup = document.createElement("div");
+    popup._selectionSource = selectionSource;
     let iconUrl;
     try {
       iconUrl = isExtensionContextValid()
@@ -1938,7 +2124,7 @@ async function showTranslationPopup(selectionRect, text, iconPosition) {
               <path class="bt-wave-1" d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
             </svg>
           </button>
-          <div class="bt-selection-text-content">${text}</div>
+          <div class="bt-selection-text-content"></div>
         </div>
       </div>
       <div class="bt-selection-translated">
@@ -1983,6 +2169,10 @@ async function showTranslationPopup(selectionRect, text, iconPosition) {
 
     // Get available viewport considering panels
     const viewport = getAvailableViewport();
+
+    popup.querySelector(
+      ".bt-selection-original .bt-selection-text-content"
+    ).textContent = text;
 
     const selectionCenter = selectionRect.left + selectionRect.width / 2;
     const left = selectionCenter - actualPopupWidth / 2;
@@ -2323,6 +2513,7 @@ async function translateSelectionWithSource(
   targetLangOverride = null
 ) {
   const settings = await getSettings();
+  if (popup._selectionSource?.some(isSensitiveElement)) return;
   const nativeLang = settings.nativeLanguageCode || "vi";
   const targetLang = targetLangOverride || nativeLang;
 
@@ -2391,8 +2582,8 @@ function registerSelectionMode() {
     }
 
     setTimeout(() => {
-      const selection = window.getSelection();
-      const text = selection.toString().trim();
+      const selection = getSafeSelection();
+      const text = selection?.toString().trim();
 
       if (text && text.length > 0) {
         // If popup is already open for this text, don't show icon
@@ -2928,6 +3119,13 @@ function findTranslatableElement(target) {
 }
 
 async function handleHoverTranslate(element, settings) {
+  if (
+    isSensitiveElement(element) ||
+    Array.from(element.querySelectorAll("input, [autocomplete]")).some(
+      isSensitiveElement
+    )
+  )
+    return;
   // Always use innerHTML to capture any potential formatting
   const text = element.innerHTML?.trim();
 
@@ -3121,6 +3319,66 @@ function createHoverPlaceholder(element, settings) {
   return translationEl;
 }
 
+function appendSafeTranslation(container, translation) {
+  const template = document.createElement("template");
+  template.innerHTML = String(translation);
+  const allowed = new Set([
+    "B",
+    "STRONG",
+    "I",
+    "EM",
+    "U",
+    "S",
+    "BR",
+    "P",
+    "UL",
+    "OL",
+    "LI",
+    "SPAN",
+    "CODE",
+    "PRE",
+    "A"
+  ]);
+  const blocked = new Set([
+    "SCRIPT",
+    "STYLE",
+    "IFRAME",
+    "OBJECT",
+    "SVG",
+    "MATH",
+    "TEMPLATE"
+  ]);
+  const append = (parent, node) => {
+    if (node.nodeType === 3) {
+      parent.appendChild(document.createTextNode(node.textContent));
+      return;
+    }
+    if (node.nodeType !== 1 || blocked.has(node.tagName)) return;
+    const output = allowed.has(node.tagName)
+      ? document.createElement(node.tagName.toLowerCase())
+      : document.createDocumentFragment();
+    if (node.tagName === "A") {
+      try {
+        const url = new URL(node.getAttribute("href"));
+        if (
+          ["https:", "http:"].includes(url.protocol) &&
+          !url.username &&
+          !url.password
+        ) {
+          output.href = url.href;
+          output.target = "_blank";
+          output.rel = "noopener noreferrer";
+        }
+      } catch {
+        // Invalid or relative URLs stay inert.
+      }
+    }
+    for (const child of node.childNodes) append(output, child);
+    parent.appendChild(output);
+  };
+  for (const node of template.content.childNodes) append(container, node);
+}
+
 function updateHoverContent(element, translation, settings, isError = false) {
   // Keep the BNTrans icon
   const icon = element.querySelector(".bt-hover-icon");
@@ -3128,9 +3386,9 @@ function updateHoverContent(element, translation, settings, isError = false) {
   element.innerHTML = ""; // Clear content
   if (icon) element.appendChild(icon);
 
-  // Append translation text with HTML formatting
+  // Provider formatting is limited to inert text tags and HTTP(S) links.
   const textSpan = document.createElement("span");
-  textSpan.innerHTML = translation; // Use innerHTML to render HTML tags
+  appendSafeTranslation(textSpan, translation);
   element.appendChild(textSpan);
 
   // Apply error styling if needed
@@ -3480,6 +3738,7 @@ function renderShotFill(rect, result, mode = "translate", onMode = null) {
 }
 
 function startScreenshotSelection() {
+  if (!canCaptureScreenshot()) return;
   if (screenshotSelecting) return;
   if (!isExtensionContextValid()) {
     try {
@@ -3559,10 +3818,46 @@ function startScreenshotSelection() {
   });
 }
 
+function canCaptureScreenshot() {
+  if (window.self === window.top) return true;
+  showToast(
+    i18n?.language === "vi"
+      ? "Không chụp trong iframe. Hãy chọn vùng từ trang chính."
+      : "Screenshots are unavailable inside frames. Select a region from the main page."
+  );
+  return false;
+}
+
 async function captureAndTranslateRect(rect) {
+  if (!canCaptureScreenshot()) return;
+  const viewport = {
+    width: window.innerWidth,
+    height: window.innerHeight,
+    x: window.scrollX,
+    y: window.scrollY
+  };
+  const isCurrentViewport = () =>
+    window.innerWidth === viewport.width &&
+    window.innerHeight === viewport.height &&
+    window.scrollX === viewport.x &&
+    window.scrollY === viewport.y;
+  if (
+    ![rect.x, rect.y, rect.w, rect.h].every(Number.isFinite) ||
+    rect.x < 0 ||
+    rect.y < 0 ||
+    rect.w < 1 ||
+    rect.h < 1 ||
+    rect.x + rect.w > viewport.width ||
+    rect.y + rect.h > viewport.height
+  ) {
+    showToast(i18n.t("toast.translationFailed"));
+    return;
+  }
   try {
     // Let the overlay removal paint before capturing the tab
     await new Promise((r) => setTimeout(r, 120));
+    if (!isCurrentViewport())
+      throw new Error("Viewport changed; select the region again.");
 
     const cap = await chrome.runtime.sendMessage({ type: "capture-visible" });
     if (!cap?.ok) {
@@ -3576,6 +3871,8 @@ async function captureAndTranslateRect(rect) {
       el.onerror = reject;
       el.src = cap.dataUrl;
     });
+    if (!isCurrentViewport())
+      throw new Error("Viewport changed; select the region again.");
 
     // captureVisibleTab returns physical pixels; derive the real CSS→image
     // scale from the bitmap rather than trusting window.devicePixelRatio
@@ -4046,29 +4343,11 @@ function registerScreenshotTranslate() {
   async function translateEditableSelection() {
     const element = getActiveEditableElement();
     if (!element) return;
-
-    const tag = element.tagName?.toLowerCase();
-    let selected = "";
-    let replaceAll = false;
-
-    if (tag === "input" || tag === "textarea") {
-      const start = element.selectionStart ?? 0;
-      const end = element.selectionEnd ?? 0;
-      selected = element.value.slice(start, end);
-      if (!selected.trim()) {
-        selected = element.value;
-        replaceAll = true;
-      }
-    } else if (element.isContentEditable) {
-      selected = window.getSelection()?.toString() || "";
-      if (!selected.trim()) {
-        selected = element.innerText;
-        replaceAll = true;
-      }
-    }
-    if (!selected.trim()) return;
+    const snapshot = captureEditableSnapshot(element, true);
+    if (!snapshot?.text?.trim()) return;
 
     const settings = await getSettings();
+    if (!isEditableSnapshotCurrent(snapshot)) return;
     const sourceLanguage =
       settings.selectionLastSource ||
       (settings.useAutoDetect ? "auto" : settings.targetLanguageCode || "en");
@@ -4081,7 +4360,7 @@ function registerScreenshotTranslate() {
 
     try {
       const res = await requestTranslation({
-        text: selected,
+        text: snapshot.text,
         nativeLanguageCode: settings.nativeLanguageCode || "vi",
         targetLanguage,
         sourceLanguage: sourceLanguage === "auto" ? undefined : sourceLanguage,
@@ -4092,30 +4371,7 @@ function registerScreenshotTranslate() {
         showToast(res?.error || i18n.t("toast.translationFailed"));
         return;
       }
-      // Fields hold plain text — strip any markup the provider returned
-      const plain = translation.replace(/<[^>]+>/g, "").trim();
-
-      if (tag === "input" || tag === "textarea") {
-        if (replaceAll) {
-          element.value = plain;
-        } else {
-          element.setRangeText(
-            plain,
-            element.selectionStart,
-            element.selectionEnd,
-            "end"
-          );
-        }
-        element.dispatchEvent(new Event("input", { bubbles: true }));
-      } else {
-        element.focus();
-        if (replaceAll) document.execCommand("selectAll", false, null);
-        // Same Lexical-friendly path as suggestion insertion
-        setTimeout(() => {
-          document.execCommand("insertText", false, plain);
-          element.dispatchEvent(new InputEvent("input", { bubbles: true }));
-        }, 50);
-      }
+      applyEditableSnapshot(snapshot, translation);
     } catch (err) {
       console.error("[BNTrans] Editable translate failed:", err);
       showToast(i18n.t("toast.translationFailed"));
@@ -4129,12 +4385,12 @@ function registerScreenshotTranslate() {
     } else if (message?.type === "get-selection-text") {
       sendResponse({
         ok: true,
-        text: window.getSelection()?.toString() || ""
+        text: getSafeSelection()?.toString() || ""
       });
     } else if (message?.type === "translate-selection") {
       // Right-click "Translate selection": open the popup directly on the
       // current selection, skipping the icon step.
-      const selection = window.getSelection();
+      const selection = getSafeSelection();
       const text = selection?.toString().trim();
       if (text && selection.rangeCount > 0) {
         selectedText = text;

@@ -64,6 +64,138 @@ function redact(value, key = "") {
 
 function validateSettings(settings) {
   if (!isObject(settings)) throw new Error("Invalid settings file");
+  const invalid = (field) => {
+    throw new Error(`Invalid ${field} in settings file`);
+  };
+  const stringMap = (value) =>
+    isObject(value) && Object.values(value).every((v) => typeof v === "string");
+  const strings = [
+    "nativeLanguageCode",
+    "targetLanguageCode",
+    "interfaceLanguage",
+    "theme",
+    "translationStyle",
+    "activeProviderId",
+    "activeTTSProviderId",
+    "customPrompt",
+    "hoverTranslateMode",
+    "hoverModifierKey",
+    "hoverTranslateGranularity",
+    "screenshotModel",
+    "screenshotProviderId"
+  ];
+  const booleans = [
+    "enabled",
+    "useAutoDetect",
+    "preferNativeAsSource",
+    "showConfirmModal",
+    "dualSubtitlesEnabled",
+    "instantTranslateEnabled",
+    "hoverTranslateEnabled",
+    "hoverUniqueMode",
+    "screenshotFill",
+    "allowCloudFallback"
+  ];
+  for (const field of strings)
+    if (field in settings && typeof settings[field] !== "string")
+      invalid(field);
+  for (const field of booleans)
+    if (field in settings && typeof settings[field] !== "boolean")
+      invalid(field);
+  for (const field of ["selectionLastSource", "selectionLastTarget"])
+    if (
+      field in settings &&
+      settings[field] !== null &&
+      typeof settings[field] !== "string"
+    )
+      invalid(field);
+  for (const field of ["instantDelay", "dialogTimeout"])
+    if (
+      field in settings &&
+      (!Number.isFinite(settings[field]) || settings[field] < 0)
+    )
+      invalid(field);
+  if ("schemaVersion" in settings && settings.schemaVersion !== 1)
+    invalid("schemaVersion");
+  for (const field of ["aliases", "glossary"])
+    if (field in settings && !stringMap(settings[field])) invalid(field);
+  if (
+    "translationHistory" in settings &&
+    (!Array.isArray(settings.translationHistory) ||
+      settings.translationHistory.some(
+        (entry) =>
+          !isObject(entry) ||
+          typeof entry.text !== "string" ||
+          typeof entry.translation !== "string" ||
+          [
+            "sourceLanguage",
+            "targetLanguage",
+            "providerName",
+            "providerId"
+          ].some(
+            (key) => entry[key] != null && typeof entry[key] !== "string"
+          ) ||
+          ("ts" in entry && (!Number.isFinite(entry.ts) || entry.ts < 0))
+      ))
+  )
+    invalid("translationHistory");
+  for (const field of [
+    "instantDomains",
+    "autoTranslateDomains",
+    "hoverTranslateDomains"
+  ]) {
+    if (
+      field in settings &&
+      (!Array.isArray(settings[field]) ||
+        settings[field].some(
+          (entry) =>
+            !isObject(entry) ||
+            typeof entry.domain !== "string" ||
+            !entry.domain.trim() ||
+            ("enabled" in entry && typeof entry.enabled !== "boolean") ||
+            ("position" in entry &&
+              !["auto", "top", "bottom"].includes(entry.position))
+        ))
+    )
+      invalid(field);
+  }
+  for (const field of [
+    "instantToggleShortcut",
+    "hoverToggleShortcut",
+    "screenshotShortcut"
+  ]) {
+    if (field in settings) {
+      const value = settings[field];
+      if (
+        !isObject(value) ||
+        typeof value.key !== "string" ||
+        !value.key.trim() ||
+        ["ctrl", "shift", "alt", "meta"].some(
+          (key) => key in value && typeof value[key] !== "boolean"
+        )
+      )
+        invalid(field);
+    }
+  }
+  if ("hoverInjectStyle" in settings) {
+    const style = settings.hoverInjectStyle;
+    if (
+      !isObject(style) ||
+      ["backgroundColor", "textColor", "fontSize"].some(
+        (key) => key in style && typeof style[key] !== "string"
+      ) ||
+      ["showIcon", "underline"].some(
+        (key) => key in style && typeof style[key] !== "boolean"
+      )
+    )
+      invalid("hoverInjectStyle");
+  }
+  if (
+    "labFeatures" in settings &&
+    (!isObject(settings.labFeatures) ||
+      Object.values(settings.labFeatures).some((v) => typeof v !== "boolean"))
+  )
+    invalid("labFeatures");
   for (const field of ["providers", "ttsProviders"]) {
     if (!(field in settings)) continue;
     const list = settings[field];
@@ -73,6 +205,22 @@ function validateSettings(settings) {
       new Set(list.map((p) => p.id)).size !== list.length
     ) {
       throw new Error("Invalid providers in settings file");
+    }
+    for (const provider of list) {
+      for (const key of ["type", "name", "url"])
+        if (key in provider && typeof provider[key] !== "string")
+          invalid(field);
+      if ("config" in provider) {
+        if (!isObject(provider.config)) invalid(field);
+        for (const key of ["apiKey", "model", "baseUrl", "endpoint", "url"])
+          if (
+            key in provider.config &&
+            typeof provider.config[key] !== "string"
+          )
+            invalid(field);
+        if ("headers" in provider.config && !stringMap(provider.config.headers))
+          invalid(field);
+      }
     }
   }
 }
@@ -123,7 +271,9 @@ export function prepareSettingsImport(settings, current = {}) {
   for (const field of ["providers", "ttsProviders"]) {
     if (!Array.isArray(imported[field])) continue;
     imported[field] = imported[field].map((provider) => {
-      const existing = current[field]?.find(
+      const existing = (
+        Array.isArray(current[field]) ? current[field] : []
+      ).find(
         (p) =>
           p.id === provider.id &&
           p.type === provider.type &&
