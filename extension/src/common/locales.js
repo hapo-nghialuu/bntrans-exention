@@ -61,6 +61,9 @@ export const locales = {
     "popup.backupHint": "Export file includes API keys — keep it private.",
     "popup.importDone": "Settings imported",
     "popup.importInvalid": "Invalid settings file",
+    "popup.groupAutoTranslate": "Auto-translate pages",
+    "popup.autoTranslateHint":
+      "Pages on these domains translate automatically on load",
     "popup.groupScreenshot": "Screenshot",
     "popup.tabScreenshot": "Screenshot",
     "banner.pageInLang": "This page is in {lang}",
@@ -68,6 +71,8 @@ export const locales = {
     "popup.descHistory": "Recent translations — stored locally, capped at 50",
     "popup.clearHistory": "Clear history",
     "popup.historyEmpty": "No translations yet",
+    "popup.historyCopyHint": "Click to copy the translation",
+    "popup.historyCopied": "Copied ✓",
     "popup.screenshotShortcut": "Screenshot Translate Shortcut",
     "popup.screenshotProvider": "Provider",
     "popup.screenshotProviderHint":
@@ -298,6 +303,8 @@ export const locales = {
     "popup.backupHint": "File xuất ra có chứa API key — giữ kỹ, đừng chia sẻ.",
     "popup.importDone": "Đã nhập cài đặt",
     "popup.importInvalid": "File cài đặt không hợp lệ",
+    "popup.groupAutoTranslate": "Tự dịch trang",
+    "popup.autoTranslateHint": "Trang thuộc các domain này sẽ tự dịch khi mở",
     "popup.groupScreenshot": "Ảnh chụp",
     "popup.tabScreenshot": "Ảnh chụp",
     "banner.pageInLang": "Trang này dùng ngôn ngữ {lang}",
@@ -305,6 +312,8 @@ export const locales = {
     "popup.descHistory": "Các bản dịch gần đây — lưu local, tối đa 50 mục",
     "popup.clearHistory": "Xoá lịch sử",
     "popup.historyEmpty": "Chưa có bản dịch nào",
+    "popup.historyCopyHint": "Bấm để copy bản dịch",
+    "popup.historyCopied": "Đã copy ✓",
     "popup.screenshotShortcut": "Phím tắt dịch ảnh chụp",
     "popup.screenshotProvider": "Provider",
     "popup.screenshotProviderHint":
