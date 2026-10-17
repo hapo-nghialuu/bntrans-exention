@@ -1,3 +1,4 @@
+import { assertDestination } from "./common/privacy-policy.js";
 import { normalizeLanguageToCode } from "./common/language-map.js";
 
 let detector;
@@ -118,7 +119,44 @@ async function runTranslation(text, requestedSource, requestedTarget) {
   }
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (
+    [
+      "play-tts",
+      "offscreen-tts-stop",
+      "offscreen-tts-pause",
+      "offscreen-tts-resume"
+    ].includes(message?.type)
+  ) {
+    if (sender.tab || sender.url !== chrome.runtime.getURL("src/background.js"))
+      return false;
+  }
+  if (message?.type === "offscreen-tts-stop") {
+    sendResponse(stopTTS());
+    return true;
+  }
+  if (
+    message?.type === "offscreen-tts-pause" ||
+    message?.type === "offscreen-tts-resume"
+  ) {
+    const pause = message.type === "offscreen-tts-pause";
+    if (activeSpeech?.audio) {
+      if (pause) activeSpeech.audio.pause();
+      else {
+        const session = activeSpeech;
+        session.audio
+          .play()
+          .catch(() =>
+            session.finish({ ok: false, error: "Speech resume failed" })
+          );
+      }
+    } else if (activeSpeech) {
+      if (pause) self.speechSynthesis.pause();
+      else self.speechSynthesis.resume();
+    }
+    sendResponse({ ok: true, paused: pause });
+    return true;
+  }
   if (message?.type === "offscreen-translate") {
     const {
       text,
@@ -162,34 +200,126 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message?.type === "play-tts") {
-    const { text, lang, speed, urlTemplate } = message.payload;
-    playTTS(text, lang, speed, urlTemplate)
-      .then(() => sendResponse({ ok: true }))
-      .catch((err) => sendResponse({ ok: false, error: String(err) }));
+    playTTS(message.payload || {})
+      .then(sendResponse)
+      .catch((err) =>
+        sendResponse({ ok: false, error: String(err?.message || err) })
+      );
     return true;
   }
 
   return false;
 });
 
-async function playTTS(text, lang, speed = 1, urlTemplate = null) {
-  let url;
+let activeSpeech = null;
+let speechGeneration = 0;
 
-  if (urlTemplate) {
-    // Replace variables
-    url = urlTemplate
-      .replace("{text}", encodeURIComponent(text))
-      .replace("{lang}", lang)
-      .replace("{speed}", speed);
-  } else {
-    // Default fallback
-    url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${lang}&client=tw-ob&ttsspeed=${speed}&q=${encodeURIComponent(text)}`;
+export function stopTTS() {
+  speechGeneration++;
+  const previous = activeSpeech;
+  activeSpeech = null;
+  if (previous) {
+    previous.controller?.abort();
+    if (previous.audio) {
+      previous.audio.pause();
+      previous.audio.removeAttribute("src");
+      previous.audio.load();
+    }
+    if (previous.local) self.speechSynthesis?.cancel();
+    previous.finish({ ok: true, stopped: true });
   }
+  return { ok: true, stopped: true };
+}
 
-  return new Promise((resolve, reject) => {
-    const audio = new Audio(url);
-    audio.onended = () => resolve();
-    audio.onerror = () => reject(new Error("Audio playback failed"));
-    audio.play().catch(reject);
+export async function playTTS({
+  text,
+  lang,
+  speed = 1,
+  urlTemplate,
+  localOnly,
+  privacyPolicy
+}) {
+  stopTTS();
+  const generation = speechGeneration;
+  if (!text) throw new Error("No text to speak");
+  const rate = Math.min(4, Math.max(0.24, Number(speed) || 1));
+  return new Promise((resolve) => {
+    let objectUrl;
+    const session = {
+      local: localOnly,
+      controller: new AbortController(),
+      finish(result) {
+        if (activeSpeech === session) activeSpeech = null;
+        if (session.audio) {
+          session.audio.onended = null;
+          session.audio.onerror = null;
+        }
+        if (session.utterance) {
+          session.utterance.onend = null;
+          session.utterance.onerror = null;
+        }
+        if (objectUrl) {
+          URL.revokeObjectURL(objectUrl);
+          objectUrl = null;
+        }
+        resolve(result);
+      }
+    };
+    activeSpeech = session;
+    (async () => {
+      if (localOnly) {
+        const synth = self.speechSynthesis;
+        const voices = synth?.getVoices() || [];
+        const voice =
+          voices.find(
+            (v) =>
+              v.localService === true &&
+              v.lang.toLowerCase() === String(lang).toLowerCase()
+          ) ||
+          voices.find(
+            (v) =>
+              v.localService === true &&
+              v.lang.split("-")[0].toLowerCase() ===
+                String(lang).split("-")[0].toLowerCase()
+          );
+        if (!voice || !("SpeechSynthesisUtterance" in self))
+          throw new Error(
+            "No local speech voice for this language. Install a local OS voice; cloud speech was not used."
+          );
+        const utterance = new self.SpeechSynthesisUtterance(text);
+        session.utterance = utterance;
+        utterance.voice = voice;
+        utterance.lang = voice.lang;
+        utterance.rate = rate;
+        utterance.onend = () => session.finish({ ok: true, local: true });
+        utterance.onerror = () =>
+          session.finish({ ok: false, error: "Local speech failed" });
+        synth.speak(utterance);
+      } else {
+        if (!privacyPolicy || !urlTemplate)
+          throw new Error("Speech requires a checked destination");
+        const url = urlTemplate
+          .replaceAll("{text}", encodeURIComponent(text))
+          .replaceAll("{lang}", encodeURIComponent(lang))
+          .replaceAll("{speed}", String(rate));
+        assertDestination(privacyPolicy, url);
+        const response = await fetch(url, {
+          redirect: "error",
+          credentials: "omit",
+          signal: session.controller.signal
+        });
+        if (!response.ok) throw new Error("Speech audio request failed");
+        const blob = await response.blob();
+        if (generation !== speechGeneration) return;
+        objectUrl = URL.createObjectURL(blob);
+        session.audio = new Audio(objectUrl);
+        session.audio.onended = () => session.finish({ ok: true });
+        session.audio.onerror = () =>
+          session.finish({ ok: false, error: "Audio playback failed" });
+        await session.audio.play();
+      }
+    })().catch((error) =>
+      session.finish({ ok: false, error: String(error?.message || error) })
+    );
   });
 }

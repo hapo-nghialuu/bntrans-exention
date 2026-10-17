@@ -32,6 +32,15 @@ test("settings defaults and storage work without service-worker messages", async
   assert.equal(defaults.hoverToggleShortcut.key, "O");
   assert.ok(defaults.providers.some((p) => p.id === "google-translate"));
   assert.ok(defaults.providers.some((p) => p.id === "builtin"));
+  assert.deepEqual(defaults.labFeatures, {
+    learning: false,
+    writing: false,
+    media: false,
+    documents: false,
+    ocr: false,
+    privacy: false,
+    page: false
+  });
 
   await writeSettings({ theme: "dark", selectionLastTarget: "fr" });
   assert.equal(stored.theme, "dark");
@@ -40,6 +49,12 @@ test("settings defaults and storage work without service-worker messages", async
   assert.equal(stored.theme, "light");
   assert.equal(stored.selectionLastTarget, "fr");
   assert.deepEqual(await readSettings(), stored);
+
+  stored = { labFeatures: { writing: true }, activeProviderId: "builtin" };
+  assert.deepEqual((await readSettings()).labFeatures, { writing: true });
+  await writeSettings({ labFeatures: { privacy: true } });
+  assert.deepEqual(stored.labFeatures, { writing: true, privacy: true });
+  assert.equal(stored.activeProviderId, "builtin");
 
   stored = null;
   assert.deepEqual(await readSettings(), defaults);
