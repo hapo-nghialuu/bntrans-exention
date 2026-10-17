@@ -54,6 +54,33 @@ function isBlockNode(node) {
 }
 
 /**
+ * Elements whose whole subtree should never be collected for translation —
+ * code blocks, form controls, embedded docs and opt-out markers.
+ */
+const SKIP_SUBTREE_TAGS = [
+  "pre",
+  "textarea",
+  "iframe",
+  "svg",
+  "math",
+  "select",
+  "kbd",
+  "samp",
+  "object",
+  "embed",
+  "template"
+];
+
+function shouldSkipSubtree(node) {
+  if (node.nodeType !== Node.ELEMENT_NODE) return false;
+  if (SKIP_SUBTREE_TAGS.includes(node.tagName.toLowerCase())) return true;
+  if (node.getAttribute("translate") === "no") return true;
+  if (node.isContentEditable) return true;
+  if (node.classList?.contains("notranslate")) return true;
+  return false;
+}
+
+/**
  * Get Translation Units (Groups of inline nodes)
  * @param {Element} root - Root element
  * @returns {Array<{nodes: Node[], text: string}>}
@@ -83,10 +110,11 @@ function getTranslationUnits(root) {
       continue;
     }
 
-    // Skip scripts/styles
+    // Skip scripts/styles and subtrees that must stay untranslated
     if (
       node.nodeType === Node.ELEMENT_NODE &&
-      ["script", "style", "noscript"].includes(node.tagName.toLowerCase())
+      (["script", "style", "noscript"].includes(node.tagName.toLowerCase()) ||
+        shouldSkipSubtree(node))
     ) {
       continue;
     }

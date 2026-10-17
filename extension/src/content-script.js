@@ -1,4 +1,5 @@
 /* global handleLineByLineTranslate, handleSentenceBySentenceTranslate */
+/* global getTranslationUnits, toMarkdown, injectUnitWrappers, requestSegmentTranslations, updateWrappers, markTranslationError */
 let normalizeLanguageToCode;
 let i18n;
 let tts;
@@ -3758,6 +3759,138 @@ function registerScreenshotTranslate() {
     true
   );
 
+  // --- Bilingual whole-page translation -----------------------------------
+  // Walks the page into inline translation units (reusing the granularity
+  // helpers), injects the translation under each original block, and toggles
+  // off by restoring the DOM. Batched + skipHistory so it neither rate-limits
+  // nor floods history.
+
+  const PAGE_MAX_UNITS = 500; // safety cap for very large pages
+  const PAGE_BATCH_CHARS = 3000;
+  const PAGE_BATCH_UNITS = 25;
+  const PAGE_PROGRESS_ID = "bntrans-page-progress";
+
+  let pageTranslateActive = false;
+  let pageTranslateRunning = false;
+
+  function showPageProgress(text) {
+    let badge = document.getElementById(PAGE_PROGRESS_ID);
+    if (!badge) {
+      badge = document.createElement("div");
+      badge.id = PAGE_PROGRESS_ID;
+      badge.style.cssText =
+        "position:fixed;bottom:16px;right:16px;z-index:2147483647;" +
+        "background:#111827;color:#fff;padding:8px 12px;border-radius:8px;" +
+        "font:12px/1.4 sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.3);";
+      document.documentElement.appendChild(badge);
+    }
+    badge.textContent = text;
+    return badge;
+  }
+
+  function removePageTranslation() {
+    // Unwrap only wrappers created by page translation
+    document
+      .querySelectorAll("[data-bntrans-wrapper][data-bntrans-page]")
+      .forEach((wrapper) => {
+        const original = wrapper.querySelector("[data-bntrans-original]");
+        const parent = wrapper.parentNode;
+        if (original && parent) {
+          while (original.firstChild)
+            parent.insertBefore(original.firstChild, wrapper);
+        }
+        wrapper.remove();
+        parent?.normalize();
+      });
+    document.getElementById(PAGE_PROGRESS_ID)?.remove();
+    document.body?.removeAttribute("data-bntrans-page-translated");
+    pageTranslateActive = false;
+  }
+
+  async function runPageTranslation() {
+    if (pageTranslateRunning || !document.body) return;
+    pageTranslateRunning = true;
+    pageTranslateActive = true;
+
+    const badge = showPageProgress("Translating page…");
+
+    try {
+      const settings = await getSettings();
+      const units = getTranslationUnits(document.body).slice(0, PAGE_MAX_UNITS);
+      if (!units.length) {
+        badge.textContent = "Nothing to translate";
+        setTimeout(() => badge.remove(), 1500);
+        pageTranslateActive = false;
+        return;
+      }
+      document.body.setAttribute("data-bntrans-page-translated", "true");
+
+      // Chunk units into batches bounded by unit count and total size
+      const batches = [];
+      let cur = [];
+      let curChars = 0;
+      for (const unit of units) {
+        const md = toMarkdown(unit.nodes);
+        if (
+          cur.length &&
+          (curChars + md.length > PAGE_BATCH_CHARS ||
+            cur.length >= PAGE_BATCH_UNITS)
+        ) {
+          batches.push(cur);
+          cur = [];
+          curChars = 0;
+        }
+        cur.push({ unit, md });
+        curChars += md.length;
+      }
+      if (cur.length) batches.push(cur);
+
+      let done = 0;
+      for (const batch of batches) {
+        if (!pageTranslateActive) break; // toggled off mid-run
+        const wrappers = injectUnitWrappers(batch.map((b) => b.unit));
+        wrappers.forEach(({ wrapper }) =>
+          wrapper.setAttribute("data-bntrans-page", "true")
+        );
+        try {
+          const segments = await requestSegmentTranslations(
+            batch.map((b) => b.md),
+            settings,
+            (payload) => requestTranslation({ ...payload, skipHistory: true })
+          );
+          updateWrappers(wrappers, segments, settings);
+        } catch (err) {
+          markTranslationError(wrappers, err);
+        }
+        done += batch.length;
+        badge.textContent = `Translating… ${done}/${units.length}`;
+      }
+
+      badge.textContent = pageTranslateActive
+        ? "Page translated"
+        : "Translation stopped";
+      setTimeout(() => badge.remove(), 2000);
+    } catch (err) {
+      console.error("[PageTranslate]", err);
+      badge.textContent = "Page translation failed";
+      setTimeout(() => badge.remove(), 2500);
+      pageTranslateActive = false;
+    } finally {
+      pageTranslateRunning = false;
+    }
+  }
+
+  function togglePageTranslation() {
+    if (
+      pageTranslateActive ||
+      document.body?.hasAttribute("data-bntrans-page-translated")
+    ) {
+      removePageTranslation();
+    } else {
+      runPageTranslation();
+    }
+  }
+
   // Triggered from the extension context menu / quick popup button
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "start-screenshot-select") {
@@ -3777,6 +3910,8 @@ function registerScreenshotTranslate() {
         const rect = selection.getRangeAt(0).getBoundingClientRect();
         showTranslationPopup(rect, text, "bottom");
       }
+    } else if (message?.type === "toggle-page-translation") {
+      togglePageTranslation();
     }
   });
 

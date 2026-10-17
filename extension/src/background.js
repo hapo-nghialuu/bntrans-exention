@@ -497,6 +497,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 const SCREENSHOT_MENU_ID = "bntrans-screenshot-area";
 const SELECTION_MENU_ID = "bntrans-translate-selection";
 const SIDE_PANEL_MENU_ID = "bntrans-open-side-panel";
+const PAGE_TRANSLATE_MENU_ID = "bntrans-page-translate";
 
 let contextMenuPromise = null;
 // onInstalled + onStartup + the eager call below can all fire during one
@@ -509,7 +510,12 @@ function registerContextMenus() {
       // reliably reject on a missing id and would spam the console on
       // every SW start.
       await Promise.all(
-        [SCREENSHOT_MENU_ID, SELECTION_MENU_ID, SIDE_PANEL_MENU_ID].map(
+        [
+          SCREENSHOT_MENU_ID,
+          SELECTION_MENU_ID,
+          SIDE_PANEL_MENU_ID,
+          PAGE_TRANSLATE_MENU_ID
+        ].map(
           (id) =>
             new Promise((resolve) =>
               chrome.contextMenus.remove(id, () => {
@@ -522,12 +528,14 @@ function registerContextMenus() {
       let screenshotTitle = "Translate screenshot area";
       let selectionTitle = "Translate selection";
       let panelTitle = "Open BNTrans side panel";
+      let pageTitle = "Translate page (bilingual)";
       try {
         const settings = await readSettings();
         if ((settings.interfaceLanguage || "en") === "vi") {
           screenshotTitle = "Dịch vùng chụp màn hình";
           selectionTitle = "Dịch đoạn đã chọn";
           panelTitle = "Mở bảng dịch BNTrans";
+          pageTitle = "Dịch trang này (song ngữ)";
         }
       } catch {
         /* keep English fallback */
@@ -556,6 +564,14 @@ function registerContextMenus() {
         },
         () => void chrome.runtime.lastError
       );
+      chrome.contextMenus.create(
+        {
+          id: PAGE_TRANSLATE_MENU_ID,
+          title: pageTitle,
+          contexts: ["page", "frame"]
+        },
+        () => void chrome.runtime.lastError
+      );
     })();
   }
   return contextMenuPromise;
@@ -581,6 +597,10 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   } else if (info.menuItemId === SELECTION_MENU_ID) {
     chrome.tabs
       .sendMessage(tab.id, { type: "translate-selection" })
+      .catch(() => {});
+  } else if (info.menuItemId === PAGE_TRANSLATE_MENU_ID) {
+    chrome.tabs
+      .sendMessage(tab.id, { type: "toggle-page-translation" })
       .catch(() => {});
   }
 });
