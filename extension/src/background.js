@@ -1,5 +1,18 @@
-import { readSettings, writeSettings } from "./common/settings-storage.js";
+import {
+  readSettings,
+  writeSettings,
+  updateSettings
+} from "./common/settings-storage.js";
 import { AIProviderService } from "./services/ai-providers.js";
+import {
+  resolvePrivacy,
+  assertProvider,
+  assertDestination,
+  privacyResponse,
+  canRetain,
+  ttlMillis,
+  PrivacyError
+} from "./common/privacy-policy.js";
 import {
   htmlToMarkdown,
   markdownToHtml,
@@ -7,28 +20,31 @@ import {
 } from "./services/format-utils.js";
 
 const OFFSCREEN_URL = chrome.runtime.getURL("../pages/offscreen.html");
-
+let offscreenPromise;
 async function ensureOffscreen() {
-  const contexts = await chrome.runtime.getContexts({});
-  const hasOffscreen = contexts.some(
-    (c) =>
-      c.contextType === "OFFSCREEN_DOCUMENT" && c.documentUrl === OFFSCREEN_URL
-  );
-
-  if (!hasOffscreen) {
-    await chrome.offscreen.createDocument({
-      url: "../pages/offscreen.html",
-      reasons: ["IFRAME_SCRIPTING"],
-      justification:
-        "Use built-in Translator and LanguageDetector APIs in a windowed context."
+  if (!offscreenPromise)
+    offscreenPromise = (async () => {
+      const contexts = await chrome.runtime.getContexts({});
+      if (
+        !contexts.some(
+          (c) =>
+            c.contextType === "OFFSCREEN_DOCUMENT" &&
+            c.documentUrl === OFFSCREEN_URL
+        )
+      ) {
+        await chrome.offscreen.createDocument({
+          url: "../pages/offscreen.html",
+          reasons: ["IFRAME_SCRIPTING", "AUDIO_PLAYBACK"],
+          justification:
+            "Built-in translation, language detection and speech playback."
+        });
+      }
+    })().finally(() => {
+      offscreenPromise = null;
     });
-  }
+  return offscreenPromise;
 }
 
-/**
- * Detect the language of a text via the offscreen LanguageDetector API.
- * Returns a BCP-47 code or null when detection is unavailable/uncertain.
- */
 async function detectLanguageWithOffscreen(text) {
   try {
     await ensureOffscreen();
@@ -36,35 +52,309 @@ async function detectLanguageWithOffscreen(text) {
       type: "detect-language",
       payload: { text: String(text || "").slice(0, 1000) }
     });
-    if (res?.ok && res.detectedLanguage) {
-      return res.detectedLanguage;
-    }
+    return res?.ok ? res.detectedLanguage : null;
   } catch {
-    // Detection is best-effort; fall back to 'auto'
+    return null;
   }
-  return null;
 }
 
-const HISTORY_LIMIT = 50;
+const CACHE_LIMIT = 300;
+const CACHE_STORAGE_KEY = "translationCache";
+let translationCache;
+let cacheLoadPromise;
+let cacheQueue = Promise.resolve();
+let cacheEpochSeen;
+async function loadTranslationCache() {
+  if (!cacheLoadPromise)
+    cacheLoadPromise = chrome.storage.local
+      .get(CACHE_STORAGE_KEY)
+      .then((stored) => {
+        translationCache = new Map(
+          Object.entries(stored?.[CACHE_STORAGE_KEY] || {}).filter(([key]) =>
+            key.startsWith("v2:")
+          )
+        );
+        return translationCache;
+      })
+      .catch((error) => {
+        cacheLoadPromise = null;
+        throw error;
+      });
+  return cacheLoadPromise;
+}
+function cacheTransaction(action) {
+  const run = async () => {
+    await loadTranslationCache();
+    return updateSettings(async (current) => (await action(current)) || null);
+  };
+  const result = cacheQueue.then(run, run);
+  cacheQueue = result.catch(() => {});
+  return result;
+}
+async function translationCacheKey({
+  text,
+  sourceLang,
+  targetLang,
+  provider,
+  settings,
+  customPrompt,
+  context,
+  task
+}) {
+  // Only the digest is persisted; config can include credentials, never a raw cache key.
+  const input = JSON.stringify([
+    "v2",
+    provider,
+    sourceLang,
+    targetLang,
+    settings.translationStyle || "natural",
+    settings.glossary || {},
+    customPrompt?.trim() || settings.customPrompt || "",
+    context || "",
+    task || "translate",
+    text
+  ]);
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(input)
+  );
+  return (
+    "v2:" +
+    [...new Uint8Array(digest)]
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("")
+  );
+}
+async function cacheAccess(key, settings, policy, result) {
+  if (!canRetain(settings, policy, "cache") || !ttlMillis(settings, "cache"))
+    return null;
+  let hit = null;
+  await cacheTransaction(async (current) => {
+    if (cacheEpochSeen === undefined) cacheEpochSeen = current.cacheEpoch || 0;
+    if (cacheEpochSeen !== (current.cacheEpoch || 0)) {
+      translationCache.clear();
+      cacheEpochSeen = current.cacheEpoch || 0;
+    }
+    if (
+      !canRetain(current, policy, "cache") ||
+      (settings.cacheEpoch || 0) !== (current.cacheEpoch || 0)
+    )
+      return;
+    const now = Date.now();
+    for (const [k, entry] of translationCache) {
+      if (!entry.created || now - entry.created > ttlMillis(current, "cache"))
+        translationCache.delete(k);
+    }
+    if (result) translationCache.set(key, { result, ts: now, created: now });
+    else {
+      hit = translationCache.get(key) || null;
+      if (hit) {
+        translationCache.delete(key);
+        translationCache.set(key, { ...hit, ts: now });
+      }
+    }
+    while (translationCache.size > CACHE_LIMIT)
+      translationCache.delete(translationCache.keys().next().value);
+    await chrome.storage.local.set({
+      [CACHE_STORAGE_KEY]: Object.fromEntries(translationCache)
+    });
+  });
+  return hit;
+}
 
-/**
- * Append one entry to settings.translationHistory (newest first, capped).
- * Callers opt out with payload.skipHistory (instant/hover are too noisy).
- * Fire-and-forget: history must never block or fail a translation.
- */
-function recordHistory(settings, entry) {
-  const prev = settings.translationHistory || [];
-  const head = prev[0];
-  // Skip an immediate repeat of the same pair (e.g. provider re-pick).
+function recordHistory(settings, policy, entry) {
+  if (!canRetain(settings, policy, "history")) return Promise.resolve();
+  return updateSettings((current) => {
+    if (
+      !canRetain(current, policy, "history") ||
+      (settings.historyEpoch || 0) !== (current.historyEpoch || 0)
+    )
+      return null;
+    const ttl = ttlMillis(current, "history");
+    if (!ttl) return null;
+    const previous = (current.translationHistory || []).filter(
+      (e) => Date.now() - e.ts < ttl
+    );
+    if (
+      previous[0]?.text === entry.text &&
+      previous[0]?.targetLanguage === entry.targetLanguage
+    )
+      return null;
+    return { translationHistory: [entry, ...previous].slice(0, 50) };
+  });
+}
+
+async function handleTranslate(payload, sender) {
+  const settings = await readSettings();
+  const policy = resolvePrivacy(settings, payload, sender);
+  const {
+    text,
+    targetLanguage: targetLang,
+    customPrompt,
+    context,
+    task
+  } = payload;
+  let sourceLang = payload.sourceLanguage || "auto";
+  const service = new AIProviderService(settings, policy);
+  const providerId = policy.providerId || payload.providerId;
+  const usedProvider = providerId
+    ? settings.providers?.find((p) => p.id === providerId)
+    : service.activeProvider;
+  if (!usedProvider) throw new Error("Selected provider is not configured");
+  assertProvider(policy, usedProvider);
   if (
-    head &&
-    head.text === entry.text &&
-    head.targetLanguage === entry.targetLanguage
+    task &&
+    task !== "translate" &&
+    ["google-translate", "deepl", "gemini-nano"].includes(usedProvider?.type)
   ) {
-    return;
+    throw new Error(
+      "This task requires an instruction-capable AI provider, not a translation-only engine."
+    );
   }
-  const translationHistory = [entry, ...prev].slice(0, HISTORY_LIMIT);
-  writeSettings({ translationHistory }).catch(() => {});
+  if (sourceLang === "auto") {
+    const detected = await detectLanguageWithOffscreen(text);
+    if (detected) {
+      sourceLang = detected;
+      if (
+        (!task || task === "translate") &&
+        detected.split("-")[0].toLowerCase() ===
+          String(targetLang).split("-")[0].toLowerCase()
+      ) {
+        return {
+          ok: true,
+          result: {
+            translation: text,
+            providerName: "Detection",
+            providerType: "same-language",
+            sourceLanguage: detected,
+            targetLanguage: targetLang,
+            skippedSameLanguage: true
+          }
+        };
+      }
+    }
+  }
+  const cacheKey = await translationCacheKey({
+    text,
+    sourceLang,
+    targetLang,
+    provider: usedProvider,
+    settings,
+    customPrompt,
+    context,
+    task
+  });
+  const saveHistory = async (result) => {
+    if (!payload.skipHistory && result.translation)
+      await recordHistory(settings, policy, {
+        text: String(text).slice(0, 500),
+        translation: String(result.translation).slice(0, 1000),
+        sourceLanguage: sourceLang,
+        targetLanguage: targetLang,
+        providerName: result.providerName,
+        ts: Date.now()
+      });
+  };
+  const hit = await cacheAccess(cacheKey, settings, policy);
+  if (hit) {
+    await saveHistory(hit.result);
+    return {
+      ok: true,
+      result: {
+        ...hit.result,
+        providerName: `${hit.result.providerName || ""} ·cache`,
+        cached: true
+      }
+    };
+  }
+  let providerCompleted = false;
+  try {
+    const formatted = shouldConvertFormat(text);
+    const input = formatted ? htmlToMarkdown(text) : text;
+    let result = await service.translate(
+      input,
+      sourceLang,
+      targetLang,
+      providerId,
+      customPrompt,
+      context,
+      task
+    );
+    if (result?.useOffscreen) {
+      if (task && task !== "translate")
+        throw new Error(
+          "Built-in Translator does not support this task; choose an instruction-capable provider."
+        );
+      await ensureOffscreen();
+      const offscreen = await chrome.runtime.sendMessage({
+        type: "offscreen-translate",
+        payload: { ...payload, text: input }
+      });
+      if (!offscreen?.ok)
+        throw new Error(offscreen?.error || "Built-in translation unavailable");
+      result = {
+        ...offscreen,
+        providerName: "Chrome Built-in AI",
+        providerType: "gemini-nano"
+      };
+    }
+    if (typeof result?.translation !== "string" || !result.translation.trim())
+      throw new Error("Provider returned no translation");
+    const resultObj = {
+      translation: formatted
+        ? markdownToHtml(result.translation)
+        : result.translation,
+      providerName: result.providerName,
+      providerType: result.providerType,
+      sourceLanguage: sourceLang,
+      targetLanguage: targetLang
+    };
+    providerCompleted = true;
+    await saveHistory(resultObj);
+    await cacheAccess(cacheKey, settings, policy, resultObj);
+    return { ok: true, result: resultObj };
+  } catch (error) {
+    if (providerCompleted || error?.code === "PRIVACY_BLOCKED") throw error;
+    // Task-specific work must not be replaced by a plain Google translation.
+    if (
+      usedProvider?.type !== "google-translate" &&
+      settings.allowCloudFallback === true &&
+      (!task || task === "translate")
+    ) {
+      try {
+        const google = {
+          id: "google-translate",
+          type: "google-translate",
+          name: "Google Translate",
+          config: {}
+        };
+        assertProvider(policy, google);
+        const fallback = new AIProviderService(
+          { ...settings, providers: [google], activeProviderId: google.id },
+          policy
+        );
+        const result = await fallback.translate(
+          text,
+          sourceLang,
+          targetLang,
+          google.id
+        );
+        return {
+          ok: true,
+          result: {
+            ...result,
+            providerName: "Google Translate (fallback)",
+            sourceLanguage: sourceLang,
+            targetLanguage: targetLang,
+            fellBackFrom: usedProvider?.name || usedProvider?.type
+          }
+        };
+      } catch (fallbackError) {
+        if (fallbackError?.code === "PRIVACY_BLOCKED") throw fallbackError;
+      }
+    }
+    throw error;
+  }
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -72,19 +362,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ ok: true });
     return true;
   }
-
   if (message?.type === "get-settings") {
-    readSettings().then((s) => sendResponse({ ok: true, settings: s }));
+    readSettings()
+      .then((settings) => sendResponse({ ok: true, settings }))
+      .catch((e) => sendResponse(privacyResponse(e)));
     return true;
   }
-
   if (message?.type === "set-settings") {
-    writeSettings(message.settings).then((s) =>
-      sendResponse({ ok: true, settings: s })
-    );
+    writeSettings(message.settings)
+      .then((settings) => sendResponse({ ok: true, settings }))
+      .catch((e) => sendResponse(privacyResponse(e)));
     return true;
   }
-
+  if (message?.type === "privacy-clear-cache") {
+    cacheTransaction(async (current) => {
+      translationCache.clear();
+      await chrome.storage.local.set({ translationCache: {} });
+      return { cacheEpoch: (current.cacheEpoch || 0) + 1 };
+    })
+      .then(() => sendResponse({ ok: true }))
+      .catch((e) => sendResponse(privacyResponse(e)));
+    return true;
+  }
   if (message?.type === "detect-page-language") {
     chrome.i18n
       .detectLanguage(message.text || "")
@@ -97,314 +396,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .catch(() => sendResponse({ ok: false }));
     return true;
   }
-
-  // --- Persistent translation cache (LRU in storage.local) -------------------
-  // Separate storage key so settings export/import stays clean. Keyed on
-  // provider + model + languages + style + glossary + prompt + text via a
-  // cyrb53 hash; bounded at CACHE_LIMIT entries with LRU eviction.
-
-  const CACHE_LIMIT = 300;
-  const CACHE_STORAGE_KEY = "translationCache";
-  let translationCache = null; // lazily-loaded Map
-
-  async function loadTranslationCache() {
-    if (translationCache) return translationCache;
-    translationCache = new Map();
-    try {
-      const stored = await chrome.storage.local.get(CACHE_STORAGE_KEY);
-      const obj = stored?.[CACHE_STORAGE_KEY];
-      if (obj && typeof obj === "object") {
-        for (const [k, v] of Object.entries(obj)) translationCache.set(k, v);
-      }
-    } catch {
-      /* start empty */
-    }
-    return translationCache;
-  }
-
-  // cyrb53 — fast 53-bit hash, sufficient for cache-key collisions risk
-  function hashString(str, seed = 0) {
-    let h1 = 0xdeadbeef ^ seed;
-    let h2 = 0x41c6ce57 ^ seed;
-    for (let i = 0; i < str.length; i++) {
-      const ch = str.charCodeAt(i);
-      h1 = Math.imul(h1 ^ ch, 2654435761);
-      h2 = Math.imul(h2 ^ ch, 1597334677);
-    }
-    h1 =
-      Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^
-      Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-    h2 =
-      Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^
-      Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-    return (h2 >>> 0).toString(16) + (h1 >>> 0).toString(16);
-  }
-
-  function translationCacheKey({
-    text,
-    sourceLang,
-    targetLang,
-    providerKey,
-    model,
-    settings,
-    customPrompt
-  }) {
-    return hashString(
-      JSON.stringify([
-        providerKey,
-        model || "",
-        sourceLang,
-        targetLang,
-        settings.translationStyle || "",
-        settings.glossary || {},
-        customPrompt || "",
-        text
-      ])
-    );
-  }
-
-  function translationCacheGet(key) {
-    const entry = translationCache?.get(key);
-    if (!entry) return null;
-    entry.ts = Date.now(); // LRU touch
-    return entry;
-  }
-
-  function translationCacheSet(key, result) {
-    if (!translationCache) return;
-    translationCache.set(key, { result, ts: Date.now() });
-    if (translationCache.size > CACHE_LIMIT) {
-      const oldest = [...translationCache.entries()]
-        .sort((a, b) => a[1].ts - b[1].ts)
-        .slice(0, translationCache.size - CACHE_LIMIT);
-      for (const [k] of oldest) translationCache.delete(k);
-    }
-    chrome.storage.local
-      .set({ [CACHE_STORAGE_KEY]: Object.fromEntries(translationCache) })
-      .catch(() => {});
-  }
-
-  // ---------------------------------------------------------------------------
-
   if (message?.type === "translate") {
-    readSettings().then(async (settings) => {
-      // Extract payload using keys sent by content-script.js
-      const {
-        text,
-        targetLanguage,
-        sourceLanguage,
-        providerId,
-        customPrompt,
-        context
-      } = message.payload;
-
-      const targetLang = targetLanguage;
-      let sourceLang = sourceLanguage || "auto";
-
-      // Detect the source language when it is not explicitly provided, so
-      // prompts get a concrete language and we can skip no-op translations
-      // (e.g., English text -> English target).
-      if (sourceLang === "auto") {
-        const detected = await detectLanguageWithOffscreen(text);
-        if (detected) {
-          const sameBaseLang =
-            detected.split("-")[0].toLowerCase() ===
-            String(targetLang || "")
-              .split("-")[0]
-              .toLowerCase();
-          if (sameBaseLang) {
-            // Source already matches the target language: return it as-is.
-            sendResponse({
-              ok: true,
-              result: {
-                translation: text,
-                providerName: "Detection",
-                providerType: "same-language",
-                sourceLanguage: detected,
-                targetLanguage: targetLang,
-                skippedSameLanguage: true
-              }
-            });
-            return;
-          }
-          sourceLang = detected;
-        }
-      }
-
-      const aiService = new AIProviderService(settings);
-      const usedProvider = providerId
-        ? settings.providers?.find((p) => p.id === providerId)
-        : aiService.activeProvider;
-
-      // Serve an identical previous translation straight from the cache —
-      // skips provider calls for repeated text (page translate, UI strings).
-      await loadTranslationCache();
-      const cacheKey = translationCacheKey({
-        text,
-        sourceLang,
-        targetLang,
-        providerKey: usedProvider?.id || usedProvider?.type || "?",
-        model: usedProvider?.model,
-        settings,
-        customPrompt
-      });
-      const hit = translationCacheGet(cacheKey);
-      if (hit) {
-        if (!message.payload.skipHistory) {
-          recordHistory(settings, {
-            text: String(text).slice(0, 500),
-            translation: String(hit.result.translation || "").slice(0, 1000),
-            sourceLanguage: sourceLang,
-            targetLanguage: targetLang,
-            providerName: hit.result.providerName,
-            ts: Date.now()
-          });
-        }
-        sendResponse({
-          ok: true,
-          result: {
-            ...hit.result,
-            providerName: `${hit.result.providerName || ""} ·cache`,
-            cached: true
-          }
-        });
-        return;
-      }
-
-      try {
-        // --- Format Conversion Logic ---
-        let textToTranslate = text;
-        let hasFormatting = false;
-
-        // Apply format conversion for all providers
-        if (shouldConvertFormat(text)) {
-          textToTranslate = htmlToMarkdown(text);
-          hasFormatting = true;
-        }
-
-        const result = await aiService.translate(
-          textToTranslate,
-          sourceLang,
-          targetLang,
-          providerId,
-          customPrompt,
-          context
-        );
-
-        // If result is the special signal for Window AI, use offscreen
-        if (result?.useOffscreen) {
-          await ensureOffscreen();
-          const offscreenResult = await chrome.runtime.sendMessage({
-            type: "offscreen-translate",
-            payload: { ...message.payload, text: textToTranslate }
-          });
-
-          if (offscreenResult?.ok) {
-            let translation = offscreenResult.translation;
-
-            // Convert back to HTML if formatting was converted
-            if (hasFormatting && translation) {
-              translation = markdownToHtml(translation);
-            }
-
-            // offscreenResult is { ok: true, translation: "...", ... }
-            // We need to construct the result object expected by content-script
-            const resultObj = {
-              translation: translation,
-              sourceLanguage: offscreenResult.sourceLanguage,
-              targetLanguage: offscreenResult.targetLanguage,
-              providerName:
-                offscreenResult.providerName || "Chrome Built-in AI",
-              providerType: offscreenResult.providerType || "Built-in"
-            };
-
-            if (!message.payload.skipHistory && translation) {
-              recordHistory(settings, {
-                text: String(text).slice(0, 500),
-                translation: String(translation).slice(0, 1000),
-                sourceLanguage: resultObj.sourceLanguage,
-                targetLanguage: targetLang,
-                providerName: resultObj.providerName,
-                ts: Date.now()
-              });
-            }
-
-            translationCacheSet(cacheKey, resultObj);
-            sendResponse({ ok: true, result: resultObj });
-          } else {
-            throw new Error(offscreenResult?.error || "Unknown error");
-          }
-        } else {
-          // Convert back to HTML if formatting was converted
-          let translation = result.translation;
-          if (hasFormatting && translation) {
-            translation = markdownToHtml(translation);
-          }
-
-          if (!message.payload.skipHistory && translation) {
-            recordHistory(settings, {
-              text: String(text).slice(0, 500),
-              translation: String(translation).slice(0, 1000),
-              sourceLanguage: sourceLang,
-              targetLanguage: targetLang,
-              providerName: result.providerName,
-              ts: Date.now()
-            });
-          }
-
-          // Result is the object { translation, providerName, providerType }
-          const resultObj = {
-            translation: translation,
-            providerName: result.providerName,
-            providerType: result.providerType,
-            sourceLanguage: sourceLang,
-            targetLanguage: targetLang
-          };
-          translationCacheSet(cacheKey, resultObj);
-          sendResponse({ ok: true, result: resultObj });
-        }
-      } catch (err) {
-        console.error("Translation Error:", err);
-
-        // Retry once through Google Translate so a provider outage/quota
-        // still yields a translation instead of a dead error.
-        if (usedProvider?.type !== "google-translate") {
-          try {
-            const fallback = new AIProviderService({
-              ...settings,
-              activeProviderId: "google-translate"
-            });
-            const fb = await fallback.translate(
-              text,
-              sourceLang,
-              targetLang,
-              "google-translate",
-              "",
-              ""
-            );
-            if (fb && typeof fb === "object" && !fb.useOffscreen) {
-              sendResponse({
-                ok: true,
-                result: {
-                  translation: fb.translation,
-                  providerName: "Google Translate (fallback)",
-                  providerType: "google-translate",
-                  sourceLanguage: sourceLang,
-                  targetLanguage: targetLang,
-                  fellBackFrom: usedProvider?.name || usedProvider?.type
-                }
-              });
-              return;
-            }
-          } catch (fbErr) {
-            console.error("Fallback Error:", fbErr);
-          }
-        }
-
-        sendResponse({ ok: false, error: String(err?.message || err) });
-      }
-    });
-
+    handleTranslate(message.payload || {}, sender)
+      .then(sendResponse)
+      .catch((e) => sendResponse(privacyResponse(e)));
     return true;
   }
 
@@ -415,9 +410,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.tabs
       .captureVisibleTab(windowId, { format: "png" })
       .then((dataUrl) => sendResponse({ ok: true, dataUrl }))
-      .catch((err) =>
-        sendResponse({ ok: false, error: String(err?.message || err) })
-      );
+      .catch((err) => sendResponse(privacyResponse(err)));
     return true;
   }
 
@@ -439,8 +432,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             "custom",
             "codex"
           ]);
+          const policy = resolvePrivacy(settings, message.payload, sender);
+          const requestedProviderId =
+            policy.providerId ||
+            message.payload?.providerId ||
+            settings.screenshotProviderId;
+          if (
+            requestedProviderId &&
+            !providers.some((p) => p.id === requestedProviderId)
+          ) {
+            throw new Error("Selected image provider is not configured");
+          }
           const chosen =
-            providers.find((p) => p.id === settings.screenshotProviderId) ||
+            providers.find((p) => p.id === requestedProviderId) ||
             providers.find((p) => p.type === "gemini" && p.config?.apiKey) ||
             providers.find((p) => IMAGE_CAPABLE.has(p.type));
           if (!chosen) {
@@ -458,20 +462,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             });
             return;
           }
-          const service = new AIProviderService({
-            ...settings,
-            providers: providers.map((p) =>
-              p.id === chosen.id
-                ? {
-                    ...p,
-                    config: {
-                      ...p.config,
-                      model: settings.screenshotModel || p.config?.model
+          assertProvider(policy, chosen);
+          const service = new AIProviderService(
+            {
+              ...settings,
+              providers: providers.map((p) =>
+                p.id === chosen.id
+                  ? {
+                      ...p,
+                      config: {
+                        ...p.config,
+                        model: settings.screenshotModel || p.config?.model
+                      }
                     }
-                  }
-                : p
-            )
-          });
+                  : p
+              )
+            },
+            policy
+          );
           const provider = service.getProvider(chosen.id, "");
           const targetLang =
             message.payload?.targetLanguage ||
@@ -492,12 +500,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
           });
         } catch (err) {
-          sendResponse({ ok: false, error: String(err?.message || err) });
+          sendResponse(privacyResponse(err));
         }
       })
-      .catch((err) =>
-        sendResponse({ ok: false, error: String(err?.message || err) })
-      );
+      .catch((err) => sendResponse(privacyResponse(err)));
     return true;
   }
 
@@ -505,18 +511,54 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.runtime.openOptionsPage();
     return true;
   }
-  if (message?.type === "tts-play") {
-    ensureOffscreen().then(async () => {
-      try {
-        await chrome.runtime.sendMessage({
-          type: "play-tts",
-          payload: message.payload
+  if (
+    ["tts-play", "tts-stop", "tts-pause", "tts-resume"].includes(message?.type)
+  ) {
+    (async () => {
+      const settings = await readSettings();
+      const payload = message.payload || {};
+      const policy = resolvePrivacy(settings, payload, sender);
+      await ensureOffscreen();
+      if (message.type !== "tts-play")
+        return chrome.runtime.sendMessage({
+          type: message.type.replace("tts-", "offscreen-tts-")
         });
-        sendResponse({ ok: true });
-      } catch (err) {
-        sendResponse({ ok: false, error: String(err) });
-      }
-    });
+      const localOnly =
+        policy.mode === "local-only" ||
+        settings.activeTTSProviderId === "local";
+      const template =
+        settings.ttsProviders?.find(
+          (p) => p.id === settings.activeTTSProviderId
+        )?.url ||
+        "https://translate.google.com/translate_tts?ie=UTF-8&tl={lang}&client=dict-chrome-ex&ttsspeed={speed}&q={text}";
+      if (!localOnly)
+        assertDestination(
+          policy,
+          template
+            .replaceAll("{text}", "")
+            .replaceAll("{lang}", "en")
+            .replaceAll("{speed}", "1")
+        );
+      if (policy.mode === "ask" && !localOnly && !policy.cloudConsent)
+        throw new PrivacyError("Speech requires confirmation");
+      return chrome.runtime.sendMessage({
+        type: "play-tts",
+        payload: {
+          text: payload.text,
+          lang: payload.lang,
+          speed: payload.speed,
+          urlTemplate: template,
+          localOnly,
+          privacyPolicy: policy
+        }
+      });
+    })()
+      .then((result) =>
+        sendResponse(
+          result || { ok: false, error: "Speech service unavailable" }
+        )
+      )
+      .catch((e) => sendResponse(privacyResponse(e)));
     return true;
   }
 });

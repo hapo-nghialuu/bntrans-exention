@@ -1,103 +1,49 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
-
-const source = readFileSync(
-  new URL("../extension/src/background.js", import.meta.url),
-  "utf8"
-);
-const start = source.indexOf("const OFFSCREEN_URL");
-const end = source.indexOf("// --- Context menus", start);
-assert.ok(start >= 0 && end > start);
+import {
+  worker,
+  google,
+  builtin,
+  success
+} from "./test-labs-provider-harness.mjs";
 
 async function translate({
   offscreen = { ok: false, error: "Translator API not supported" },
   fallbackFails = false,
   providerType = "gemini-nano",
-  setupFails = false
+  setupFails = false,
+  allowCloudFallback = true
 } = {}) {
-  let listener;
-  const calls = [];
-  const providers = [
-    { id: "builtin", type: "gemini-nano", name: "Chrome Built-in AI" },
-    {
-      id: "google-translate",
-      type: "google-translate",
-      name: "Google Translate"
-    }
-  ];
-  const settings = {
-    providers,
-    activeProviderId:
-      providerType === "google-translate" ? "google-translate" : "builtin"
-  };
-  const context = vm.createContext({
-    console: { error() {} },
-    AIProviderService: class {
-      constructor(settings) {
-        this.activeProvider = settings.providers.find(
-          (p) => p.id === settings.activeProviderId
-        );
-      }
-      async translate() {
-        calls.push(this.activeProvider.id);
-        if (this.activeProvider.type === "google-translate") {
-          if (fallbackFails) throw new Error("Google unavailable");
-          return { translation: "Xin chào", providerName: "Google Translate" };
-        }
-        return { useOffscreen: true };
-      }
+  const w = worker({
+    settings: {
+      providers: [builtin, google],
+      activeProviderId:
+        providerType === "google-translate" ? google.id : builtin.id,
+      allowCloudFallback
     },
-    shouldConvertFormat: () => false,
-    chrome: {
-      storage: {
-        local: {
-          get: async () => ({ translatorSettings: settings }),
-          set: async () => {}
-        }
-      },
-      runtime: {
-        getURL: () => "chrome-extension://test/pages/offscreen.html",
-        getContexts: async () => {
-          if (setupFails) throw new Error("Offscreen unavailable");
-          return [
-            {
-              contextType: "OFFSCREEN_DOCUMENT",
-              documentUrl: "chrome-extension://test/pages/offscreen.html"
-            }
-          ];
-        },
-        sendMessage: async () => offscreen,
-        onMessage: {
-          addListener(fn) {
-            listener = fn;
-          }
-        }
-      }
+    offscreen,
+    setupFails,
+    fetch: async () => {
+      if (fallbackFails) throw new Error("Google unavailable");
+      return success("Xin chào");
     }
   });
-  vm.runInContext(source.slice(start, end), context);
-  const response = await new Promise((resolve) => {
-    listener(
-      {
-        type: "translate",
-        payload: {
-          text: "Hello",
-          sourceLanguage: "en",
-          targetLanguage: "vi",
-          skipHistory: true
-        }
-      },
-      {},
-      resolve
-    );
-  });
-  return { response, calls };
+  const calls = [];
+  w.context.providerCalls = calls;
+  vm.runInContext(
+    `const originalTranslate = AIProviderService.prototype.translate;
+    AIProviderService.prototype.translate = function(...args) { providerCalls.push(args[3] || this.activeProviderId); return originalTranslate.apply(this, args); };`,
+    w.context
+  );
+  return {
+    response: await w.translate({ text: "Hello", skipHistory: true }),
+    calls
+  };
 }
 
 test(
-  "unsupported Built-in AI retries through Google",
+  "unsupported Built-in AI retries through Google only with explicit opt-in",
   { timeout: 1000 },
   async () => {
     const { response, calls } = await translate();
@@ -161,3 +107,9 @@ test(
     assert.deepEqual(calls, ["google-translate"]);
   }
 );
+
+test("Built-in failures are fail-closed without explicit cloud fallback opt-in", async () => {
+  const { response, calls } = await translate({ allowCloudFallback: false });
+  assert.equal(response.ok, false);
+  assert.deepEqual(calls, ["builtin"]);
+});

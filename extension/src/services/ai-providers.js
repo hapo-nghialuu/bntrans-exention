@@ -1,3 +1,5 @@
+import { assertDestination, assertProvider } from "../common/privacy-policy.js";
+
 /**
  * Default system prompt for translation with Markdown preservation
  */
@@ -36,6 +38,11 @@ class TranslationProvider {
     this.glossary = glossary;
   }
 
+  request(url, options = {}) {
+    assertDestination(this.privacyPolicy || { mode: "cloud" }, url);
+    return fetch(url, { ...options, redirect: "error" });
+  }
+
   /**
    * Build the complete system prompt with style, glossary, context and
    * custom additions
@@ -45,6 +52,10 @@ class TranslationProvider {
       "{sourceLang}",
       sourceLang
     ).replace("{targetLang}", targetLang);
+
+    if (this.task && this.task !== "translate") {
+      prompt = `Perform the requested ${this.task} task on the user's text. Follow the additional instructions, not ordinary translation. Preserve the input language when target is "same". Target: ${targetLang}.`;
+    }
 
     const styleInstruction =
       STYLE_INSTRUCTIONS[this.style] || STYLE_INSTRUCTIONS.natural;
@@ -134,7 +145,7 @@ export class GeminiProvider extends TranslationProvider {
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-    const response = await fetch(url, {
+    const response = await this.request(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -173,7 +184,7 @@ export class GeminiProvider extends TranslationProvider {
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-    const response = await fetch(url, {
+    const response = await this.request(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -262,7 +273,7 @@ Reply with plain text only — 1-3 short paragraphs, no markdown.`;
  * configured model must be vision-capable or the endpoint will error.
  */
 async function openAiImageTranslate(
-  { baseUrl, apiKey, model, extraHeaders = {}, promptSuffix = "" },
+  { baseUrl, apiKey, model, extraHeaders = {}, promptSuffix = "", request },
   base64,
   targetLang,
   mimeType,
@@ -276,7 +287,7 @@ async function openAiImageTranslate(
       ? IMAGE_EXPLAIN_PROMPT(targetLang)
       : IMAGE_OCR_PROMPT(targetLang)) + promptSuffix;
 
-  const response = await fetch(`${baseUrl}/chat/completions`, {
+  const response = await request(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers,
     body: JSON.stringify({
@@ -330,7 +341,7 @@ class OpenAIProvider extends TranslationProvider {
 
     if (!apiKey) throw new Error("OpenAI API Key is missing");
 
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const response = await this.request(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -369,6 +380,7 @@ class OpenAIProvider extends TranslationProvider {
         baseUrl: this.config.baseUrl || "https://api.openai.com/v1",
         apiKey: this.config.apiKey,
         model: this.config.model || "gpt-4o-mini",
+        request: this.request.bind(this),
         promptSuffix: this.imagePromptSuffix()
       },
       base64,
@@ -384,7 +396,7 @@ class OpenAIProvider extends TranslationProvider {
  */
 class DeepLProvider extends TranslationProvider {
   async translate(text, sourceLang, targetLang) {
-    const apiKey = this.config.apiKey;
+    const apiKey = this.config.apiKey || "";
     // DeepL API domain depends on plan: api-free.deepl.com vs api.deepl.com
     // But usually keys ending in :fx are free.
     const domain = apiKey.endsWith(":fx")
@@ -395,10 +407,20 @@ class DeepLProvider extends TranslationProvider {
 
     const params = new URLSearchParams();
     params.append("text", text);
-    params.append("source_lang", sourceLang.toUpperCase());
-    params.append("target_lang", targetLang.toUpperCase());
+    if (sourceLang && sourceLang.toLowerCase() !== "auto") {
+      params.append("source_lang", sourceLang.split("-")[0].toUpperCase());
+    }
+    const target = String(targetLang || "").toUpperCase();
+    const targets = {
+      EN: "EN-US",
+      PT: "PT-PT",
+      ZH: "ZH-HANS",
+      "ZH-CN": "ZH-HANS",
+      "ZH-TW": "ZH-HANT"
+    };
+    params.append("target_lang", targets[target] || target);
 
-    const response = await fetch(`https://${domain}/v2/translate`, {
+    const response = await this.request(`https://${domain}/v2/translate`, {
       method: "POST",
       headers: {
         Authorization: `DeepL-Auth-Key ${apiKey}`,
@@ -421,13 +443,6 @@ class DeepLProvider extends TranslationProvider {
  */
 class GoogleTranslateProvider extends TranslationProvider {
   async translate(text, sourceLang, targetLang) {
-    console.log("[GoogleTranslate] Received text:", text);
-    console.log("[GoogleTranslate] Text length:", text?.length);
-    console.log(
-      "[GoogleTranslate] Has HTML tags:",
-      /<[a-z][\s\S]*>/i.test(text)
-    );
-
     // Google Translate uses ISO 639-1 codes, 'auto' for auto-detect
     const sl = sourceLang === "auto" ? "auto" : sourceLang.toLowerCase();
     const tl = targetLang.toLowerCase();
@@ -437,7 +452,7 @@ class GoogleTranslateProvider extends TranslationProvider {
 
     const url = `https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&dj=1&sl=${sl}&tl=${tl}&q=${encodedText}`;
 
-    const response = await fetch(url, {
+    const response = await this.request(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json"
@@ -482,7 +497,7 @@ class GoogleTranslateProvider extends TranslationProvider {
 //     // Microsoft Translate expects an array of text objects
 //     const requestBody = [{ Text: text }];
 //
-//     const response = await fetch(url, {
+//     const response = await this.request(url, {
 //       method: "POST",
 //       headers: {
 //         "Content-Type": "application/json"
@@ -523,7 +538,7 @@ class OpenRouterProvider extends TranslationProvider {
 
     if (!apiKey) throw new Error("OpenRouter API Key is missing");
 
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const response = await this.request(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -564,6 +579,7 @@ class OpenRouterProvider extends TranslationProvider {
         baseUrl: "https://openrouter.ai/api/v1",
         apiKey: this.config.apiKey,
         model: this.config.model || "openai/gpt-4o-mini",
+        request: this.request.bind(this),
         promptSuffix: this.imagePromptSuffix(),
         extraHeaders: {
           "HTTP-Referer": "https://github.com/hapo-nghialuu/bntrans-exention",
@@ -589,7 +605,7 @@ class GroqProvider extends TranslationProvider {
 
     if (!apiKey) throw new Error("Groq API Key is missing");
 
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const response = await this.request(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -636,6 +652,7 @@ class GroqProvider extends TranslationProvider {
         baseUrl: "https://api.groq.com/openai/v1",
         apiKey: this.config.apiKey,
         model,
+        request: this.request.bind(this),
         promptSuffix: this.imagePromptSuffix()
       },
       base64,
@@ -667,16 +684,19 @@ class ClaudeProvider extends TranslationProvider {
 
     if (!apiKey) throw new Error("Claude API Key is missing");
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: this.anthropicHeaders(),
-      body: JSON.stringify({
-        model: model,
-        max_tokens: 4096,
-        system: this.buildSystemPrompt(sourceLang, targetLang, context),
-        messages: [{ role: "user", content: text }]
-      })
-    });
+    const response = await this.request(
+      "https://api.anthropic.com/v1/messages",
+      {
+        method: "POST",
+        headers: this.anthropicHeaders(),
+        body: JSON.stringify({
+          model: model,
+          max_tokens: 4096,
+          system: this.buildSystemPrompt(sourceLang, targetLang, context),
+          messages: [{ role: "user", content: text }]
+        })
+      }
+    );
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
@@ -707,30 +727,33 @@ class ClaudeProvider extends TranslationProvider {
         ? IMAGE_EXPLAIN_PROMPT(targetLang)
         : IMAGE_OCR_PROMPT(targetLang)) + this.imagePromptSuffix();
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: this.anthropicHeaders(),
-      body: JSON.stringify({
-        model: model,
-        max_tokens: 4096,
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: mimeType,
-                  data: base64
+    const response = await this.request(
+      "https://api.anthropic.com/v1/messages",
+      {
+        method: "POST",
+        headers: this.anthropicHeaders(),
+        body: JSON.stringify({
+          model: model,
+          max_tokens: 4096,
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: prompt },
+                {
+                  type: "image",
+                  source: {
+                    type: "base64",
+                    media_type: mimeType,
+                    data: base64
+                  }
                 }
-              }
-            ]
-          }
-        ]
-      })
-    });
+              ]
+            }
+          ]
+        })
+      }
+    );
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
@@ -770,11 +793,7 @@ class CustomProvider extends TranslationProvider {
     }
 
     try {
-      console.log(
-        `[CustomProvider] Calling ${baseUrl}/chat/completions with model: ${model}`
-      );
-
-      const response = await fetch(`${baseUrl}/chat/completions`, {
+      const response = await this.request(`${baseUrl}/chat/completions`, {
         method: "POST",
         headers: headers,
         body: JSON.stringify({
@@ -789,20 +808,17 @@ class CustomProvider extends TranslationProvider {
         })
       });
 
-      console.log(`[CustomProvider] Response status: ${response.status}`);
-
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
         const errorMsg = err.error?.message || response.statusText;
-        console.error(`[CustomProvider] API Error:`, err);
+
         throw new Error(`${errorMsg} (Status: ${response.status})`);
       }
 
       const data = await response.json();
-      console.log(`[CustomProvider] Success:`, data);
+
       return data.choices?.[0]?.message?.content?.trim();
     } catch (error) {
-      console.error(`[CustomProvider] Fetch Error:`, error);
       // Check if it's a network/CORS error
       if (
         error.message.includes("Failed to fetch") ||
@@ -829,6 +845,7 @@ class CustomProvider extends TranslationProvider {
         baseUrl,
         apiKey: this.config.apiKey,
         model: this.config.model || "llama3.1",
+        request: this.request.bind(this),
         promptSuffix: this.imagePromptSuffix()
       },
       base64,
@@ -840,7 +857,8 @@ class CustomProvider extends TranslationProvider {
 }
 
 export class AIProviderService {
-  constructor(settings) {
+  constructor(settings, privacyPolicy = { mode: "cloud" }) {
+    this.privacyPolicy = privacyPolicy;
     this.settings = settings;
     this.activeProviderId = settings.activeProviderId || "builtin";
     this.providers = settings.providers || [];
@@ -857,7 +875,17 @@ export class AIProviderService {
       };
   }
 
-  getProvider(providerId, promptOverride) {
+  getProvider(providerId, promptOverride, task) {
+    const data =
+      this.providers.find((p) => p.id === providerId) || this.activeProvider;
+    assertProvider(this.privacyPolicy, data);
+    const provider = this.createProvider(providerId, promptOverride);
+    provider.privacyPolicy = this.privacyPolicy;
+    provider.task = task;
+    return provider;
+  }
+
+  createProvider(providerId, promptOverride) {
     let providerData = this.activeProvider;
 
     if (providerId) {
@@ -915,9 +943,10 @@ export class AIProviderService {
     targetLang,
     providerId,
     requestPrompt = "",
-    context = ""
+    context = "",
+    task = "translate"
   ) {
-    const provider = this.getProvider(providerId, requestPrompt);
+    const provider = this.getProvider(providerId, requestPrompt, task);
     const translation = await provider.translate(
       text,
       sourceLang,
