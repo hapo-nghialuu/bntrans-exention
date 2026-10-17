@@ -27,6 +27,11 @@ const historyListEl = document.getElementById("history-list");
 const clearHistoryBtn = document.getElementById("clear-history");
 const historyEmptyEl = document.getElementById("history-empty");
 
+// Backup elements
+const exportSettingsBtn = document.getElementById("export-settings");
+const importSettingsBtn = document.getElementById("import-settings");
+const importFileInput = document.getElementById("import-file");
+
 // Theme element
 const themeSelect = document.querySelector("#theme-select");
 
@@ -810,6 +815,54 @@ clearHistoryBtn?.addEventListener("click", async () => {
     settings: { translationHistory: [] }
   });
   if (res?.ok) renderHistory([]);
+});
+
+// Backup: export/import the whole settings object
+function flashSaveStatus(key) {
+  if (!saveStatus) return;
+  saveStatus.textContent = `✓ ${i18n.t(key)}`;
+  saveStatus.classList.add("visible");
+  clearTimeout(saveStatus._timer);
+  saveStatus._timer = setTimeout(
+    () => saveStatus.classList.remove("visible"),
+    2000
+  );
+}
+
+exportSettingsBtn?.addEventListener("click", async () => {
+  const res = await chrome.runtime.sendMessage({ type: "get-settings" });
+  if (!res?.ok) return;
+  const blob = new Blob([JSON.stringify(res.settings, null, 2)], {
+    type: "application/json"
+  });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `bntrans-settings-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+importSettingsBtn?.addEventListener("click", () => importFileInput?.click());
+
+importFileInput?.addEventListener("change", async (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = "";
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+      throw new Error("invalid settings file");
+    }
+    const res = await chrome.runtime.sendMessage({
+      type: "set-settings",
+      settings: data
+    });
+    if (!res?.ok) throw new Error("import rejected");
+    flashSaveStatus("popup.importDone");
+    loadSettings();
+  } catch {
+    flashSaveStatus("popup.importInvalid");
+  }
 });
 
 // ============================================

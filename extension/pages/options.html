@@ -260,6 +260,37 @@
               </div>
               <div id="alias-list" class="bt-alias-list"></div>
             </div>
+
+            <div class="bt-group-label" data-i18n="popup.groupBackup">
+              Backup
+            </div>
+            <div class="bt-field">
+              <div class="bt-alias-input-group">
+                <button
+                  id="export-settings"
+                  class="bt-button-small"
+                  data-i18n="popup.exportSettings"
+                >
+                  Export settings
+                </button>
+                <button
+                  id="import-settings"
+                  class="bt-button-small"
+                  data-i18n="popup.importSettings"
+                >
+                  Import settings
+                </button>
+                <input
+                  type="file"
+                  id="import-file"
+                  accept="application/json,.json"
+                  hidden
+                />
+              </div>
+              <small class="bt-hint" data-i18n="popup.backupHint"
+                >Export file includes API keys — keep it private.</small
+              >
+            </div>
           </div>
 
           <!-- Automation Tab Content -->
