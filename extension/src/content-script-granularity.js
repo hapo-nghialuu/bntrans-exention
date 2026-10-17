@@ -58,9 +58,27 @@ function isBlockNode(node) {
  * code blocks, form controls, embedded docs and opt-out markers.
  */
 const SKIP_SUBTREE_TAGS = [
+  "script",
+  "style",
+  "noscript",
+  "input",
+  "button",
   "pre",
   "textarea",
   "iframe",
+  "form",
+  "fieldset",
+  "label",
+  "option",
+  "datalist",
+  "output",
+  "progress",
+  "meter",
+  "canvas",
+  "audio",
+  "video",
+  "source",
+  "track",
   "svg",
   "math",
   "select",
@@ -77,7 +95,16 @@ function shouldSkipSubtree(node) {
   if (node.getAttribute("translate") === "no") return true;
   if (node.isContentEditable) return true;
   if (node.classList?.contains("notranslate")) return true;
+  if (node.hasAttribute("data-bntrans-wrapper")) return true;
+  if (node.id?.startsWith("bntrans-")) return true;
+  if (node.classList?.contains("bt-injected-content")) return true;
   return false;
+}
+
+function hasProtectedDescendant(node) {
+  return Array.from(node.childNodes || []).some(
+    (child) => shouldSkipSubtree(child) || hasProtectedDescendant(child)
+  );
 }
 
 /**
@@ -86,6 +113,7 @@ function shouldSkipSubtree(node) {
  * @returns {Array<{nodes: Node[], text: string}>}
  */
 function getTranslationUnits(root) {
+  if (shouldSkipSubtree(root)) return [];
   const units = [];
   let currentGroup = [];
 
@@ -107,6 +135,7 @@ function getTranslationUnits(root) {
       (node.hasAttribute("data-bntrans-wrapper") ||
         node.classList.contains("bt-injected-content"))
     ) {
+      flushGroup();
       continue;
     }
 
@@ -116,10 +145,11 @@ function getTranslationUnits(root) {
       (["script", "style", "noscript"].includes(node.tagName.toLowerCase()) ||
         shouldSkipSubtree(node))
     ) {
+      flushGroup();
       continue;
     }
 
-    if (isBlockNode(node)) {
+    if (isBlockNode(node) || hasProtectedDescendant(node)) {
       // Block element found: Flush current group
       flushGroup();
 
@@ -144,10 +174,7 @@ function getTranslationUnits(root) {
 
   // Filter out empty units (only whitespace)
   return units.filter((unit) => {
-    const text = unit.nodes
-      .map((n) => n.textContent)
-      .join("")
-      .trim();
+    const text = toMarkdown(unit.nodes).trim();
     return text.length > 0;
   });
 }
@@ -188,17 +215,6 @@ function protectInlineTokens(text) {
 }
 
 /**
- * Restore markers back to < and > after receiving translation
- * Then escape them as HTML entities for safe rendering
- */
-function restoreAndEscapeBrackets(text) {
-  if (!text) return text;
-  return text
-    .replace(new RegExp(BRACKET_MARKERS.LT, "g"), "&lt;")
-    .replace(new RegExp(BRACKET_MARKERS.GT, "g"), "&gt;");
-}
-
-/**
  * Convert DOM nodes to Markdown (preserving unknown HTML)
  * @param {Node[] | NodeList} nodes
  * @returns {string}
@@ -209,6 +225,7 @@ function toMarkdown(nodes) {
   const nodeList = nodes instanceof NodeList ? Array.from(nodes) : nodes;
 
   nodeList.forEach((node) => {
+    if (shouldSkipSubtree(node)) return;
     if (node.nodeType === Node.TEXT_NODE) {
       // Escape < and > in text to prevent LLM confusion, and wrap tokens
       // that must not be translated (placeholders, links, mentions) in
@@ -219,7 +236,7 @@ function toMarkdown(nodes) {
 
       // Handle Void Elements (no children)
       if (["img", "br", "hr", "input", "meta", "link"].includes(tag)) {
-        md += node.outerHTML;
+        if (tag === "br") md += "\n";
         return;
       }
 
@@ -240,108 +257,18 @@ function toMarkdown(nodes) {
           // Using backticks tells the LLM to ignore it.
           // We use textContent here because Markdown code blocks don't support internal HTML.
           // This means we lose syntax highlighting inside inline code, but we protect the code from translation.
-          md += `\`${node.textContent}\``;
+          md += `\`${childMarkdown}\``;
           break;
         case "a":
           // Keep link text in brackets to hint it's a link
           md += `[${childMarkdown}]`;
           break;
-        default: {
-          // For unknown inline tags (span, custom), preserve the wrapper but translate the content.
-          // We reconstruct the start and end tags.
-          // Note: outerHTML of a non-void element like <span>foo</span> is <span>foo</span>.
-          // clone.outerHTML of <span> is <span></span>.
-          // We want just <span>.
-          // A safer way:
-          const tagName = node.tagName.toLowerCase();
-          let attrs = "";
-          for (const attr of node.attributes) {
-            attrs += ` ${attr.name}="${attr.value}"`;
-          }
-          const openTag = `<${tagName}${attrs}>`;
-          const closeTag = `</${tagName}>`;
-
-          md += `${openTag}${childMarkdown}${closeTag}`;
-        }
+        default:
+          md += childMarkdown;
       }
     }
   });
   return md;
-}
-
-/**
- * Escape < and > that are NOT part of valid HTML tags
- * This prevents text like "<0.5%" from being parsed as broken HTML
- *
- * Cases to handle:
- * - <0.5%, <100, <$50 (numbers, currency)
- * - <=, >=, <>, <-, ->, << , >> (operators/arrows)
- * - <3 (heart emoticon)
- * - a < b, x > y (math comparisons)
- * - <@user>, <#channel> (mentions)
- * - <<<, >>> (multiple brackets)
- *
- * Valid HTML tags to preserve:
- * - <tagname>, </tagname>, <tagname attr="value">
- * - <br>, <hr>, <img src="..."> (self-closing)
- */
-function escapeNonHtmlBrackets(text) {
-  if (!text) return text;
-
-  let result = text;
-
-  // Strategy: Replace valid HTML tags with placeholders, escape everything else, restore tags
-
-  // Step 1: Temporarily replace valid HTML tags with placeholders
-  const tagPlaceholders = [];
-  const tagRegex = /<\/?[a-zA-Z][a-zA-Z0-9]*(?:\s+[^>]*)?>/g;
-
-  result = result.replace(tagRegex, (match) => {
-    const placeholder = `__HTML_TAG_${tagPlaceholders.length}__`;
-    tagPlaceholders.push(match);
-    return placeholder;
-  });
-
-  // Step 2: Escape ALL remaining < and >
-  result = result.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-  // Step 3: Restore HTML tags from placeholders
-  tagPlaceholders.forEach((tag, index) => {
-    result = result.replace(`__HTML_TAG_${index}__`, tag);
-  });
-
-  return result;
-}
-
-/**
- * Convert Markdown back to HTML
- */
-function markupHTML(text) {
-  if (!text) return text;
-
-  // Step 1: Restore bracket markers (« ») to HTML entities (&lt; &gt;)
-  // This handles text like "(<0.5%)" that was escaped before API call
-  let processed = restoreAndEscapeBrackets(text);
-
-  // Step 2: Escape any remaining < or > that aren't part of valid HTML tags
-  // This handles cases where API might have introduced new brackets
-  processed = escapeNonHtmlBrackets(processed);
-
-  // Step 3: Apply Markdown to HTML conversions
-  return (
-    processed
-      // Bold: **text**
-      .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
-      // Italic: *text*
-      .replace(/\*(.*?)\*/g, "<i>$1</i>")
-      // Code: `text`
-      .replace(/`(.*?)`/g, "<code>$1</code>")
-      // Link: [text] -> <span class="bt-link">text</span>
-      .replace(
-        /\[(.*?)\]/g,
-        '<span style="text-decoration: underline; cursor: pointer;">$1</span>'
-      )
-  );
 }
 
 const DELIMITER = " ||| ";
@@ -370,124 +297,149 @@ function looksUntranslated(source, translation) {
   return s.length > 3 && s === t && /\p{L}/u.test(s);
 }
 
-async function translateSingleSegment(text, basePayload, requestTranslation) {
-  try {
-    const res = await requestTranslation({ ...basePayload, text });
-    if (res?.ok && res.result?.translation) {
-      return res.result.translation.trim();
-    }
-  } catch (err) {
-    console.warn("[Granularity] Per-segment request failed:", err);
-  }
-  return "";
+function translationControlError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
 }
 
-/**
- * Translate a list of segments: one delimiter-batched request, with a
- * per-segment fallback when the delimiter alignment breaks, plus a QA pass
- * that retries segments returned identical to their source.
- */
 async function requestSegmentTranslations(
   segments,
   settings,
-  requestTranslation
+  requestTranslation,
+  control = {}
 ) {
+  const current = control.isCurrent || (() => true);
+  const check = () => {
+    if (!current())
+      throw translationControlError("cancelled", "Translation cancelled");
+  };
+  const request = async (payload) => {
+    check();
+    const response = await requestTranslation(payload);
+    check();
+    if (!response?.ok || !response.result?.translation)
+      throw new Error(response?.error || "Translation failed");
+    return response.result.translation.trim();
+  };
   const basePayload = buildBasePayload(settings);
-  const res = await requestTranslation({
-    ...basePayload,
-    text: segments.join(DELIMITER),
-    customPrompt: buildDelimiterPrompt()
-  });
-
-  if (!res?.ok || !res.result?.translation) {
-    throw new Error(res?.error || "Translation failed");
-  }
-
-  let translated = res.result.translation.split(/\|\|\|/).map((s) => s.trim());
-
-  if (translated.length !== segments.length) {
-    console.warn(
-      "[Granularity] Delimiter mismatch. Expected:",
-      segments.length,
-      "Got:",
-      translated.length,
-      "- retrying per segment"
-    );
-    translated = await Promise.all(
-      segments.map((segment) =>
-        translateSingleSegment(segment, basePayload, requestTranslation)
+  const maxRetries = control.maxRetries ?? 1;
+  const retries = new Array(segments.length).fill(0);
+  let translated = new Array(segments.length).fill("");
+  const mapLimited = async (indices, callback) => {
+    let cursor = 0;
+    let failed = false;
+    const results = await Promise.allSettled(
+      Array.from(
+        { length: Math.min(control.concurrency || 2, indices.length) },
+        async () => {
+          while (cursor < indices.length && !failed) {
+            check();
+            const i = indices[cursor++];
+            try {
+              await callback(i);
+            } catch (error) {
+              failed = true;
+              throw error;
+            }
+          }
+        }
       )
     );
-  }
-
-  // QA pass: retry segments that appear untranslated
-  translated = await Promise.all(
-    translated.map(async (translation, i) => {
-      if (!looksUntranslated(segments[i], translation)) {
-        return translation;
-      }
-      const retry = await translateSingleSegment(
-        segments[i],
-        basePayload,
-        requestTranslation
+    const failure = results.find((result) => result.status === "rejected");
+    if (failure) throw failure.reason;
+  };
+  try {
+    const result = await request({
+      ...basePayload,
+      text: segments.join(DELIMITER),
+      customPrompt: buildDelimiterPrompt()
+    });
+    translated = result.split(/\|\|\|/).map((s) => s.trim());
+    if (translated.length !== segments.length) {
+      translated = new Array(segments.length).fill("");
+      if (!maxRetries) throw new Error("Delimiter mismatch; retries disabled");
+      await mapLimited(
+        segments.map((_, i) => i),
+        async (i) => {
+          retries[i]++;
+          translated[i] = await request({ ...basePayload, text: segments[i] });
+        }
       );
-      return retry || translation;
-    })
-  );
-
-  return translated;
+    }
+    const qaIndices = segments
+      .map((_, i) => i)
+      .filter(
+        (i) =>
+          retries[i] < maxRetries &&
+          looksUntranslated(segments[i], translated[i])
+      );
+    qaIndices.forEach((i) => {
+      translated[i] = "";
+    });
+    await mapLimited(qaIndices, async (i) => {
+      retries[i]++;
+      translated[i] = await request({ ...basePayload, text: segments[i] });
+    });
+    check();
+    const unchanged = segments.some((source, i) =>
+      looksUntranslated(source, translated[i])
+    );
+    if (unchanged) {
+      translated = translated.map((value, i) =>
+        looksUntranslated(segments[i], value) ? "" : value
+      );
+      throw new Error("Translator returned unchanged text after retry");
+    }
+    return translated;
+  } catch (error) {
+    error.partialTranslations = translated;
+    throw error;
+  }
 }
 
-/**
- * Inject wrapper spans (original + translation placeholder) around each unit
- * @returns {Array<{wrapper: HTMLElement, translationSpan: HTMLElement}>}
- */
 function injectUnitWrappers(units) {
   const wrappers = [];
-
-  for (const unit of units) {
+  units.forEach((unit, sourceIndex) => {
     const firstNode = unit.nodes[0];
-    const parent = firstNode.parentNode;
-
-    if (!parent) continue;
-
+    const parent = firstNode?.parentNode;
+    if (
+      !parent ||
+      firstNode.isConnected === false ||
+      !unit.nodes.every((node) => node.parentNode === parent)
+    )
+      return;
+    const sourceMarkdown = toMarkdown(unit.nodes);
     const wrapper = document.createElement("span");
     wrapper.setAttribute("data-bntrans-wrapper", "true");
     wrapper.style.display = "inline";
-
     const originalSpan = document.createElement("span");
     originalSpan.setAttribute("data-bntrans-original", "true");
-
     const translationSpan = document.createElement("span");
     translationSpan.setAttribute("data-bntrans-translation", "true");
     translationSpan.className = "bt-loading-indicator";
-    // Use inline display with BR separator as requested
-    translationSpan.style.display = "inline";
-    // Modern CSS spinner instead of GIF
-    translationSpan.innerHTML = '<span class="bt-spinner"></span>';
-
-    // Insert wrapper before first node
+    translationSpan.textContent = "…";
+    const separator = document.createElement("br");
     parent.insertBefore(wrapper, firstNode);
-
-    // Move all nodes into originalSpan
-    unit.nodes.forEach((node) => {
-      originalSpan.appendChild(node);
+    unit.nodes.forEach((node) => originalSpan.appendChild(node));
+    wrapper.append(originalSpan, separator, translationSpan);
+    wrappers.push({
+      wrapper,
+      originalSpan,
+      translationSpan,
+      separator,
+      sourceIndex,
+      sourceMarkdown,
+      unit
     });
-
-    wrapper.appendChild(originalSpan);
-    wrapper.appendChild(document.createElement("br")); // Add line break
-    wrapper.appendChild(translationSpan);
-
-    wrappers.push({ wrapper, translationSpan });
-  }
-
+  });
   return wrappers;
 }
 
 function markTranslationError(wrappers, error) {
-  console.error("[Granularity] Error:", error);
   wrappers.forEach(({ translationSpan }) => {
-    translationSpan.textContent = "❌ Error";
+    translationSpan.classList.remove("bt-loading-indicator");
+    translationSpan.textContent = error?.message || "Translation failed";
   });
 }
 
@@ -656,32 +608,61 @@ async function handleSentenceBySentenceTranslate(
 }
 
 function updateWrappers(wrappers, translations, settings) {
-  const textColor = settings.hoverInjectStyle?.textColor || "#ff0000";
+  const textColor = settings.hoverInjectStyle?.textColor || "#b42318";
   const fontSize = settings.hoverInjectStyle?.fontSize || "0.95em";
-  const showIcon = settings.hoverInjectStyle?.showIcon !== false;
-  const iconSrc = chrome.runtime.getURL("assets/icons/icon-19.png");
-
-  wrappers.forEach(({ translationSpan }, i) => {
-    if (!translations || i >= translations.length) {
-      translationSpan.remove();
-      return;
+  wrappers.forEach(
+    (
+      {
+        wrapper,
+        originalSpan,
+        translationSpan,
+        sourceIndex,
+        sourceMarkdown,
+        unit
+      },
+      i
+    ) => {
+      if (
+        wrapper.isConnected === false ||
+        (unit &&
+          (!unit.nodes.every((node) => node.parentNode === originalSpan) ||
+            toMarkdown(unit.nodes) !== sourceMarkdown))
+      )
+        return;
+      const translation = translations?.[sourceIndex ?? i];
+      if (!translation) return;
+      translationSpan.classList.remove("bt-loading-indicator");
+      translationSpan.style.lineHeight = "1.4";
+      translationSpan.style.whiteSpace = "pre-wrap";
+      translationSpan.style.color = textColor;
+      translationSpan.style.fontSize = fontSize;
+      translationSpan.replaceChildren();
+      const text = translation
+        .replaceAll(BRACKET_MARKERS.LT, "<")
+        .replaceAll(BRACKET_MARKERS.GT, ">");
+      // Provider HTML remains literal text; only this Markdown subset becomes DOM.
+      for (const token of text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g)) {
+        const marker = token.startsWith("**")
+          ? "**"
+          : token.startsWith("*")
+            ? "*"
+            : token.startsWith("`")
+              ? "`"
+              : "";
+        if (
+          !marker ||
+          !token.endsWith(marker) ||
+          token.length <= marker.length * 2
+        ) {
+          translationSpan.appendChild(document.createTextNode(token));
+        } else {
+          const el = document.createElement(
+            marker === "**" ? "b" : marker === "*" ? "i" : "code"
+          );
+          el.textContent = token.slice(marker.length, -marker.length);
+          translationSpan.appendChild(el);
+        }
+      }
     }
-
-    const translation = translations[i];
-    if (!translation) {
-      translationSpan.remove();
-      return;
-    }
-
-    const markedTranslation = markupHTML(translation);
-
-    translationSpan.classList.remove("bt-loading-indicator");
-    translationSpan.style.lineHeight = "1.4";
-
-    const iconHtml = showIcon
-      ? `<img src="${iconSrc}" class="bt-hover-icon" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 6px; display: inline-block;">`
-      : "";
-
-    translationSpan.innerHTML = `${iconHtml}<span style="color: ${textColor}; font-size: ${fontSize};">${markedTranslation}</span>`;
-  });
+  );
 }
