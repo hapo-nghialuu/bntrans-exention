@@ -409,7 +409,7 @@ function epubEntries() {
 }
 
 function makeEpub(entries = epubEntries()) {
-  return zipSync(entries);
+  return zipSync(entries, { mtime: new Date("2024-01-01T00:00:00Z") });
 }
 
 function makePdf(pages = 10, scan = false) {

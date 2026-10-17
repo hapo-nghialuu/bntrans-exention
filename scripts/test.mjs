@@ -13,9 +13,13 @@ if (!tests.length) throw new Error("Không tìm thấy automated unit tests");
 console.log(
   `Chạy ${tests.length} tập unit/regression; live screenshot e2e cần credentials riêng.`
 );
-const result = spawnSync(process.execPath, ["--test", ...tests], {
-  cwd: root,
-  stdio: "inherit"
-});
+const result = spawnSync(
+  process.execPath,
+  ["--experimental-vm-modules", "--test", ...tests],
+  {
+    cwd: root,
+    stdio: "inherit"
+  }
+);
 if (result.error) throw result.error;
 process.exitCode = result.status ?? 1;

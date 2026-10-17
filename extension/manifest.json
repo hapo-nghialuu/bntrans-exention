@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "BNTrans - Power Inline Translate Kit",
   "version": "1.0.0",
+  "version_name": "1.0.0-labs.1",
   "description": "Brings instant, AI-powered translation directly to your input fields. No more switching tabs or copy-pasting—just type translate",
   "author": "BNTrans",
   "icons": {
@@ -42,6 +43,16 @@
       ],
       "run_at": "document_idle",
       "all_frames": true
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "src/experimental/content-learning.js",
+        "src/experimental/content-writing.js",
+        "src/experimental/content-media.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
     }
   ],
   "permissions": ["storage", "offscreen", "contextMenus", "sidePanel"],
@@ -50,6 +61,9 @@
     "http://localhost/*",
     "http://127.0.0.1/*"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; object-src 'self'"
+  },
   "web_accessible_resources": [
     {
       "resources": [
@@ -57,7 +71,10 @@
         "assets/styles/*",
         "assets/fonts/*",
         "pages/*",
-        "src/*"
+        "src/*",
+        "src/experimental/learning-store.js",
+        "src/experimental/learning-frequency.js",
+        "src/experimental/learning-frequency-data.js"
       ],
       "matches": ["<all_urls>"]
     }
