@@ -190,6 +190,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "detect-page-language") {
+    chrome.i18n
+      .detectLanguage(message.text || "")
+      .then((res) =>
+        sendResponse({
+          ok: true,
+          language: res?.languages?.[0]?.language || ""
+        })
+      )
+      .catch(() => sendResponse({ ok: false }));
+    return true;
+  }
+
   // --- Persistent translation cache (LRU in storage.local) -------------------
   // Separate storage key so settings export/import stays clean. Keyed on
   // provider + model + languages + style + glossary + prompt + text via a

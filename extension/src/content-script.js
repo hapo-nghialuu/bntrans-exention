@@ -4052,6 +4052,86 @@ function registerScreenshotTranslate() {
     }
   });
 
+  // --- Language-detect banner ---------------------------------------------
+  // Offer page translation when the page's language differs from the user's
+  // native language (document.lang first, chrome.i18n detect as fallback).
+  const LANG_BANNER_DISMISS_KEY = "bntrans-lang-banner-dismissed";
+
+  function showLangBanner(pageLang) {
+    if (document.getElementById("bntrans-lang-banner")) return;
+    const banner = document.createElement("div");
+    banner.id = "bntrans-lang-banner";
+    banner.style.cssText =
+      "position:fixed;top:12px;right:12px;z-index:2147483647;" +
+      "background:#111827;color:#fff;padding:10px 14px;border-radius:10px;" +
+      "font:13px/1.4 sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.35);" +
+      "display:flex;gap:10px;align-items:center;";
+    const label = document.createElement("span");
+    label.textContent = i18n.t("banner.pageInLang").replace("{lang}", pageLang);
+    const translateBtn = document.createElement("button");
+    translateBtn.textContent = i18n.t("popup.translateNow");
+    translateBtn.style.cssText =
+      "background:#3b82f6;color:#fff;border:none;border-radius:6px;" +
+      "padding:4px 10px;font:inherit;cursor:pointer;";
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "✕";
+    closeBtn.style.cssText =
+      "background:none;color:#9ca3af;border:none;font:inherit;cursor:pointer;";
+
+    const dismiss = () => {
+      try {
+        sessionStorage.setItem(LANG_BANNER_DISMISS_KEY, "1");
+      } catch {
+        /* private mode */
+      }
+      banner.remove();
+    };
+    translateBtn.addEventListener("click", () => {
+      togglePageTranslation();
+      banner.remove();
+    });
+    closeBtn.addEventListener("click", dismiss);
+
+    banner.append(label, translateBtn, closeBtn);
+    document.documentElement.appendChild(banner);
+  }
+
+  getSettings()
+    .then(async (s) => {
+      const native = (s.nativeLanguageCode || "vi").split("-")[0];
+      const autoList = s.autoTranslateDomains || [];
+      if (
+        autoList.some(
+          (d) => d.enabled && window.location.href.includes(d.domain)
+        )
+      ) {
+        return; // auto-translate already handles this page
+      }
+      try {
+        if (sessionStorage.getItem(LANG_BANNER_DISMISS_KEY)) return;
+      } catch {
+        /* private mode */
+      }
+
+      let pageLang = (document.documentElement.lang || "")
+        .split("-")[0]
+        .toLowerCase();
+      if (!pageLang) {
+        try {
+          const res = await chrome.runtime.sendMessage({
+            type: "detect-page-language",
+            text: (document.body?.innerText || "").slice(0, 2000)
+          });
+          pageLang = (res?.language || "").split("-")[0].toLowerCase();
+        } catch {
+          /* background not ready */
+        }
+      }
+      if (!pageLang || pageLang === native) return;
+      showLangBanner(pageLang);
+    })
+    .catch(() => {});
+
   // Auto-translate pages whose domain is in settings.autoTranslateDomains
   // (same substring matching as instantTranslate domains).
   getSettings()
