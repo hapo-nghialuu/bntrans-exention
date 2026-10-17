@@ -468,10 +468,16 @@ export async function mount(container, api, dependencies = {}) {
     busy = true;
     update();
     try {
-      const tab = await api.activeTab();
+      let tab = null;
+      try {
+        tab = await api.activeTab();
+      } catch {
+        // Uploaded images can use the default profile without a website tab.
+      }
       if (!alive || token !== revision) return;
       const value = await session.translateText(text.value, consent.checked, {
         sourceLanguage: "en",
+        ephemeral: true,
         siteUrl: tab?.url,
         privacyPolicy: localOnly.checked ? "local-only" : undefined,
         cloudConsent: !localOnly.checked

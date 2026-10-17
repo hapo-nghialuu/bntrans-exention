@@ -266,6 +266,7 @@ test("upload + opaque mask preview before confirmation; only consented edited te
       "reviewed synthetic text",
       {
         sourceLanguage: "en",
+        ephemeral: true,
         siteUrl: "https://synthetic.example/",
         privacyPolicy: "local-only",
         cloudConsent: false,
@@ -290,6 +291,7 @@ test("upload + opaque mask preview before confirmation; only consented edited te
     "reviewed synthetic text",
     {
       sourceLanguage: "en",
+      ephemeral: true,
       siteUrl: "https://synthetic.example/",
       privacyPolicy: undefined,
       cloudConsent: true,
