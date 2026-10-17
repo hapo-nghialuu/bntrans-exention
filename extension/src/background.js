@@ -189,6 +189,94 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // --- Persistent translation cache (LRU in storage.local) -------------------
+  // Separate storage key so settings export/import stays clean. Keyed on
+  // provider + model + languages + style + glossary + prompt + text via a
+  // cyrb53 hash; bounded at CACHE_LIMIT entries with LRU eviction.
+
+  const CACHE_LIMIT = 300;
+  const CACHE_STORAGE_KEY = "translationCache";
+  let translationCache = null; // lazily-loaded Map
+
+  async function loadTranslationCache() {
+    if (translationCache) return translationCache;
+    translationCache = new Map();
+    try {
+      const stored = await chrome.storage.local.get(CACHE_STORAGE_KEY);
+      const obj = stored?.[CACHE_STORAGE_KEY];
+      if (obj && typeof obj === "object") {
+        for (const [k, v] of Object.entries(obj)) translationCache.set(k, v);
+      }
+    } catch {
+      /* start empty */
+    }
+    return translationCache;
+  }
+
+  // cyrb53 — fast 53-bit hash, sufficient for cache-key collisions risk
+  function hashString(str, seed = 0) {
+    let h1 = 0xdeadbeef ^ seed;
+    let h2 = 0x41c6ce57 ^ seed;
+    for (let i = 0; i < str.length; i++) {
+      const ch = str.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 =
+      Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^
+      Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 =
+      Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^
+      Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return (h2 >>> 0).toString(16) + (h1 >>> 0).toString(16);
+  }
+
+  function translationCacheKey({
+    text,
+    sourceLang,
+    targetLang,
+    providerKey,
+    model,
+    settings,
+    customPrompt
+  }) {
+    return hashString(
+      JSON.stringify([
+        providerKey,
+        model || "",
+        sourceLang,
+        targetLang,
+        settings.translationStyle || "",
+        settings.glossary || {},
+        customPrompt || "",
+        text
+      ])
+    );
+  }
+
+  function translationCacheGet(key) {
+    const entry = translationCache?.get(key);
+    if (!entry) return null;
+    entry.ts = Date.now(); // LRU touch
+    return entry;
+  }
+
+  function translationCacheSet(key, result) {
+    if (!translationCache) return;
+    translationCache.set(key, { result, ts: Date.now() });
+    if (translationCache.size > CACHE_LIMIT) {
+      const oldest = [...translationCache.entries()]
+        .sort((a, b) => a[1].ts - b[1].ts)
+        .slice(0, translationCache.size - CACHE_LIMIT);
+      for (const [k] of oldest) translationCache.delete(k);
+    }
+    chrome.storage.local
+      .set({ [CACHE_STORAGE_KEY]: Object.fromEntries(translationCache) })
+      .catch(() => {});
+  }
+
+  // ---------------------------------------------------------------------------
+
   if (message?.type === "translate") {
     readSettings().then(async (settings) => {
       // Extract payload using keys sent by content-script.js
@@ -235,6 +323,44 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
 
       const aiService = new AIProviderService(settings);
+      const usedProvider = providerId
+        ? settings.providers?.find((p) => p.id === providerId)
+        : aiService.activeProvider;
+
+      // Serve an identical previous translation straight from the cache —
+      // skips provider calls for repeated text (page translate, UI strings).
+      await loadTranslationCache();
+      const cacheKey = translationCacheKey({
+        text,
+        sourceLang,
+        targetLang,
+        providerKey: usedProvider?.id || usedProvider?.type || "?",
+        model: usedProvider?.model,
+        settings,
+        customPrompt
+      });
+      const hit = translationCacheGet(cacheKey);
+      if (hit) {
+        if (!message.payload.skipHistory) {
+          recordHistory(settings, {
+            text: String(text).slice(0, 500),
+            translation: String(hit.result.translation || "").slice(0, 1000),
+            sourceLanguage: sourceLang,
+            targetLanguage: targetLang,
+            providerName: hit.result.providerName,
+            ts: Date.now()
+          });
+        }
+        sendResponse({
+          ok: true,
+          result: {
+            ...hit.result,
+            providerName: `${hit.result.providerName || ""} ·cache`,
+            cached: true
+          }
+        });
+        return;
+      }
 
       try {
         // --- Format Conversion Logic ---
@@ -294,6 +420,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               });
             }
 
+            translationCacheSet(cacheKey, resultObj);
             sendResponse({ ok: true, result: resultObj });
           } else {
             sendResponse({
@@ -320,26 +447,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
 
           // Result is the object { translation, providerName, providerType }
-          sendResponse({
-            ok: true,
-            result: {
-              translation: translation,
-              providerName: result.providerName,
-              providerType: result.providerType,
-              sourceLanguage: sourceLang,
-              targetLanguage: targetLang
-            }
-          });
+          const resultObj = {
+            translation: translation,
+            providerName: result.providerName,
+            providerType: result.providerType,
+            sourceLanguage: sourceLang,
+            targetLanguage: targetLang
+          };
+          translationCacheSet(cacheKey, resultObj);
+          sendResponse({ ok: true, result: resultObj });
         }
       } catch (err) {
         console.error("Translation Error:", err);
 
         // Retry once through Google Translate so a provider outage/quota
         // still yields a translation instead of a dead error.
-        const used = providerId
-          ? settings.providers?.find((p) => p.id === providerId)
-          : aiService.activeProvider;
-        if (used?.type !== "google-translate") {
+        if (usedProvider?.type !== "google-translate") {
           try {
             const fallback = new AIProviderService({
               ...settings,
@@ -362,7 +485,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                   providerType: "google-translate",
                   sourceLanguage: sourceLang,
                   targetLanguage: targetLang,
-                  fellBackFrom: used?.name || used?.type
+                  fellBackFrom: usedProvider?.name || usedProvider?.type
                 }
               });
               return;
@@ -498,6 +621,7 @@ const SCREENSHOT_MENU_ID = "bntrans-screenshot-area";
 const SELECTION_MENU_ID = "bntrans-translate-selection";
 const SIDE_PANEL_MENU_ID = "bntrans-open-side-panel";
 const PAGE_TRANSLATE_MENU_ID = "bntrans-page-translate";
+const EDITABLE_MENU_ID = "bntrans-translate-editable";
 
 let contextMenuPromise = null;
 // onInstalled + onStartup + the eager call below can all fire during one
@@ -514,7 +638,8 @@ function registerContextMenus() {
           SCREENSHOT_MENU_ID,
           SELECTION_MENU_ID,
           SIDE_PANEL_MENU_ID,
-          PAGE_TRANSLATE_MENU_ID
+          PAGE_TRANSLATE_MENU_ID,
+          EDITABLE_MENU_ID
         ].map(
           (id) =>
             new Promise((resolve) =>
@@ -529,6 +654,7 @@ function registerContextMenus() {
       let selectionTitle = "Translate selection";
       let panelTitle = "Open BNTrans side panel";
       let pageTitle = "Translate page (bilingual)";
+      let editableTitle = "Translate & replace text";
       try {
         const settings = await readSettings();
         if ((settings.interfaceLanguage || "en") === "vi") {
@@ -536,6 +662,7 @@ function registerContextMenus() {
           selectionTitle = "Dịch đoạn đã chọn";
           panelTitle = "Mở bảng dịch BNTrans";
           pageTitle = "Dịch trang này (song ngữ)";
+          editableTitle = "Dịch & thay thế văn bản";
         }
       } catch {
         /* keep English fallback */
@@ -569,6 +696,14 @@ function registerContextMenus() {
           id: PAGE_TRANSLATE_MENU_ID,
           title: pageTitle,
           contexts: ["page", "frame"]
+        },
+        () => void chrome.runtime.lastError
+      );
+      chrome.contextMenus.create(
+        {
+          id: EDITABLE_MENU_ID,
+          title: editableTitle,
+          contexts: ["editable"]
         },
         () => void chrome.runtime.lastError
       );
@@ -625,6 +760,10 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   } else if (info.menuItemId === PAGE_TRANSLATE_MENU_ID) {
     chrome.tabs
       .sendMessage(tab.id, { type: "toggle-page-translation" })
+      .catch(() => {});
+  } else if (info.menuItemId === EDITABLE_MENU_ID) {
+    chrome.tabs
+      .sendMessage(tab.id, { type: "translate-editable" })
       .catch(() => {});
   }
 });
