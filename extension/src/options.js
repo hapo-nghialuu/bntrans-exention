@@ -32,6 +32,11 @@ const exportSettingsBtn = document.getElementById("export-settings");
 const importSettingsBtn = document.getElementById("import-settings");
 const importFileInput = document.getElementById("import-file");
 
+// Auto-translate domain elements
+const autoDomainListEl = document.getElementById("auto-domain-list");
+const addAutoDomainBtn = document.getElementById("add-auto-domain");
+const newAutoDomainInput = document.getElementById("new-auto-domain");
+
 // Theme element
 const themeSelect = document.querySelector("#theme-select");
 
@@ -121,6 +126,7 @@ const addHoverDomain = document.getElementById("add-hover-domain");
 let currentAliases = {};
 let currentGlossary = {};
 let currentDomains = [];
+let currentAutoTranslateDomains = [];
 let currentHoverDomains = [];
 let providers = [];
 let activeProviderId = "builtin";
@@ -861,6 +867,49 @@ exportSettingsBtn?.addEventListener("click", async () => {
 
 importSettingsBtn?.addEventListener("click", () => importFileInput?.click());
 
+// Auto-translate domains — same matching semantics as instantDomains but
+// with no per-entry position config.
+function renderAutoTranslateDomains() {
+  if (!autoDomainListEl) return;
+  autoDomainListEl.innerHTML = "";
+  currentAutoTranslateDomains.forEach((item, index) => {
+    const div = document.createElement("div");
+    div.className = "bt-domain-item";
+    div.innerHTML = `
+      <input type="checkbox" ${item.enabled ? "checked" : ""} data-index="${index}" />
+      <span class="bt-domain-name">${item.domain}</span>
+      <button class="bt-remove-alias" data-index="${index}">×</button>
+    `;
+    autoDomainListEl.appendChild(div);
+  });
+
+  autoDomainListEl.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+    cb.addEventListener("change", (e) => {
+      currentAutoTranslateDomains[e.target.dataset.index].enabled =
+        e.target.checked;
+      saveSettings();
+    });
+  });
+
+  autoDomainListEl.querySelectorAll(".bt-remove-alias").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      currentAutoTranslateDomains.splice(e.target.dataset.index, 1);
+      renderAutoTranslateDomains();
+      saveSettings();
+    });
+  });
+}
+
+addAutoDomainBtn?.addEventListener("click", () => {
+  const domain = newAutoDomainInput?.value.trim();
+  if (domain && !currentAutoTranslateDomains.some((d) => d.domain === domain)) {
+    currentAutoTranslateDomains.push({ domain, enabled: true });
+    newAutoDomainInput.value = "";
+    renderAutoTranslateDomains();
+    saveSettings();
+  }
+});
+
 importFileInput?.addEventListener("change", async (e) => {
   const file = e.target.files?.[0];
   e.target.value = "";
@@ -1085,6 +1134,8 @@ async function loadSettings() {
 
     confirmModal.checked = res.settings.showConfirmModal !== false;
     currentAliases = res.settings.aliases || {};
+    currentAutoTranslateDomains = res.settings.autoTranslateDomains || [];
+    renderAutoTranslateDomains();
     renderHistory(res.settings.translationHistory || []);
 
     const theme = res.settings.theme || "auto";
@@ -1287,6 +1338,7 @@ async function saveSettings() {
     instantTranslateEnabled: instantEnabledCheckbox?.checked || false,
     instantDelay: (parseInt(instantDelayInput?.value, 10) || 3) * 1000,
     instantDomains: currentDomains,
+    autoTranslateDomains: currentAutoTranslateDomains,
     // New Provider Structure
     providers,
     activeProviderId,

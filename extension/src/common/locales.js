@@ -61,6 +61,9 @@ export const locales = {
     "popup.backupHint": "Export file includes API keys — keep it private.",
     "popup.importDone": "Settings imported",
     "popup.importInvalid": "Invalid settings file",
+    "popup.groupAutoTranslate": "Auto-translate pages",
+    "popup.autoTranslateHint":
+      "Pages on these domains translate automatically on load",
     "popup.groupScreenshot": "Screenshot",
     "popup.tabScreenshot": "Screenshot",
     "popup.tabHistory": "History",
@@ -299,6 +302,8 @@ export const locales = {
     "popup.backupHint": "File xuất ra có chứa API key — giữ kỹ, đừng chia sẻ.",
     "popup.importDone": "Đã nhập cài đặt",
     "popup.importInvalid": "File cài đặt không hợp lệ",
+    "popup.groupAutoTranslate": "Tự dịch trang",
+    "popup.autoTranslateHint": "Trang thuộc các domain này sẽ tự dịch khi mở",
     "popup.groupScreenshot": "Ảnh chụp",
     "popup.tabScreenshot": "Ảnh chụp",
     "popup.tabHistory": "Lịch sử",

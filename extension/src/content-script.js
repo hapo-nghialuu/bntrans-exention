@@ -4052,6 +4052,18 @@ function registerScreenshotTranslate() {
     }
   });
 
+  // Auto-translate pages whose domain is in settings.autoTranslateDomains
+  // (same substring matching as instantTranslate domains).
+  getSettings()
+    .then((s) => {
+      const list = s.autoTranslateDomains || [];
+      const url = window.location.href;
+      if (list.some((d) => d.enabled && url.includes(d.domain))) {
+        runPageTranslation();
+      }
+    })
+    .catch(() => {});
+
   // Click outside the result popup closes it
   document.addEventListener("mousedown", (e) => {
     if (screenshotPopup && !screenshotPopup.contains(e.target)) {
