@@ -3788,6 +3788,16 @@ function registerScreenshotTranslate() {
     return badge;
   }
 
+  function reportPageTranslateState() {
+    // Keeps the context-menu title in sync ("Translate" ↔ "Restore")
+    chrome.runtime
+      .sendMessage({
+        type: "page-translation-state",
+        active: pageTranslateActive
+      })
+      .catch(() => {});
+  }
+
   function removePageTranslation() {
     // Unwrap only wrappers created by page translation
     document
@@ -3805,6 +3815,7 @@ function registerScreenshotTranslate() {
     document.getElementById(PAGE_PROGRESS_ID)?.remove();
     document.body?.removeAttribute("data-bntrans-page-translated");
     pageTranslateActive = false;
+    reportPageTranslateState();
   }
 
   async function runPageTranslation() {
@@ -3824,6 +3835,7 @@ function registerScreenshotTranslate() {
         return;
       }
       document.body.setAttribute("data-bntrans-page-translated", "true");
+      reportPageTranslateState();
 
       // Chunk units into batches bounded by unit count and total size
       const batches = [];
