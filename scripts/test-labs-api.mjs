@@ -4,6 +4,7 @@ import {
   createLabApi,
   matchesHostname
 } from "../extension/src/experimental/lab-api.js";
+import { createHarness, until } from "./test-labs-page-harness.mjs";
 
 function fixture(settings = {}) {
   const calls = [];
@@ -93,6 +94,41 @@ test("no target is not silently replaced by another tab", async () => {
   fixture();
   const api = createLabApi();
   await assert.rejects(api.activeTab(), /Choose/);
+});
+
+test("real Labs API envelope reaches page content commands, mode and restore", async (t) => {
+  const { api } = fixture();
+  const h = createHarness({ count: 2 });
+  t.after(h.dispose);
+  chrome.tabs.sendMessage = async (id, message, options) => {
+    assert.equal(id, 42);
+    assert.equal(options.frameId, 0);
+    return h.dispatch(message);
+  };
+  const estimate = await api.sendToTab("labs-page-command", {
+    command: "estimate"
+  });
+  assert.equal(estimate.units, 2);
+  assert.equal(h.requests.length, 0);
+  await api.sendToTab("labs-page-command", { command: "translate" });
+  await until(
+    () => h.document.querySelectorAll("[data-bntrans-wrapper]").length === 2
+  );
+  assert.ok(h.requests.length > 0);
+  const mode = await api.sendToTab("labs-page-command", {
+    command: "mode",
+    mode: "translation"
+  });
+  assert.equal(mode.mode, "translation");
+  const restored = await api.sendToTab("labs-page-command", {
+    command: "restore"
+  });
+  assert.equal(restored.active, false);
+  assert.equal(h.document.querySelectorAll("[data-bntrans-wrapper]").length, 0);
+  await assert.rejects(
+    api.sendToTab("labs-page-command", { command: "bogus" }),
+    /Unknown page command/
+  );
 });
 
 test("translation forwards task and tightens local-only; history defaults off", async () => {

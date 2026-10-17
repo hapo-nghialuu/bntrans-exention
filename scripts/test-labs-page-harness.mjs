@@ -311,6 +311,8 @@ export function createHarness({
     batches,
     intersections,
     listeners,
+    dispatch: (message) =>
+      new Promise((resolve) => runtimeListeners[0](message, {}, resolve)),
     ...context.api,
     setSettings: (next, notifyChange = false) => {
       currentSettings = next;
@@ -328,7 +330,7 @@ export function createHarness({
     command: (command, extra = {}) =>
       new Promise((resolve) =>
         runtimeListeners[0](
-          { type: "labs-page-command", command, ...extra },
+          { type: "labs-page-command", payload: { command, ...extra } },
           {},
           resolve
         )

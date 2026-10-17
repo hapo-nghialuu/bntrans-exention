@@ -227,11 +227,12 @@
       respond({ ok: false, error: "UNTRUSTED_SENDER" });
       return;
     }
+    const payload = message.payload || message;
     let pending;
     const requestEpoch = epoch;
     try {
       // Snapshot before the asynchronous settings read, never after it.
-      if (message.command === "capture") pending = capture();
+      if (payload.command === "capture") pending = capture();
     } catch (error) {
       respond({ ok: false, error: error.message });
       return;
@@ -263,8 +264,8 @@
             kind: pending.kind
           };
         }
-        if (message.command === "apply") return apply(message.id, message.text);
-        if (message.command === "undo") return restore(message.id);
+        if (payload.command === "apply") return apply(payload.id, payload.text);
+        if (payload.command === "undo") return restore(payload.id);
         fail("UNKNOWN_COMMAND");
       })
       .then(respond)

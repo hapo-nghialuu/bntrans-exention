@@ -140,7 +140,7 @@ function fixture({ enabled = true, deferred = false, top = true } = {}) {
   function send(payload, sender = { id: "extension-id" }) {
     return new Promise((resolve) => {
       const pending = messageListener?.(
-        { type: "labs-writing-command", ...payload },
+        { type: "labs-writing-command", payload },
         sender,
         resolve
       );

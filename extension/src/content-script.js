@@ -4756,6 +4756,18 @@ function registerScreenshotTranslate() {
     if (settings.labFeatures?.page !== true)
       throw new Error("Enable Page Labs first");
     const command = message.command;
+    if (
+      ![
+        "estimate",
+        "translate",
+        "restore",
+        "pause",
+        "resume",
+        "mode",
+        "snapshot"
+      ].includes(command)
+    )
+      throw new Error("Unknown page command");
     if (command === "estimate") {
       const units = getTranslationUnits(document.body).slice(0, PAGE_MAX_UNITS);
       return {
@@ -4803,7 +4815,7 @@ function registerScreenshotTranslate() {
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type !== "labs-page-command") return;
-    pageCommand(message).then(sendResponse, (error) =>
+    pageCommand(message.payload || message).then(sendResponse, (error) =>
       sendResponse({ ok: false, error: error.message })
     );
     return true;
