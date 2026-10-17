@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BNTrans Labs</title>
+    <link rel="stylesheet" href="/assets/styles/tokens.css" />
+    <link rel="stylesheet" href="/assets/styles/labs.css" />
+  </head>
+  <body>
+    <header class="labs-header">
+      <a class="labs-brand" href="options.html" aria-label="BNTrans settings">
+        <svg
+          viewBox="0 0 40 40"
+          width="36"
+          height="36"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M7 26 17 9l4 12L33 7l-8 23-8-4-10 7 3-10"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span>BNTRANS <small>LABS / 01</small></span>
+      </a>
+      <div class="labs-header-actions">
+        <select id="lab-language" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="vi">VI</option>
+        </select>
+        <button id="lab-theme" type="button">Light / Dark</button>
+        <a id="lab-settings" href="options.html">Settings</a>
+      </div>
+    </header>
+    <div class="labs-layout">
+      <aside class="labs-sidebar">
+        <p class="lab-eyebrow" id="lab-nav-label">EXPERIMENTS</p>
+        <nav id="lab-navigation" aria-labelledby="lab-nav-label"></nav>
+        <p id="lab-local-note" class="lab-muted">
+          Off by default. Enable one workspace at a time.
+        </p>
+      </aside>
+      <main id="lab-main">
+        <section class="labs-intro">
+          <p class="lab-eyebrow" id="lab-build-label">
+            EXPERIMENTAL BUILD · OPT-IN
+          </p>
+          <h1 id="lab-heading">A place to try<br />what comes next.</h1>
+          <p id="lab-description">
+            Read, learn and write across languages. New tools stay off until you
+            choose to enable them.
+          </p>
+        </section>
+        <section class="labs-target" aria-label="Website target">
+          <label for="lab-target" id="lab-target-label">Website tab</label>
+          <select id="lab-target">
+            <option value="">Choose a tab</option>
+          </select>
+          <button id="lab-refresh-tabs" type="button">Refresh</button>
+        </section>
+        <div
+          id="lab-status"
+          class="lab-status"
+          role="status"
+          aria-live="polite"
+          hidden
+        ></div>
+        <section id="lab-workspace" tabindex="-1" aria-busy="true"></section>
+        <footer id="lab-footer">
+          Experimental tools can fail. Nothing runs on a website until you opt
+          in; translation still uses your configured provider.
+        </footer>
+      </main>
+    </div>
+    <script type="module" src="/src/experimental/labs.js"></script>
+  </body>
+</html>
