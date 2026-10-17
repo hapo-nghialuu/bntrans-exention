@@ -3915,7 +3915,7 @@ function registerScreenshotTranslate() {
       reportPageTranslateState();
 
       const infos = units.map((unit) => ({ unit, md: toMarkdown(unit.nodes) }));
-      const processed = new Array(infos.length).fill(false);
+      const scheduled = new Array(infos.length).fill(false);
       const queued = new Array(infos.length).fill(false);
       const queue = []; // unit indices ordered by viewport priority
       let nextSequential = 0;
@@ -3933,29 +3933,43 @@ function registerScreenshotTranslate() {
 
       // Units near/in the viewport jump the queue; everything still gets
       // translated eventually via the sequential fallback below.
+      const enqueueAnchor = (el) => {
+        for (const i of anchorToIndices.get(el) || []) {
+          if (!scheduled[i] && !queued[i]) {
+            queued[i] = true;
+            queue.push(i);
+          }
+        }
+      };
       const observer = new IntersectionObserver(
         (entries) => {
           for (const e of entries) {
             if (!e.isIntersecting) continue;
-            const indices = anchorToIndices.get(e.target) || [];
-            for (const i of indices) {
-              if (!processed[i] && !queued[i]) {
-                queued[i] = true;
-                queue.push(i);
-              }
-            }
+            enqueueAnchor(e.target);
           }
         },
         { rootMargin: "200px 0px" }
       );
-      anchorToIndices.forEach((_, el) => observer.observe(el));
+      anchorToIndices.forEach((_, el) => {
+        // Observer callbacks arrive after the first batch has been built.
+        const rect = el.getBoundingClientRect();
+        if (
+          rect.bottom > -200 &&
+          rect.top < window.innerHeight + 200 &&
+          rect.right > 0 &&
+          rect.left < window.innerWidth
+        ) {
+          enqueueAnchor(el);
+        }
+        observer.observe(el);
+      });
 
       const takeNextIndex = () => {
         while (queue.length) {
           const i = queue.shift();
-          if (!processed[i]) return i;
+          if (!scheduled[i]) return i;
         }
-        while (nextSequential < infos.length && processed[nextSequential]) {
+        while (nextSequential < infos.length && scheduled[nextSequential]) {
           nextSequential++;
         }
         return nextSequential < infos.length ? nextSequential++ : -1;
@@ -3971,6 +3985,7 @@ function registerScreenshotTranslate() {
           while (batch.length < PAGE_BATCH_UNITS) {
             const i = takeNextIndex();
             if (i === -1) break;
+            scheduled[i] = true;
             batch.push(i);
             batchChars += infos[i].md.length;
             if (batchChars > PAGE_BATCH_CHARS) break;
@@ -3991,9 +4006,6 @@ function registerScreenshotTranslate() {
           } catch (err) {
             markTranslationError(wrappers, err);
           }
-          batch.forEach((i) => {
-            processed[i] = true;
-          });
           done += batch.length;
           badge.textContent = `Translating… ${done}/${infos.length}`;
         }
