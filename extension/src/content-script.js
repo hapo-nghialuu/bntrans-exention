@@ -3937,6 +3937,83 @@ function registerScreenshotTranslate() {
     }
   }
 
+  // --- Translate & replace inside editable fields (context menu) -----------
+  // Right-click in an input/textarea/contenteditable: translates the current
+  // selection (or the whole field when nothing is selected) and writes the
+  // result back in place. Same writing direction as instant translate:
+  // native → target.
+
+  async function translateEditableSelection() {
+    const element = getActiveEditableElement();
+    if (!element) return;
+
+    const tag = element.tagName?.toLowerCase();
+    let selected = "";
+    let replaceAll = false;
+
+    if (tag === "input" || tag === "textarea") {
+      const start = element.selectionStart ?? 0;
+      const end = element.selectionEnd ?? 0;
+      selected = element.value.slice(start, end);
+      if (!selected.trim()) {
+        selected = element.value;
+        replaceAll = true;
+      }
+    } else if (element.isContentEditable) {
+      selected = window.getSelection()?.toString() || "";
+      if (!selected.trim()) {
+        selected = element.innerText;
+        replaceAll = true;
+      }
+    }
+    if (!selected.trim()) return;
+
+    const settings = await getSettings();
+    showToast(i18n.t("toast.translating"));
+
+    try {
+      const res = await requestTranslation({
+        text: selected,
+        nativeLanguageCode: settings.nativeLanguageCode || "en",
+        targetLanguage: settings.targetLanguageCode || "en",
+        sourceLanguage: settings.nativeLanguageCode || "en",
+        useAutoDetect: false
+      });
+      const translation = res?.result?.translation;
+      if (!(res?.ok && translation)) {
+        showToast(res?.error || i18n.t("toast.translationFailed"));
+        return;
+      }
+      // Fields hold plain text — strip any markup the provider returned
+      const plain = translation.replace(/<[^>]+>/g, "").trim();
+
+      if (tag === "input" || tag === "textarea") {
+        if (replaceAll) {
+          element.value = plain;
+        } else {
+          element.setRangeText(
+            plain,
+            element.selectionStart,
+            element.selectionEnd,
+            "end"
+          );
+        }
+        element.dispatchEvent(new Event("input", { bubbles: true }));
+      } else {
+        element.focus();
+        if (replaceAll) document.execCommand("selectAll", false, null);
+        // Same Lexical-friendly path as suggestion insertion
+        setTimeout(() => {
+          document.execCommand("insertText", false, plain);
+          element.dispatchEvent(new InputEvent("input", { bubbles: true }));
+        }, 50);
+      }
+    } catch (err) {
+      console.error("[BNTrans] Editable translate failed:", err);
+      showToast(i18n.t("toast.translationFailed"));
+    }
+  }
+
   // Triggered from the extension context menu / quick popup button
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "start-screenshot-select") {
@@ -3958,6 +4035,8 @@ function registerScreenshotTranslate() {
       }
     } else if (message?.type === "toggle-page-translation") {
       togglePageTranslation();
+    } else if (message?.type === "translate-editable") {
+      translateEditableSelection();
     }
   });
 
