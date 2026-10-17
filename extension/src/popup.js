@@ -212,7 +212,7 @@ function setSpeechStatus(message) {
 if (quickSpeak) {
   const stop = document.createElement("button");
   stop.type = "button";
-  stop.className = "bt-quick-action";
+  stop.className = "bt-quick-action bt-quick-action-text";
   stop.dataset.i18n = "popup.stopSpeech";
   stop.textContent = i18n.t("popup.stopSpeech");
   stop.addEventListener("click", async () => {
