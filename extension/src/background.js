@@ -134,7 +134,8 @@ async function readSettings() {
       selectionLastSource: null,
       selectionLastTarget: null,
       // Recent translations (newest first), capped at 50
-      translationHistory: []
+      translationHistory: [],
+      autoTranslateDomains: []
     }
   );
 }
