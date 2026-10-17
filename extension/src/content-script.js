@@ -3865,6 +3865,16 @@ function registerScreenshotTranslate() {
     return badge;
   }
 
+  function reportPageTranslateState() {
+    // Keeps the context-menu title in sync ("Translate" ↔ "Restore")
+    chrome.runtime
+      .sendMessage({
+        type: "page-translation-state",
+        active: pageTranslateActive
+      })
+      .catch(() => {});
+  }
+
   function removePageTranslation() {
     // Unwrap only wrappers created by page translation
     document
@@ -3882,6 +3892,7 @@ function registerScreenshotTranslate() {
     document.getElementById(PAGE_PROGRESS_ID)?.remove();
     document.body?.removeAttribute("data-bntrans-page-translated");
     pageTranslateActive = false;
+    reportPageTranslateState();
   }
 
   async function runPageTranslation() {
@@ -3901,46 +3912,93 @@ function registerScreenshotTranslate() {
         return;
       }
       document.body.setAttribute("data-bntrans-page-translated", "true");
+      reportPageTranslateState();
 
-      // Chunk units into batches bounded by unit count and total size
-      const batches = [];
-      let cur = [];
-      let curChars = 0;
-      for (const unit of units) {
-        const md = toMarkdown(unit.nodes);
-        if (
-          cur.length &&
-          (curChars + md.length > PAGE_BATCH_CHARS ||
-            cur.length >= PAGE_BATCH_UNITS)
-        ) {
-          batches.push(cur);
-          cur = [];
-          curChars = 0;
+      const infos = units.map((unit) => ({ unit, md: toMarkdown(unit.nodes) }));
+      const processed = new Array(infos.length).fill(false);
+      const queued = new Array(infos.length).fill(false);
+      const queue = []; // unit indices ordered by viewport priority
+      let nextSequential = 0;
+
+      // Block element each unit lives in → its unit indices (a block can
+      // hold several units when <br> splits it).
+      const anchorToIndices = new Map();
+      infos.forEach((info, i) => {
+        const el = info.unit.nodes[0].parentElement;
+        if (!el) return;
+        const arr = anchorToIndices.get(el) || [];
+        arr.push(i);
+        anchorToIndices.set(el, arr);
+      });
+
+      // Units near/in the viewport jump the queue; everything still gets
+      // translated eventually via the sequential fallback below.
+      const observer = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (!e.isIntersecting) continue;
+            const indices = anchorToIndices.get(e.target) || [];
+            for (const i of indices) {
+              if (!processed[i] && !queued[i]) {
+                queued[i] = true;
+                queue.push(i);
+              }
+            }
+          }
+        },
+        { rootMargin: "200px 0px" }
+      );
+      anchorToIndices.forEach((_, el) => observer.observe(el));
+
+      const takeNextIndex = () => {
+        while (queue.length) {
+          const i = queue.shift();
+          if (!processed[i]) return i;
         }
-        cur.push({ unit, md });
-        curChars += md.length;
-      }
-      if (cur.length) batches.push(cur);
+        while (nextSequential < infos.length && processed[nextSequential]) {
+          nextSequential++;
+        }
+        return nextSequential < infos.length ? nextSequential++ : -1;
+      };
 
       let done = 0;
-      for (const batch of batches) {
-        if (!pageTranslateActive) break; // toggled off mid-run
-        const wrappers = injectUnitWrappers(batch.map((b) => b.unit));
-        wrappers.forEach(({ wrapper }) =>
-          wrapper.setAttribute("data-bntrans-page", "true")
-        );
-        try {
-          const segments = await requestSegmentTranslations(
-            batch.map((b) => b.md),
-            settings,
-            (payload) => requestTranslation({ ...payload, skipHistory: true })
+      try {
+        while (pageTranslateActive && done < infos.length) {
+          // Build the next batch: queued viewport units first, bounded by
+          // unit count and total size.
+          const batch = [];
+          let batchChars = 0;
+          while (batch.length < PAGE_BATCH_UNITS) {
+            const i = takeNextIndex();
+            if (i === -1) break;
+            batch.push(i);
+            batchChars += infos[i].md.length;
+            if (batchChars > PAGE_BATCH_CHARS) break;
+          }
+          if (!batch.length) break;
+
+          const wrappers = injectUnitWrappers(batch.map((i) => infos[i].unit));
+          wrappers.forEach(({ wrapper }) =>
+            wrapper.setAttribute("data-bntrans-page", "true")
           );
-          updateWrappers(wrappers, segments, settings);
-        } catch (err) {
-          markTranslationError(wrappers, err);
+          try {
+            const segments = await requestSegmentTranslations(
+              batch.map((i) => infos[i].md),
+              settings,
+              (payload) => requestTranslation({ ...payload, skipHistory: true })
+            );
+            updateWrappers(wrappers, segments, settings);
+          } catch (err) {
+            markTranslationError(wrappers, err);
+          }
+          batch.forEach((i) => {
+            processed[i] = true;
+          });
+          done += batch.length;
+          badge.textContent = `Translating… ${done}/${infos.length}`;
         }
-        done += batch.length;
-        badge.textContent = `Translating… ${done}/${units.length}`;
+      } finally {
+        observer.disconnect();
       }
 
       badge.textContent = pageTranslateActive
@@ -3968,6 +4026,83 @@ function registerScreenshotTranslate() {
     }
   }
 
+  // --- Translate & replace inside editable fields (context menu) -----------
+  // Right-click in an input/textarea/contenteditable: translates the current
+  // selection (or the whole field when nothing is selected) and writes the
+  // result back in place. Same writing direction as instant translate:
+  // native → target.
+
+  async function translateEditableSelection() {
+    const element = getActiveEditableElement();
+    if (!element) return;
+
+    const tag = element.tagName?.toLowerCase();
+    let selected = "";
+    let replaceAll = false;
+
+    if (tag === "input" || tag === "textarea") {
+      const start = element.selectionStart ?? 0;
+      const end = element.selectionEnd ?? 0;
+      selected = element.value.slice(start, end);
+      if (!selected.trim()) {
+        selected = element.value;
+        replaceAll = true;
+      }
+    } else if (element.isContentEditable) {
+      selected = window.getSelection()?.toString() || "";
+      if (!selected.trim()) {
+        selected = element.innerText;
+        replaceAll = true;
+      }
+    }
+    if (!selected.trim()) return;
+
+    const settings = await getSettings();
+    showToast(i18n.t("toast.translating"));
+
+    try {
+      const res = await requestTranslation({
+        text: selected,
+        nativeLanguageCode: settings.nativeLanguageCode || "en",
+        targetLanguage: settings.targetLanguageCode || "en",
+        sourceLanguage: settings.nativeLanguageCode || "en",
+        useAutoDetect: false
+      });
+      const translation = res?.result?.translation;
+      if (!(res?.ok && translation)) {
+        showToast(res?.error || i18n.t("toast.translationFailed"));
+        return;
+      }
+      // Fields hold plain text — strip any markup the provider returned
+      const plain = translation.replace(/<[^>]+>/g, "").trim();
+
+      if (tag === "input" || tag === "textarea") {
+        if (replaceAll) {
+          element.value = plain;
+        } else {
+          element.setRangeText(
+            plain,
+            element.selectionStart,
+            element.selectionEnd,
+            "end"
+          );
+        }
+        element.dispatchEvent(new Event("input", { bubbles: true }));
+      } else {
+        element.focus();
+        if (replaceAll) document.execCommand("selectAll", false, null);
+        // Same Lexical-friendly path as suggestion insertion
+        setTimeout(() => {
+          document.execCommand("insertText", false, plain);
+          element.dispatchEvent(new InputEvent("input", { bubbles: true }));
+        }, 50);
+      }
+    } catch (err) {
+      console.error("[BNTrans] Editable translate failed:", err);
+      showToast(i18n.t("toast.translationFailed"));
+    }
+  }
+
   // Triggered from the extension context menu / quick popup button
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "start-screenshot-select") {
@@ -3989,8 +4124,102 @@ function registerScreenshotTranslate() {
       }
     } else if (message?.type === "toggle-page-translation") {
       togglePageTranslation();
+    } else if (message?.type === "translate-editable") {
+      translateEditableSelection();
     }
   });
+
+  // --- Language-detect banner ---------------------------------------------
+  // Offer page translation when the page's language differs from the user's
+  // native language (document.lang first, chrome.i18n detect as fallback).
+  const LANG_BANNER_DISMISS_KEY = "bntrans-lang-banner-dismissed";
+
+  function showLangBanner(pageLang) {
+    if (document.getElementById("bntrans-lang-banner")) return;
+    const banner = document.createElement("div");
+    banner.id = "bntrans-lang-banner";
+    banner.style.cssText =
+      "position:fixed;top:12px;right:12px;z-index:2147483647;" +
+      "background:#111827;color:#fff;padding:10px 14px;border-radius:10px;" +
+      "font:13px/1.4 sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.35);" +
+      "display:flex;gap:10px;align-items:center;";
+    const label = document.createElement("span");
+    label.textContent = i18n.t("banner.pageInLang").replace("{lang}", pageLang);
+    const translateBtn = document.createElement("button");
+    translateBtn.textContent = i18n.t("popup.translateNow");
+    translateBtn.style.cssText =
+      "background:#3b82f6;color:#fff;border:none;border-radius:6px;" +
+      "padding:4px 10px;font:inherit;cursor:pointer;";
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "✕";
+    closeBtn.style.cssText =
+      "background:none;color:#9ca3af;border:none;font:inherit;cursor:pointer;";
+
+    const dismiss = () => {
+      try {
+        sessionStorage.setItem(LANG_BANNER_DISMISS_KEY, "1");
+      } catch {
+        /* private mode */
+      }
+      banner.remove();
+    };
+    translateBtn.addEventListener("click", () => {
+      togglePageTranslation();
+      banner.remove();
+    });
+    closeBtn.addEventListener("click", dismiss);
+
+    banner.append(label, translateBtn, closeBtn);
+    document.documentElement.appendChild(banner);
+  }
+
+  getSettings()
+    .then(async (s) => {
+      const native = (s.nativeLanguageCode || "vi").split("-")[0];
+      const autoList = s.autoTranslateDomains || [];
+      if (
+        autoList.some(
+          (d) => d.enabled && window.location.href.includes(d.domain)
+        )
+      ) {
+        return; // auto-translate already handles this page
+      }
+      try {
+        if (sessionStorage.getItem(LANG_BANNER_DISMISS_KEY)) return;
+      } catch {
+        /* private mode */
+      }
+
+      let pageLang = (document.documentElement.lang || "")
+        .split("-")[0]
+        .toLowerCase();
+      if (!pageLang) {
+        try {
+          const res = await chrome.runtime.sendMessage({
+            type: "detect-page-language",
+            text: (document.body?.innerText || "").slice(0, 2000)
+          });
+          pageLang = (res?.language || "").split("-")[0].toLowerCase();
+        } catch {
+          /* background not ready */
+        }
+      }
+      if (!pageLang || pageLang === native) return;
+      showLangBanner(pageLang);
+    })
+    .catch(() => {});
+
+  // Auto-translate pages whose domain is in settings.autoTranslateDomains
+  // (same substring matching as instantTranslate domains).
+  getSettings()
+    .then((s) => {
+      const list = s.autoTranslateDomains || [];
+      const url = window.location.href;
+      if (list.some((d) => d.enabled && url.includes(d.domain))) {
+        runPageTranslation();
+      }
+    })
+    .catch(() => {});
 
   // Click outside the result popup closes it
   document.addEventListener("mousedown", (e) => {
