@@ -70,6 +70,8 @@ export const locales = {
     "popup.descHistory": "Recent translations — stored locally, capped at 50",
     "popup.clearHistory": "Clear history",
     "popup.historyEmpty": "No translations yet",
+    "popup.historyCopyHint": "Click to copy the translation",
+    "popup.historyCopied": "Copied ✓",
     "popup.screenshotShortcut": "Screenshot Translate Shortcut",
     "popup.screenshotProvider": "Provider",
     "popup.screenshotProviderHint":
@@ -308,6 +310,8 @@ export const locales = {
     "popup.descHistory": "Các bản dịch gần đây — lưu local, tối đa 50 mục",
     "popup.clearHistory": "Xoá lịch sử",
     "popup.historyEmpty": "Chưa có bản dịch nào",
+    "popup.historyCopyHint": "Bấm để copy bản dịch",
+    "popup.historyCopied": "Đã copy ✓",
     "popup.screenshotShortcut": "Phím tắt dịch ảnh chụp",
     "popup.screenshotProvider": "Provider",
     "popup.screenshotProviderHint":
