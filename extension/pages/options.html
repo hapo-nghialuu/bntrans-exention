@@ -124,6 +124,22 @@
             <span data-i18n="popup.tabTts">TTS</span>
             <span id="nav-badge-tts" class="bt-nav-badge" hidden></span>
           </div>
+          <div class="bt-tab" data-tab="history">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+              <path d="M12 7v5l4 2" />
+            </svg>
+            <span data-i18n="popup.tabHistory">History</span>
+            <span id="nav-badge-history" class="bt-nav-badge" hidden></span>
+          </div>
           <div class="bt-tab" data-tab="help">
             <svg
               viewBox="0 0 24 24"
@@ -918,6 +934,36 @@
                 </button>
                 <button id="tts-form-save" class="bt-button">Save</button>
               </div>
+            </div>
+          </div>
+
+          <!-- History Tab Content -->
+          <div id="tab-history" class="bt-tab-content">
+            <div class="bt-pane-header">
+              <h2 class="bt-pane-title" data-i18n="popup.tabHistory">
+                History
+              </h2>
+              <p class="bt-pane-desc" data-i18n="popup.descHistory">
+                Recent translations — stored locally, capped at 50
+              </p>
+            </div>
+
+            <div class="bt-field">
+              <button
+                id="clear-history"
+                class="bt-button-small"
+                data-i18n="popup.clearHistory"
+              >
+                Clear history
+              </button>
+              <div id="history-list" class="bt-alias-list"></div>
+              <small
+                id="history-empty"
+                class="bt-hint"
+                data-i18n="popup.historyEmpty"
+                hidden
+                >No translations yet</small
+              >
             </div>
           </div>
 
