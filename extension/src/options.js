@@ -1,6 +1,7 @@
 import { i18n } from "./common/i18n.js";
 import { tts } from "./services/tts.js";
 import { enhanceSelects } from "./common/custom-select.js";
+import { readSettings, writeSettings } from "./common/settings-storage.js";
 import {
   createSettingsBackup,
   prepareSettingsImport
@@ -858,10 +859,9 @@ function flashSaveStatus(key) {
 }
 
 exportSettingsBtn?.addEventListener("click", async () => {
-  const res = await chrome.runtime.sendMessage({ type: "get-settings" });
-  if (!res?.ok) return;
+  const settings = await readSettings();
   const blob = new Blob(
-    [JSON.stringify(createSettingsBackup(res.settings), null, 2)],
+    [JSON.stringify(createSettingsBackup(settings), null, 2)],
     {
       type: "application/json"
     }
@@ -923,17 +923,9 @@ importFileInput?.addEventListener("change", async (e) => {
   e.target.value = "";
   if (!file) return;
   try {
-    const { translatorSettings } =
-      await chrome.storage.local.get("translatorSettings");
-    const data = prepareSettingsImport(
-      JSON.parse(await file.text()),
-      translatorSettings || {}
-    );
-    const res = await chrome.runtime.sendMessage({
-      type: "set-settings",
-      settings: data
-    });
-    if (!res?.ok) throw new Error("import rejected");
+    const current = await readSettings();
+    const data = prepareSettingsImport(JSON.parse(await file.text()), current);
+    await writeSettings(data);
     flashSaveStatus("popup.importDone");
     loadSettings();
   } catch {
@@ -1120,7 +1112,7 @@ function updateShortcutPreview() {
 }
 
 async function loadSettings() {
-  const res = await chrome.runtime.sendMessage({ type: "get-settings" });
+  const res = { ok: true, settings: await readSettings() };
 
   populateSelects();
 
