@@ -1,6 +1,10 @@
 import { i18n } from "./common/i18n.js";
 import { tts } from "./services/tts.js";
 import { enhanceSelects } from "./common/custom-select.js";
+import {
+  createSettingsBackup,
+  prepareSettingsImport
+} from "./common/settings-backup.js";
 
 enhanceSelects(document.body);
 
@@ -841,7 +845,7 @@ clearHistoryBtn?.addEventListener("click", async () => {
   if (res?.ok) renderHistory([]);
 });
 
-// Backup: export/import the whole settings object
+// Backup settings without credentials; keep local keys for matching providers.
 function flashSaveStatus(key) {
   if (!saveStatus) return;
   saveStatus.textContent = `✓ ${i18n.t(key)}`;
@@ -856,9 +860,12 @@ function flashSaveStatus(key) {
 exportSettingsBtn?.addEventListener("click", async () => {
   const res = await chrome.runtime.sendMessage({ type: "get-settings" });
   if (!res?.ok) return;
-  const blob = new Blob([JSON.stringify(res.settings, null, 2)], {
-    type: "application/json"
-  });
+  const blob = new Blob(
+    [JSON.stringify(createSettingsBackup(res.settings), null, 2)],
+    {
+      type: "application/json"
+    }
+  );
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `bntrans-settings-${new Date().toISOString().slice(0, 10)}.json`;
@@ -916,10 +923,12 @@ importFileInput?.addEventListener("change", async (e) => {
   e.target.value = "";
   if (!file) return;
   try {
-    const data = JSON.parse(await file.text());
-    if (!data || typeof data !== "object" || Array.isArray(data)) {
-      throw new Error("invalid settings file");
-    }
+    const { translatorSettings } =
+      await chrome.storage.local.get("translatorSettings");
+    const data = prepareSettingsImport(
+      JSON.parse(await file.text()),
+      translatorSettings || {}
+    );
     const res = await chrome.runtime.sendMessage({
       type: "set-settings",
       settings: data
