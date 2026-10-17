@@ -3825,45 +3825,91 @@ function registerScreenshotTranslate() {
       }
       document.body.setAttribute("data-bntrans-page-translated", "true");
 
-      // Chunk units into batches bounded by unit count and total size
-      const batches = [];
-      let cur = [];
-      let curChars = 0;
-      for (const unit of units) {
-        const md = toMarkdown(unit.nodes);
-        if (
-          cur.length &&
-          (curChars + md.length > PAGE_BATCH_CHARS ||
-            cur.length >= PAGE_BATCH_UNITS)
-        ) {
-          batches.push(cur);
-          cur = [];
-          curChars = 0;
+      const infos = units.map((unit) => ({ unit, md: toMarkdown(unit.nodes) }));
+      const processed = new Array(infos.length).fill(false);
+      const queued = new Array(infos.length).fill(false);
+      const queue = []; // unit indices ordered by viewport priority
+      let nextSequential = 0;
+
+      // Block element each unit lives in → its unit indices (a block can
+      // hold several units when <br> splits it).
+      const anchorToIndices = new Map();
+      infos.forEach((info, i) => {
+        const el = info.unit.nodes[0].parentElement;
+        if (!el) return;
+        const arr = anchorToIndices.get(el) || [];
+        arr.push(i);
+        anchorToIndices.set(el, arr);
+      });
+
+      // Units near/in the viewport jump the queue; everything still gets
+      // translated eventually via the sequential fallback below.
+      const observer = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (!e.isIntersecting) continue;
+            const indices = anchorToIndices.get(e.target) || [];
+            for (const i of indices) {
+              if (!processed[i] && !queued[i]) {
+                queued[i] = true;
+                queue.push(i);
+              }
+            }
+          }
+        },
+        { rootMargin: "200px 0px" }
+      );
+      anchorToIndices.forEach((_, el) => observer.observe(el));
+
+      const takeNextIndex = () => {
+        while (queue.length) {
+          const i = queue.shift();
+          if (!processed[i]) return i;
         }
-        cur.push({ unit, md });
-        curChars += md.length;
-      }
-      if (cur.length) batches.push(cur);
+        while (nextSequential < infos.length && processed[nextSequential]) {
+          nextSequential++;
+        }
+        return nextSequential < infos.length ? nextSequential++ : -1;
+      };
 
       let done = 0;
-      for (const batch of batches) {
-        if (!pageTranslateActive) break; // toggled off mid-run
-        const wrappers = injectUnitWrappers(batch.map((b) => b.unit));
-        wrappers.forEach(({ wrapper }) =>
-          wrapper.setAttribute("data-bntrans-page", "true")
-        );
-        try {
-          const segments = await requestSegmentTranslations(
-            batch.map((b) => b.md),
-            settings,
-            (payload) => requestTranslation({ ...payload, skipHistory: true })
+      try {
+        while (pageTranslateActive && done < infos.length) {
+          // Build the next batch: queued viewport units first, bounded by
+          // unit count and total size.
+          const batch = [];
+          let batchChars = 0;
+          while (batch.length < PAGE_BATCH_UNITS) {
+            const i = takeNextIndex();
+            if (i === -1) break;
+            batch.push(i);
+            batchChars += infos[i].md.length;
+            if (batchChars > PAGE_BATCH_CHARS) break;
+          }
+          if (!batch.length) break;
+
+          const wrappers = injectUnitWrappers(batch.map((i) => infos[i].unit));
+          wrappers.forEach(({ wrapper }) =>
+            wrapper.setAttribute("data-bntrans-page", "true")
           );
-          updateWrappers(wrappers, segments, settings);
-        } catch (err) {
-          markTranslationError(wrappers, err);
+          try {
+            const segments = await requestSegmentTranslations(
+              batch.map((i) => infos[i].md),
+              settings,
+              (payload) => requestTranslation({ ...payload, skipHistory: true })
+            );
+            updateWrappers(wrappers, segments, settings);
+          } catch (err) {
+            markTranslationError(wrappers, err);
+          }
+          batch.forEach((i) => {
+            processed[i] = true;
+          });
+          done += batch.length;
+          badge.textContent = `Translating… ${done}/${infos.length}`;
         }
-        done += batch.length;
-        badge.textContent = `Translating… ${done}/${units.length}`;
+      } finally {
+        observer.disconnect();
       }
 
       badge.textContent = pageTranslateActive
