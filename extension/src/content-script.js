@@ -4029,8 +4029,7 @@ function registerScreenshotTranslate() {
   // --- Translate & replace inside editable fields (context menu) -----------
   // Right-click in an input/textarea/contenteditable: translates the current
   // selection (or the whole field when nothing is selected) and writes the
-  // result back in place. Same writing direction as instant translate:
-  // native → target.
+  // result back in place. Uses the same direction as the quick popup.
 
   async function translateEditableSelection() {
     const element = getActiveEditableElement();
@@ -4063,10 +4062,14 @@ function registerScreenshotTranslate() {
     try {
       const res = await requestTranslation({
         text: selected,
-        nativeLanguageCode: settings.nativeLanguageCode || "en",
-        targetLanguage: settings.targetLanguageCode || "en",
-        sourceLanguage: settings.nativeLanguageCode || "en",
-        useAutoDetect: false
+        nativeLanguageCode: settings.nativeLanguageCode || "vi",
+        targetLanguage: settings.useAutoDetect
+          ? settings.targetLanguageCode || "en"
+          : settings.nativeLanguageCode || "vi",
+        sourceLanguage: settings.useAutoDetect
+          ? undefined
+          : settings.targetLanguageCode || "en",
+        useAutoDetect: !!settings.useAutoDetect
       });
       const translation = res?.result?.translation;
       if (!(res?.ok && translation)) {
