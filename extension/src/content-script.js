@@ -4057,19 +4057,23 @@ function registerScreenshotTranslate() {
     if (!selected.trim()) return;
 
     const settings = await getSettings();
+    const sourceLanguage =
+      settings.selectionLastSource ||
+      (settings.useAutoDetect ? "auto" : settings.targetLanguageCode || "en");
+    const targetLanguage =
+      settings.selectionLastTarget ||
+      (settings.useAutoDetect
+        ? settings.targetLanguageCode || "en"
+        : settings.nativeLanguageCode || "vi");
     showToast(i18n.t("toast.translating"));
 
     try {
       const res = await requestTranslation({
         text: selected,
         nativeLanguageCode: settings.nativeLanguageCode || "vi",
-        targetLanguage: settings.useAutoDetect
-          ? settings.targetLanguageCode || "en"
-          : settings.nativeLanguageCode || "vi",
-        sourceLanguage: settings.useAutoDetect
-          ? undefined
-          : settings.targetLanguageCode || "en",
-        useAutoDetect: !!settings.useAutoDetect
+        targetLanguage,
+        sourceLanguage: sourceLanguage === "auto" ? undefined : sourceLanguage,
+        useAutoDetect: sourceLanguage === "auto"
       });
       const translation = res?.result?.translation;
       if (!(res?.ok && translation)) {

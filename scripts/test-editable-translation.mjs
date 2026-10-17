@@ -92,6 +92,51 @@ test("missing languages use popup defaults", async () => {
   assert.equal(payload.targetLanguage, "vi");
 });
 
+test("persisted popup picks override the default direction", async () => {
+  const { payload } = await translate({
+    nativeLanguageCode: "vi",
+    targetLanguageCode: "en",
+    useAutoDetect: false,
+    selectionLastSource: "ja",
+    selectionLastTarget: "fr"
+  });
+  assert.equal(payload.sourceLanguage, "ja");
+  assert.equal(payload.targetLanguage, "fr");
+  assert.equal(payload.useAutoDetect, false);
+});
+
+test("persisted auto source enables detection in fixed mode", async () => {
+  const { payload } = await translate({
+    useAutoDetect: false,
+    selectionLastSource: "auto",
+    selectionLastTarget: "fr"
+  });
+  assert.equal(payload.sourceLanguage, undefined);
+  assert.equal(payload.targetLanguage, "fr");
+  assert.equal(payload.useAutoDetect, true);
+});
+
+test("persisted explicit source disables detection in auto mode", async () => {
+  const { payload } = await translate({
+    useAutoDetect: true,
+    targetLanguageCode: "fr",
+    selectionLastSource: "ja"
+  });
+  assert.equal(payload.sourceLanguage, "ja");
+  assert.equal(payload.targetLanguage, "fr");
+  assert.equal(payload.useAutoDetect, false);
+});
+
+test("remembered target alone preserves the default source", async () => {
+  const { payload } = await translate({
+    useAutoDetect: false,
+    targetLanguageCode: "en",
+    selectionLastTarget: "fr"
+  });
+  assert.equal(payload.sourceLanguage, "en");
+  assert.equal(payload.targetLanguage, "fr");
+});
+
 test("selection replacement preserves surrounding text", async () => {
   const { payload, field } = await translate(
     {},
