@@ -1,0 +1,115 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>BNTrans</title>
+    <link rel="stylesheet" href="/assets/styles/tokens.css" />
+    <link rel="stylesheet" href="/assets/styles/common.css" />
+    <link rel="stylesheet" href="/assets/styles/popup.css" />
+  </head>
+  <body class="bt-sidepanel">
+    <div class="bt-wrap bt-quick-wrap">
+      <div class="bt-header">
+        <div class="bt-brand">
+          <img
+            src="/assets/icons/icon-32.png"
+            alt="BNTrans"
+            class="bt-logo"
+            width="26"
+            height="26"
+          />
+          <div class="bt-brand-text">
+            <span class="bt-brand-name">BNTRANS</span>
+            <span class="bt-brand-version" id="version-display">v1.0.0</span>
+          </div>
+        </div>
+        <div class="bt-header-right">
+          <button
+            id="open-options"
+            class="bt-icon-btn"
+            type="button"
+            title="Settings"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="15"
+              height="15"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0-4h-.09a1.65 1.65 0 0 0-1.51 1z"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="bt-quick-body">
+        <div class="bt-field">
+          <textarea
+            id="quick-input"
+            class="bt-input bt-quick-input"
+            rows="5"
+            data-i18n-placeholder="popup.quickPlaceholder"
+            placeholder="Type or paste text here..."
+          ></textarea>
+        </div>
+
+        <div class="bt-quick-langs">
+          <select id="quick-source" class="bt-input"></select>
+          <button
+            id="quick-swap"
+            class="bt-quick-swap"
+            title="Swap languages"
+            type="button"
+          >
+            ⇄
+          </button>
+          <select id="quick-target" class="bt-input"></select>
+        </div>
+
+        <button
+          id="quick-translate"
+          class="bt-button bt-quick-translate"
+          type="button"
+          data-i18n="popup.translateNow"
+        >
+          Translate
+        </button>
+
+        <div id="quick-result" class="bt-quick-result" hidden>
+          <div class="bt-quick-result-head">
+            <span id="quick-provider" class="bt-provider-tag"></span>
+            <div class="bt-quick-actions">
+              <button
+                id="quick-copy"
+                class="bt-quick-action"
+                type="button"
+                title="Copy"
+              >
+                ⧉
+              </button>
+              <button
+                id="quick-speak"
+                class="bt-quick-action"
+                type="button"
+                title="Listen"
+              >
+                🔊
+              </button>
+            </div>
+          </div>
+          <div id="quick-result-text" class="bt-quick-result-text"></div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/popup.js"></script>
+    <script type="module" src="/src/sidepanel.js"></script>
+  </body>
+</html>

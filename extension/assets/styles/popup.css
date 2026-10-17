@@ -262,6 +262,13 @@ input[type="color"] {
   gap: var(--bt-space-medium);
 }
 
+/* Side panel reuses the popup markup but should fill the resizable pane */
+.bt-sidepanel .bt-wrap {
+  box-sizing: border-box;
+  width: auto;
+  min-height: 100vh;
+}
+
 /* Header — brand + controls */
 .bt-header {
   display: flex;

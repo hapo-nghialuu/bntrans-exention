@@ -496,6 +496,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 const SCREENSHOT_MENU_ID = "bntrans-screenshot-area";
 const SELECTION_MENU_ID = "bntrans-translate-selection";
+const SIDE_PANEL_MENU_ID = "bntrans-open-side-panel";
 
 let contextMenuPromise = null;
 // onInstalled + onStartup + the eager call below can all fire during one
@@ -508,7 +509,7 @@ function registerContextMenus() {
       // reliably reject on a missing id and would spam the console on
       // every SW start.
       await Promise.all(
-        [SCREENSHOT_MENU_ID, SELECTION_MENU_ID].map(
+        [SCREENSHOT_MENU_ID, SELECTION_MENU_ID, SIDE_PANEL_MENU_ID].map(
           (id) =>
             new Promise((resolve) =>
               chrome.contextMenus.remove(id, () => {
@@ -520,11 +521,13 @@ function registerContextMenus() {
       );
       let screenshotTitle = "Translate screenshot area";
       let selectionTitle = "Translate selection";
+      let panelTitle = "Open BNTrans side panel";
       try {
         const settings = await readSettings();
         if ((settings.interfaceLanguage || "en") === "vi") {
           screenshotTitle = "Dịch vùng chụp màn hình";
           selectionTitle = "Dịch đoạn đã chọn";
+          panelTitle = "Mở bảng dịch BNTrans";
         }
       } catch {
         /* keep English fallback */
@@ -545,6 +548,14 @@ function registerContextMenus() {
         },
         () => void chrome.runtime.lastError
       );
+      chrome.contextMenus.create(
+        {
+          id: SIDE_PANEL_MENU_ID,
+          title: panelTitle,
+          contexts: ["all", "action"]
+        },
+        () => void chrome.runtime.lastError
+      );
     })();
   }
   return contextMenuPromise;
@@ -557,6 +568,11 @@ chrome.runtime.onStartup.addListener(registerContextMenus);
 registerContextMenus();
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === SIDE_PANEL_MENU_ID) {
+    // User gesture from the menu click; needs the "sidePanel" permission.
+    chrome.sidePanel?.open({ windowId: tab?.windowId }).catch(() => {});
+    return;
+  }
   if (!tab?.id) return;
   if (info.menuItemId === SCREENSHOT_MENU_ID) {
     chrome.tabs

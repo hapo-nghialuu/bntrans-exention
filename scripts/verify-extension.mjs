@@ -63,6 +63,8 @@ if (manifest) {
   for (const v of Object.values(manifest.action?.default_icon || {})) refs.push(v);
   if (manifest.action?.default_popup) refs.push(manifest.action.default_popup);
   if (manifest.options_ui?.page) refs.push(manifest.options_ui.page);
+  if (manifest.side_panel?.default_path)
+    refs.push(manifest.side_panel.default_path);
   if (manifest.background?.service_worker) refs.push(manifest.background.service_worker);
   for (const cs of manifest.content_scripts || []) {
     refs.push(...(cs.js || []), ...(cs.css || []));
