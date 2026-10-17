@@ -12,6 +12,7 @@ const quickProvider = document.getElementById("quick-provider");
 const quickCopy = document.getElementById("quick-copy");
 const quickSpeak = document.getElementById("quick-speak");
 const openOptionsBtn = document.getElementById("open-options");
+const openPanelBtn = document.getElementById("open-sidepanel");
 const quickCapture = document.getElementById("quick-capture");
 
 let activeProviderId = "google-translate";
@@ -194,6 +195,23 @@ quickSpeak?.addEventListener("click", async () => {
 
 openOptionsBtn?.addEventListener("click", () => {
   chrome.runtime.openOptionsPage();
+});
+
+// Open the side panel on the current window, then close the popup — the
+// panel is the persistent counterpart of this quick UI.
+openPanelBtn?.addEventListener("click", async () => {
+  try {
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true
+    });
+    if (tab?.windowId != null && chrome.sidePanel?.open) {
+      await chrome.sidePanel.open({ windowId: tab.windowId });
+      window.close();
+    }
+  } catch {
+    // sidePanel API unavailable (older Chrome / Firefox)
+  }
 });
 
 // Kick off the area-select overlay on the active tab, then close the popup —

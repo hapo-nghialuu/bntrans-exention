@@ -132,9 +132,33 @@ async function readSettings() {
       },
       // Last used languages in Selection Popup
       selectionLastSource: null,
-      selectionLastTarget: null
+      selectionLastTarget: null,
+      // Recent translations (newest first), capped at 50
+      translationHistory: []
     }
   );
+}
+
+const HISTORY_LIMIT = 50;
+
+/**
+ * Append one entry to settings.translationHistory (newest first, capped).
+ * Callers opt out with payload.skipHistory (instant/hover are too noisy).
+ * Fire-and-forget: history must never block or fail a translation.
+ */
+function recordHistory(settings, entry) {
+  const prev = settings.translationHistory || [];
+  const head = prev[0];
+  // Skip an immediate repeat of the same pair (e.g. provider re-pick).
+  if (
+    head &&
+    head.text === entry.text &&
+    head.targetLanguage === entry.targetLanguage
+  ) {
+    return;
+  }
+  const translationHistory = [entry, ...prev].slice(0, HISTORY_LIMIT);
+  writeSettings({ translationHistory }).catch(() => {});
 }
 
 async function writeSettings(next) {
@@ -259,6 +283,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               providerType: offscreenResult.providerType || "Built-in"
             };
 
+            if (!message.payload.skipHistory && translation) {
+              recordHistory(settings, {
+                text: String(text).slice(0, 500),
+                translation: String(translation).slice(0, 1000),
+                sourceLanguage: resultObj.sourceLanguage,
+                targetLanguage: targetLang,
+                providerName: resultObj.providerName,
+                ts: Date.now()
+              });
+            }
+
             sendResponse({ ok: true, result: resultObj });
           } else {
             sendResponse({
@@ -271,6 +306,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           let translation = result.translation;
           if (hasFormatting && translation) {
             translation = markdownToHtml(translation);
+          }
+
+          if (!message.payload.skipHistory && translation) {
+            recordHistory(settings, {
+              text: String(text).slice(0, 500),
+              translation: String(translation).slice(0, 1000),
+              sourceLanguage: sourceLang,
+              targetLanguage: targetLang,
+              providerName: result.providerName,
+              ts: Date.now()
+            });
           }
 
           // Result is the object { translation, providerName, providerType }
@@ -287,6 +333,45 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
       } catch (err) {
         console.error("Translation Error:", err);
+
+        // Retry once through Google Translate so a provider outage/quota
+        // still yields a translation instead of a dead error.
+        const used = providerId
+          ? settings.providers?.find((p) => p.id === providerId)
+          : aiService.activeProvider;
+        if (used?.type !== "google-translate") {
+          try {
+            const fallback = new AIProviderService({
+              ...settings,
+              activeProviderId: "google-translate"
+            });
+            const fb = await fallback.translate(
+              text,
+              sourceLang,
+              targetLang,
+              "google-translate",
+              "",
+              ""
+            );
+            if (fb && typeof fb === "object" && !fb.useOffscreen) {
+              sendResponse({
+                ok: true,
+                result: {
+                  translation: fb.translation,
+                  providerName: "Google Translate (fallback)",
+                  providerType: "google-translate",
+                  sourceLanguage: sourceLang,
+                  targetLanguage: targetLang,
+                  fellBackFrom: used?.name || used?.type
+                }
+              });
+              return;
+            }
+          } catch (fbErr) {
+            console.error("Fallback Error:", fbErr);
+          }
+        }
+
         sendResponse({ ok: false, error: String(err?.message || err) });
       }
     });
@@ -407,33 +492,49 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-// --- Screenshot-area translation context menu -----------------------------
+// --- Context menus ---------------------------------------------------------
 
 const SCREENSHOT_MENU_ID = "bntrans-screenshot-area";
+const SELECTION_MENU_ID = "bntrans-translate-selection";
+const SIDE_PANEL_MENU_ID = "bntrans-open-side-panel";
 const PAGE_TRANSLATE_MENU_ID = "bntrans-page-translate";
 
-let screenshotMenuPromise = null;
+let contextMenuPromise = null;
 // onInstalled + onStartup + the eager call below can all fire during one
 // service-worker boot; funnel them through a single remove→create so two
 // concurrent runs can't race into "duplicate id" on create().
-function registerScreenshotMenu() {
-  if (!screenshotMenuPromise) {
-    screenshotMenuPromise = (async () => {
+function registerContextMenus() {
+  if (!contextMenuPromise) {
+    contextMenuPromise = (async () => {
       // Callback form + lastError swallow: the promise form does not
       // reliably reject on a missing id and would spam the console on
       // every SW start.
-      await new Promise((resolve) =>
-        chrome.contextMenus.remove(SCREENSHOT_MENU_ID, () => {
-          void chrome.runtime.lastError;
-          resolve();
-        })
+      await Promise.all(
+        [
+          SCREENSHOT_MENU_ID,
+          SELECTION_MENU_ID,
+          SIDE_PANEL_MENU_ID,
+          PAGE_TRANSLATE_MENU_ID
+        ].map(
+          (id) =>
+            new Promise((resolve) =>
+              chrome.contextMenus.remove(id, () => {
+                void chrome.runtime.lastError;
+                resolve();
+              })
+            )
+        )
       );
-      let title = "Translate screenshot area";
+      let screenshotTitle = "Translate screenshot area";
+      let selectionTitle = "Translate selection";
+      let panelTitle = "Open BNTrans side panel";
       let pageTitle = "Translate page (bilingual)";
       try {
         const settings = await readSettings();
         if ((settings.interfaceLanguage || "en") === "vi") {
-          title = "Dịch vùng chụp màn hình";
+          screenshotTitle = "Dịch vùng chụp màn hình";
+          selectionTitle = "Dịch đoạn đã chọn";
+          panelTitle = "Mở bảng dịch BNTrans";
           pageTitle = "Dịch trang này (song ngữ)";
         }
       } catch {
@@ -442,8 +543,24 @@ function registerScreenshotMenu() {
       chrome.contextMenus.create(
         {
           id: SCREENSHOT_MENU_ID,
-          title,
+          title: screenshotTitle,
           contexts: ["page", "selection", "image", "frame", "link", "video"]
+        },
+        () => void chrome.runtime.lastError
+      );
+      chrome.contextMenus.create(
+        {
+          id: SELECTION_MENU_ID,
+          title: selectionTitle,
+          contexts: ["selection"]
+        },
+        () => void chrome.runtime.lastError
+      );
+      chrome.contextMenus.create(
+        {
+          id: SIDE_PANEL_MENU_ID,
+          title: panelTitle,
+          contexts: ["all", "action"]
         },
         () => void chrome.runtime.lastError
       );
@@ -457,26 +574,33 @@ function registerScreenshotMenu() {
       );
     })();
   }
-  return screenshotMenuPromise;
+  return contextMenuPromise;
 }
 
-chrome.runtime.onInstalled.addListener(registerScreenshotMenu);
-chrome.runtime.onStartup.addListener(registerScreenshotMenu);
+chrome.runtime.onInstalled.addListener(registerContextMenus);
+chrome.runtime.onStartup.addListener(registerContextMenus);
 // MV3 service workers restart often; menu items persist per session but a
 // dev reload clears them, so register eagerly too (remove+create is safe).
-registerScreenshotMenu();
+registerContextMenus();
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === PAGE_TRANSLATE_MENU_ID) {
-    if (tab?.id) {
-      chrome.tabs
-        .sendMessage(tab.id, { type: "toggle-page-translation" })
-        .catch(() => {});
-    }
+  if (info.menuItemId === SIDE_PANEL_MENU_ID) {
+    // User gesture from the menu click; needs the "sidePanel" permission.
+    chrome.sidePanel?.open({ windowId: tab?.windowId }).catch(() => {});
     return;
   }
-  if (info.menuItemId !== SCREENSHOT_MENU_ID || !tab?.id) return;
-  chrome.tabs
-    .sendMessage(tab.id, { type: "start-screenshot-select" })
-    .catch(() => {});
+  if (!tab?.id) return;
+  if (info.menuItemId === SCREENSHOT_MENU_ID) {
+    chrome.tabs
+      .sendMessage(tab.id, { type: "start-screenshot-select" })
+      .catch(() => {});
+  } else if (info.menuItemId === SELECTION_MENU_ID) {
+    chrome.tabs
+      .sendMessage(tab.id, { type: "translate-selection" })
+      .catch(() => {});
+  } else if (info.menuItemId === PAGE_TRANSLATE_MENU_ID) {
+    chrome.tabs
+      .sendMessage(tab.id, { type: "toggle-page-translation" })
+      .catch(() => {});
+  }
 });

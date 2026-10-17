@@ -1047,7 +1047,8 @@ async function handleInstantTranslate(element) {
         nativeLanguageCode: settings.nativeLanguageCode || "en",
         targetLanguage: settings.targetLanguageCode || "en",
         sourceLanguage: settings.nativeLanguageCode || "en", // Always translate from native language
-        useAutoDetect: false // Never auto-detect for instant (always Native→Target)
+        useAutoDetect: false, // Never auto-detect for instant (always Native→Target)
+        skipHistory: true // Instant fires per pause — too noisy for history
       });
 
       if (res?.ok && res.result?.translation) {
@@ -2915,7 +2916,8 @@ async function handleHoverTranslate(element, settings) {
       nativeLanguageCode: settings.nativeLanguageCode || "en",
       targetLanguage: settings.nativeLanguageCode || "vi", // Translate TO native language
       sourceLanguage: settings.targetLanguageCode || "en", // FROM target language (e.g., English web content)
-      useAutoDetect: false // Fixed Target→Native for hover
+      useAutoDetect: false, // Fixed Target→Native for hover
+      skipHistory: true // Hover fires per hover — too noisy for history
     });
 
     if (res?.ok && res.result?.translation) {
@@ -3890,9 +3892,24 @@ function registerScreenshotTranslate() {
   }
 
   // Triggered from the extension context menu / quick popup button
-  chrome.runtime.onMessage.addListener((message) => {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "start-screenshot-select") {
       startScreenshotSelection();
+    } else if (message?.type === "get-selection-text") {
+      sendResponse({
+        ok: true,
+        text: window.getSelection()?.toString() || ""
+      });
+    } else if (message?.type === "translate-selection") {
+      // Right-click "Translate selection": open the popup directly on the
+      // current selection, skipping the icon step.
+      const selection = window.getSelection();
+      const text = selection?.toString().trim();
+      if (text && selection.rangeCount > 0) {
+        selectedText = text;
+        const rect = selection.getRangeAt(0).getBoundingClientRect();
+        showTranslationPopup(rect, text, "bottom");
+      }
     } else if (message?.type === "toggle-page-translation") {
       togglePageTranslation();
     }
