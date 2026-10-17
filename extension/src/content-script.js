@@ -3842,19 +3842,58 @@ function registerScreenshotTranslate() {
   // off by restoring the DOM. Batched + skipHistory so it neither rate-limits
   // nor floods history.
 
-  const PAGE_MAX_UNITS = 500; // safety cap for very large pages
+  /* global shouldSkipSubtree */
+  const PAGE_MAX_UNITS = 500;
   const PAGE_BATCH_CHARS = 3000;
   const PAGE_BATCH_UNITS = 25;
   const PAGE_PROGRESS_ID = "bntrans-page-progress";
-
   let pageTranslateActive = false;
-  let pageTranslateRunning = false;
+  let pageSession = null;
+
+  function pageOptions(settings) {
+    const config =
+      settings.labFeatures?.page === true ? settings.labPage || {} : {};
+    const provider = config.providerLimits?.[settings.activeProviderId] || {};
+    const number = (key, fallback, min, max) => {
+      const input = ["concurrency", "requestsPerSecond", "timeoutMs"].includes(
+        key
+      )
+        ? (provider[key] ?? config[key])
+        : config[key];
+      const value = Number(input);
+      return Number.isFinite(value) && input != null
+        ? Math.min(max, Math.max(min, value))
+        : fallback;
+    };
+    return {
+      maxRequests: Math.floor(number("maxRequests", 100, 1, 1000)),
+      maxChars: Math.floor(number("maxChars", 100000, 1, 1000000)),
+      concurrency: Math.floor(number("concurrency", 2, 1, 4)),
+      requestsPerSecond: number("requestsPerSecond", 2, 0.1, 10),
+      timeoutMs: number("timeoutMs", 30000, 100, 120000),
+      maxRetries: Math.floor(number("maxRetries", 1, 0, 2)),
+      nearViewportOnly: config.nearViewportOnly === true,
+      live: settings.labFeatures?.page === true && config.live === true,
+      mode: ["original", "bilingual", "translation"].includes(
+        config.siteModes?.[location.hostname] || config.mode
+      )
+        ? config.siteModes?.[location.hostname] || config.mode
+        : "bilingual"
+    };
+  }
+
+  function pageError(code, message) {
+    const error = new Error(message);
+    error.code = code;
+    return error;
+  }
 
   function showPageProgress(text) {
     let badge = document.getElementById(PAGE_PROGRESS_ID);
     if (!badge) {
       badge = document.createElement("div");
       badge.id = PAGE_PROGRESS_ID;
+      badge.setAttribute("role", "status");
       badge.style.cssText =
         "position:fixed;bottom:16px;right:16px;z-index:2147483647;" +
         "background:#111827;color:#fff;padding:8px 12px;border-radius:8px;" +
@@ -3866,7 +3905,6 @@ function registerScreenshotTranslate() {
   }
 
   function reportPageTranslateState() {
-    // Keeps the context-menu title in sync ("Translate" ↔ "Restore")
     chrome.runtime
       .sendMessage({
         type: "page-translation-state",
@@ -3875,157 +3913,552 @@ function registerScreenshotTranslate() {
       .catch(() => {});
   }
 
+  function pageSnapshot() {
+    const s = pageSession;
+    if (!s) return { ok: true, active: false, state: "idle" };
+    const complete = s.records.filter((r) => r.status === "done").length;
+    const options = s.options || pageOptions({});
+    return {
+      ok: true,
+      active: pageTranslateActive,
+      state: s.state,
+      mode: options.mode,
+      units: s.records.length,
+      complete,
+      remaining: s.records.length - complete,
+      estimatedChars: s.records.reduce((sum, r) => sum + r.md.length, 0),
+      requests: s.requests,
+      sentChars: s.sentChars,
+      inflight: s.inflight,
+      maxRequests: options.maxRequests,
+      maxChars: options.maxChars,
+      error: s.error || "",
+      capped: s.capped
+    };
+  }
+
+  function pageNotice(s) {
+    if (pageSession !== s || s.cancelled) return;
+    const stats = pageSnapshot();
+    s.badge.textContent = [
+      s.state,
+      stats.complete + "/" + stats.units,
+      stats.requests + "/" + stats.maxRequests + " requests",
+      stats.sentChars + "/" + stats.maxChars + " chars",
+      s.error
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }
+
+  function pageNear(unit) {
+    const el = unit.nodes[0]?.parentElement;
+    const rect = el?.getBoundingClientRect();
+    return (
+      !!rect &&
+      rect.bottom > -200 &&
+      rect.top < window.innerHeight + 200 &&
+      rect.right > 0 &&
+      rect.left < window.innerWidth
+    );
+  }
+
+  function pageObserve(s) {
+    if (s.mutations && !s.cancelled)
+      s.mutations.observe(document.body, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["translate", "contenteditable", "class"]
+      });
+  }
+
+  function pageOwnMutation(s, callback) {
+    const pending = s.mutations?.takeRecords();
+    s.mutations?.disconnect();
+    try {
+      return callback();
+    } finally {
+      pageObserve(s);
+      if (pending?.length) pageSchedule(s);
+    }
+  }
+
+  function pageSchedule(s) {
+    clearTimeout(s.debounce);
+    s.debounce = setTimeout(() => {
+      if (pageSession !== s || s.cancelled || s.route?.()) return;
+      pageCollect(s);
+      pageWake(s);
+    }, 200);
+  }
+
+  function pageValid(record) {
+    const w = record.wrappers?.[0];
+    if (
+      !w ||
+      w.wrapper.isConnected === false ||
+      toMarkdown(w.originalSpan.childNodes) !== record.md ||
+      !record.unit.nodes.every((n) => n.parentNode === w.originalSpan)
+    )
+      return false;
+    for (
+      let ancestor = w.wrapper.parentNode;
+      ancestor;
+      ancestor = ancestor.parentNode
+    ) {
+      if (shouldSkipSubtree(ancestor)) return false;
+    }
+    // A newly protected descendant must remain visible, even if its text is empty.
+    const units = getTranslationUnits(w.originalSpan);
+    return (
+      units.length === 1 &&
+      units[0].nodes.length === record.unit.nodes.length &&
+      units[0].nodes.every((n, i) => n === record.unit.nodes[i])
+    );
+  }
+
+  function pageUnwrap(wrapper) {
+    const original = wrapper.querySelector("[data-bntrans-original]");
+    const parent = wrapper.parentNode;
+    if (original && parent) {
+      while (original.firstChild)
+        parent.insertBefore(original.firstChild, wrapper);
+    }
+    wrapper.remove();
+  }
+
+  function pageSetMode(s, mode) {
+    if (!["original", "bilingual", "translation"].includes(mode))
+      throw new Error("Invalid reading mode");
+    s.options.mode = mode;
+    pageOwnMutation(s, () => {
+      for (const r of s.records)
+        for (const w of r.wrappers || []) {
+          const done = r.status === "done" && pageValid(r);
+          w.originalSpan.style.display =
+            mode === "translation" && done ? "none" : "";
+          w.translationSpan.style.display =
+            mode === "original" ? "none" : "inline";
+          w.separator.style.display = mode === "original" ? "none" : "";
+        }
+    });
+  }
+
+  function pageCancelEpoch(s) {
+    s.epoch++;
+    for (const cancel of s.cancelWaiters) cancel();
+    s.cancelWaiters.clear();
+  }
+
   function removePageTranslation() {
-    // Unwrap only wrappers created by page translation
+    const s = pageSession;
+    if (s) {
+      s.cancelled = true;
+      pageCancelEpoch(s);
+      s.mutations?.disconnect();
+      s.intersections?.disconnect();
+      clearTimeout(s.debounce);
+      clearInterval(s.routeTimer);
+      window.removeEventListener("popstate", s.route);
+      window.removeEventListener("hashchange", s.route);
+    }
+    pageSession = null;
+    pageTranslateActive = false;
     document
       .querySelectorAll("[data-bntrans-wrapper][data-bntrans-page]")
-      .forEach((wrapper) => {
-        const original = wrapper.querySelector("[data-bntrans-original]");
-        const parent = wrapper.parentNode;
-        if (original && parent) {
-          while (original.firstChild)
-            parent.insertBefore(original.firstChild, wrapper);
-        }
-        wrapper.remove();
-        parent?.normalize();
-      });
+      .forEach(pageUnwrap);
     document.getElementById(PAGE_PROGRESS_ID)?.remove();
     document.body?.removeAttribute("data-bntrans-page-translated");
-    pageTranslateActive = false;
     reportPageTranslateState();
   }
 
-  async function runPageTranslation() {
-    if (pageTranslateRunning || !document.body) return;
-    pageTranslateRunning = true;
-    pageTranslateActive = true;
-
-    const badge = showPageProgress("Translating page…");
-
-    try {
-      const settings = await getSettings();
-      const units = getTranslationUnits(document.body).slice(0, PAGE_MAX_UNITS);
-      if (!units.length) {
-        badge.textContent = "Nothing to translate";
-        setTimeout(() => badge.remove(), 1500);
-        pageTranslateActive = false;
-        return;
-      }
-      document.body.setAttribute("data-bntrans-page-translated", "true");
-      reportPageTranslateState();
-
-      const infos = units.map((unit) => ({ unit, md: toMarkdown(unit.nodes) }));
-      const scheduled = new Array(infos.length).fill(false);
-      const queued = new Array(infos.length).fill(false);
-      const queue = []; // unit indices ordered by viewport priority
-      let nextSequential = 0;
-
-      // Block element each unit lives in → its unit indices (a block can
-      // hold several units when <br> splits it).
-      const anchorToIndices = new Map();
-      infos.forEach((info, i) => {
-        const el = info.unit.nodes[0].parentElement;
-        if (!el) return;
-        const arr = anchorToIndices.get(el) || [];
-        arr.push(i);
-        anchorToIndices.set(el, arr);
-      });
-
-      // Units near/in the viewport jump the queue; everything still gets
-      // translated eventually via the sequential fallback below.
-      const enqueueAnchor = (el) => {
-        for (const i of anchorToIndices.get(el) || []) {
-          if (!scheduled[i] && !queued[i]) {
-            queued[i] = true;
-            queue.push(i);
-          }
+  function pageCollect(s) {
+    pageOwnMutation(s, () => {
+      // Revisions are checked again at apply time, even before an observer callback.
+      for (const record of s.records) {
+        if (!record.wrappers?.length) continue;
+        const changed = !pageValid(record);
+        if (changed) {
+          record.revision++;
+          record.status = "stale";
+          record.wrappers.forEach((w) => pageUnwrap(w.wrapper));
+          record.wrappers = [];
+          s.identity.delete(record.unit.nodes[0]);
         }
-      };
-      const observer = new IntersectionObserver(
-        (entries) => {
-          for (const e of entries) {
-            if (!e.isIntersecting) continue;
-            enqueueAnchor(e.target);
-          }
-        },
-        { rootMargin: "200px 0px" }
+      }
+      s.records = s.records.filter((r) => r.status !== "stale");
+      for (const unit of getTranslationUnits(document.body)) {
+        const key = unit.nodes[0];
+        const md = toMarkdown(unit.nodes);
+        if (!md.trim() || s.identity.has(key)) continue;
+        if (s.records.length >= PAGE_MAX_UNITS) {
+          s.capped = true;
+          break;
+        }
+        const record = {
+          id: ++s.nextId,
+          unit,
+          md,
+          revision: 0,
+          status: "pending",
+          priority: pageNear(unit)
+        };
+        s.identity.set(key, record);
+        s.records.push(record);
+        const anchor = key.parentElement;
+        if (anchor) s.intersections?.observe(anchor);
+      }
+    });
+    pageNotice(s);
+  }
+
+  async function pageRequest(s, epoch, payload) {
+    const current = () =>
+      pageSession === s &&
+      !s.cancelled &&
+      s.epoch === epoch &&
+      s.state === "running";
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    while (s.inflight >= s.options.concurrency || Date.now() < s.nextRequest) {
+      if (!current()) throw pageError("cancelled", "Translation cancelled");
+      await delay(Math.min(50, Math.max(1, s.nextRequest - Date.now())));
+    }
+    if (!current()) throw pageError("cancelled", "Translation cancelled");
+    if (s.records.some((r) => r.status === "working" && !pageValid(r))) {
+      throw pageError("revision", "Page content changed before sending");
+    }
+    const chars = payload.text.length;
+    if (
+      s.requests >= s.options.maxRequests ||
+      s.sentChars + chars > s.options.maxChars
+    ) {
+      throw pageError(
+        "budget",
+        "Session budget reached; increase budget and resume"
       );
-      anchorToIndices.forEach((_, el) => {
-        // Observer callbacks arrive after the first batch has been built.
-        const rect = el.getBoundingClientRect();
-        if (
-          rect.bottom > -200 &&
-          rect.top < window.innerHeight + 200 &&
-          rect.right > 0 &&
-          rect.left < window.innerWidth
-        ) {
-          enqueueAnchor(el);
-        }
-        observer.observe(el);
+    }
+    s.requests++;
+    s.sentChars += chars;
+    s.nextRequest = Date.now() + 1000 / s.options.requestsPerSecond;
+    s.inflight++;
+    const transport = Promise.resolve().then(() => {
+      if (!current()) throw pageError("cancelled", "Translation cancelled");
+      return requestTranslation({
+        ...payload,
+        skipHistory: true,
+        siteUrl: location.href
       });
-
-      const takeNextIndex = () => {
-        while (queue.length) {
-          const i = queue.shift();
-          if (!scheduled[i]) return i;
-        }
-        while (nextSequential < infos.length && scheduled[nextSequential]) {
-          nextSequential++;
-        }
-        return nextSequential < infos.length ? nextSequential++ : -1;
-      };
-
-      let done = 0;
-      try {
-        while (pageTranslateActive && done < infos.length) {
-          // Build the next batch: queued viewport units first, bounded by
-          // unit count and total size.
-          const batch = [];
-          let batchChars = 0;
-          while (batch.length < PAGE_BATCH_UNITS) {
-            const i = takeNextIndex();
-            if (i === -1) break;
-            scheduled[i] = true;
-            batch.push(i);
-            batchChars += infos[i].md.length;
-            if (batchChars > PAGE_BATCH_CHARS) break;
-          }
-          if (!batch.length) break;
-
-          const wrappers = injectUnitWrappers(batch.map((i) => infos[i].unit));
-          wrappers.forEach(({ wrapper }) =>
-            wrapper.setAttribute("data-bntrans-page", "true")
-          );
-          try {
-            const segments = await requestSegmentTranslations(
-              batch.map((i) => infos[i].md),
-              settings,
-              (payload) => requestTranslation({ ...payload, skipHistory: true })
-            );
-            updateWrappers(wrappers, segments, settings);
-          } catch (err) {
-            markTranslationError(wrappers, err);
-          }
-          done += batch.length;
-          badge.textContent = `Translating… ${done}/${infos.length}`;
-        }
-      } finally {
-        observer.disconnect();
+    });
+    // Runtime messaging cannot abort a provider HTTP request already sent.
+    transport.then(
+      () => {
+        s.inflight--;
+      },
+      () => {
+        s.inflight--;
       }
-
-      badge.textContent = pageTranslateActive
-        ? "Page translated"
-        : "Translation stopped";
-      setTimeout(() => badge.remove(), 2000);
-    } catch (err) {
-      console.error("[PageTranslate]", err);
-      badge.textContent = "Page translation failed";
-      setTimeout(() => badge.remove(), 2500);
-      pageTranslateActive = false;
+    );
+    let timeout;
+    let cancel;
+    try {
+      const response = await Promise.race([
+        transport,
+        new Promise((_, reject) => {
+          cancel = () =>
+            reject(pageError("cancelled", "Translation cancelled"));
+          s.cancelWaiters.add(cancel);
+        }),
+        new Promise((_, reject) => {
+          timeout = setTimeout(
+            () =>
+              reject(
+                pageError(
+                  "timeout",
+                  "Request timed out; remote request may still finish"
+                )
+              ),
+            s.options.timeoutMs
+          );
+        })
+      ]);
+      if (!current()) throw pageError("cancelled", "Translation cancelled");
+      return response;
     } finally {
-      pageTranslateRunning = false;
+      clearTimeout(timeout);
+      s.cancelWaiters.delete(cancel);
+      pageNotice(s);
     }
   }
+
+  function pageApply(s, records, revisions, segments) {
+    if (pageSession !== s || s.cancelled) return;
+    pageOwnMutation(s, () => {
+      records.forEach((r, i) => {
+        if (
+          !segments?.[i] ||
+          r.revision !== revisions[i] ||
+          !r.wrappers?.length
+        )
+          return;
+        if (!pageValid(r)) return;
+        updateWrappers(r.wrappers, [segments[i]], s.settings);
+        r.status = "done";
+      });
+    });
+    pageSetMode(s, s.options.mode);
+  }
+
+  async function pagePump(s) {
+    if (s.pumping || pageSession !== s || s.state !== "running") return;
+    s.pumping = true;
+    const epoch = s.epoch;
+    const current = () =>
+      pageSession === s &&
+      !s.cancelled &&
+      s.epoch === epoch &&
+      s.state === "running";
+    try {
+      while (current()) {
+        pageCollect(s);
+        const candidates = s.records.filter(
+          (r) =>
+            r.status === "pending" &&
+            (!s.options.nearViewportOnly || pageNear(r.unit))
+        );
+        candidates.sort(
+          (a, b) =>
+            Number(b.priority || pageNear(b.unit)) -
+            Number(a.priority || pageNear(a.unit))
+        );
+        const batch = [];
+        let chars = 0;
+        for (const r of candidates) {
+          if (
+            batch.length >= PAGE_BATCH_UNITS ||
+            (batch.length && chars + r.md.length > PAGE_BATCH_CHARS)
+          )
+            break;
+          batch.push(r);
+          chars += r.md.length;
+        }
+        if (!batch.length) break;
+        const revisions = batch.map((r) => r.revision);
+        pageOwnMutation(s, () => {
+          batch.forEach((r) => {
+            if (!r.wrappers?.length) r.wrappers = injectUnitWrappers([r.unit]);
+            r.wrappers.forEach((w) =>
+              w.wrapper.setAttribute("data-bntrans-page", "true")
+            );
+            r.status = r.wrappers.length ? "working" : "stale";
+          });
+        });
+        try {
+          const segments = await requestSegmentTranslations(
+            batch.map((r) => r.md),
+            s.settings,
+            (payload) => pageRequest(s, epoch, payload),
+            {
+              isCurrent: current,
+              concurrency: s.options.concurrency,
+              maxRetries: s.options.maxRetries
+            }
+          );
+          if (current()) pageApply(s, batch, revisions, segments);
+        } catch (error) {
+          if (!current()) break;
+          pageApply(s, batch, revisions, error.partialTranslations);
+          if (error.code === "revision") {
+            batch.forEach((r) => {
+              if (r.status === "working") r.status = "pending";
+            });
+            continue;
+          }
+          s.error = error.message;
+          if (["budget", "timeout", "cancelled"].includes(error.code)) {
+            s.state = error.code === "budget" ? "budget" : "paused";
+            pageCancelEpoch(s);
+          } else {
+            pageOwnMutation(s, () =>
+              markTranslationError(
+                batch
+                  .filter((r) => r.status !== "done")
+                  .flatMap((r) => r.wrappers),
+                error
+              )
+            );
+          }
+        }
+        batch.forEach((r) => {
+          if (r.status === "working")
+            r.status = s.state === "running" ? "error" : "pending";
+        });
+        pageNotice(s);
+      }
+      if (current()) s.state = s.options.live ? "watching" : "complete";
+    } finally {
+      s.pumping = false;
+      pageNotice(s);
+    }
+  }
+
+  function pageWake(s) {
+    if (
+      pageSession !== s ||
+      s.cancelled ||
+      !["watching", "running", "complete"].includes(s.state)
+    )
+      return;
+    s.state = "running";
+    void pagePump(s);
+  }
+
+  async function runPageTranslation() {
+    if (!document.body) return;
+    if (pageSession) return pageSnapshot();
+    const s = {
+      settings: null,
+      options: null,
+      records: [],
+      identity: new WeakMap(),
+      nextId: 0,
+      epoch: 0,
+      cancelWaiters: new Set(),
+      cancelled: false,
+      pumping: false,
+      state: "starting",
+      requests: 0,
+      sentChars: 0,
+      inflight: 0,
+      nextRequest: 0,
+      url: location.href,
+      badge: showPageProgress("Preparing page translation…")
+    };
+    pageSession = s;
+    pageTranslateActive = true;
+    try {
+      s.settings = await getSettings();
+      if (pageSession !== s || s.cancelled) return;
+      s.options = pageOptions(s.settings);
+      s.state = "running";
+      document.body.setAttribute("data-bntrans-page-translated", "true");
+      reportPageTranslateState();
+      if (typeof IntersectionObserver === "function") {
+        s.intersections = new IntersectionObserver(
+          (entries) => {
+            for (const e of entries)
+              if (e.isIntersecting) {
+                s.records.forEach((r) => {
+                  if (r.unit.nodes[0]?.parentElement === e.target)
+                    r.priority = true;
+                });
+              }
+            if (s.options.nearViewportOnly) pageWake(s);
+          },
+          { rootMargin: "200px 0px" }
+        );
+      }
+      pageCollect(s);
+      if (s.options.live && typeof MutationObserver !== "function") {
+        s.error = "Live translation unavailable: MutationObserver missing";
+      } else if (s.options.live) {
+        s.mutations = new MutationObserver(() => pageSchedule(s));
+        pageObserve(s);
+      }
+      s.route = () => {
+        if (location.href === s.url) return false;
+        removePageTranslation();
+        showPageProgress("Route changed; start a new page session");
+        return true;
+      };
+      window.addEventListener("popstate", s.route);
+      window.addEventListener("hashchange", s.route);
+      s.routeTimer = setInterval(s.route, 500);
+      await pagePump(s);
+      return pageSnapshot();
+    } catch (error) {
+      if (pageSession === s) {
+        s.error = error.message;
+        s.state = "error";
+        pageNotice(s);
+      }
+    }
+  }
+
+  async function pageCommand(message) {
+    const settings = await getSettings();
+    if (settings.labFeatures?.page !== true)
+      throw new Error("Enable Page Labs first");
+    const command = message.command;
+    if (command === "estimate") {
+      const units = getTranslationUnits(document.body).slice(0, PAGE_MAX_UNITS);
+      return {
+        ok: true,
+        units: units.length,
+        chars: units.reduce((n, u) => n + toMarkdown(u.nodes).length, 0),
+        existing: pageSnapshot(),
+        options: pageOptions(settings)
+      };
+    }
+    if (command === "translate") {
+      void runPageTranslation();
+      return { ok: true, state: "starting" };
+    }
+    if (command === "restore") {
+      removePageTranslation();
+      return pageSnapshot();
+    }
+    const s = pageSession;
+    if (!s) return pageSnapshot();
+    if (command === "pause") {
+      s.state = "paused";
+      pageCancelEpoch(s);
+      s.records.forEach((r) => {
+        if (r.status === "working") r.status = "pending";
+      });
+      pageNotice(s);
+    } else if (command === "resume") {
+      s.settings = settings;
+      s.options = { ...pageOptions(settings), mode: s.options.mode };
+      s.records.forEach((r) => {
+        if (r.status === "error") r.status = "pending";
+      });
+      s.error = "";
+      // The old pump unwinds before resuming; no second concurrent queue.
+      if (s.pumping)
+        throw new Error("Previous request is settling; retry resume shortly");
+      s.state = "running";
+      void pagePump(s);
+    } else if (command === "mode") {
+      pageSetMode(s, message.mode);
+    } else if (command !== "snapshot") throw new Error("Unknown page command");
+    return pageSnapshot();
+  }
+
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type !== "labs-page-command") return;
+    pageCommand(message).then(sendResponse, (error) =>
+      sendResponse({ ok: false, error: error.message })
+    );
+    return true;
+  });
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (
+      area !== "local" ||
+      !changes.translatorSettings?.newValue ||
+      !pageSession
+    )
+      return;
+    const next = changes.translatorSettings.newValue;
+    if (
+      next.enabled === false ||
+      (pageSession.options?.live &&
+        (next.labFeatures?.page !== true || next.labPage?.live !== true))
+    )
+      removePageTranslation();
+  });
 
   function togglePageTranslation() {
     if (
@@ -4034,7 +4467,7 @@ function registerScreenshotTranslate() {
     ) {
       removePageTranslation();
     } else {
-      runPageTranslation();
+      void runPageTranslation();
     }
   }
 
