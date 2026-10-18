@@ -476,7 +476,13 @@ async function requestTranslation(payload) {
 
     return chrome.runtime.sendMessage({
       type: "translate",
-      payload: { context: getPageContext(), ...payload }
+      payload: {
+        context: getPageContext(),
+        ...payload,
+        ...(payload.text?.includes(" ||| ")
+          ? { correctionSegments: payload.text.split(" ||| ") }
+          : {})
+      }
     });
   } catch (error) {
     if (
@@ -3213,28 +3219,38 @@ async function handleHoverTranslate(element, settings) {
   }
 
   // Route to appropriate translation method based on granularity
-  if (granularity === "line") {
-    return handleLineByLineTranslate(
+  const granularHandler =
+    granularity === "line"
+      ? handleLineByLineTranslate
+      : granularity === "sentence"
+        ? handleSentenceBySentenceTranslate
+        : null;
+  if (granularHandler) {
+    const alreadyTranslated = element.hasAttribute("data-bntrans-translated");
+    await granularHandler(
       element,
       text,
       settings,
       createHoverPlaceholder,
       updateHoverContent,
       requestTranslation,
-      tmCache,
+      settings.labFeatures?.corrections === true ? new Map() : tmCache,
       clearAllHoverTranslations
     );
-  } else if (granularity === "sentence") {
-    return handleSentenceBySentenceTranslate(
-      element,
-      text,
-      settings,
-      createHoverPlaceholder,
-      updateHoverContent,
-      requestTranslation,
-      tmCache,
-      clearAllHoverTranslations
-    );
+    if (!alreadyTranslated)
+      for (const wrapper of element.querySelectorAll(
+        "[data-bntrans-wrapper]"
+      )) {
+        wrapper.setAttribute(
+          "data-bntrans-source-language",
+          settings.targetLanguageCode || "en"
+        );
+        wrapper.setAttribute(
+          "data-bntrans-target-language",
+          settings.nativeLanguageCode || "vi"
+        );
+      }
+    return;
   }
 
   // Default: Block mode (existing behavior)
@@ -3243,7 +3259,7 @@ async function handleHoverTranslate(element, settings) {
 
   // Include providerId in cache key to support provider switching
   const cacheKey = `${text}-${settings.nativeLanguageCode}-${settings.activeProviderId}`;
-  if (tmCache.has(cacheKey)) {
+  if (settings.labFeatures?.corrections !== true && tmCache.has(cacheKey)) {
     updateHoverContent(placeholder, tmCache.get(cacheKey), settings);
     return;
   }
@@ -3260,7 +3276,8 @@ async function handleHoverTranslate(element, settings) {
 
     if (res?.ok && res.result?.translation) {
       const translation = res.result.translation;
-      tmCache.set(cacheKey, translation);
+      if (settings.labFeatures?.corrections !== true)
+        tmCache.set(cacheKey, translation);
       updateHoverContent(placeholder, translation, settings);
     } else {
       // Show error inline instead of removing
@@ -4564,6 +4581,16 @@ function registerScreenshotTranslate() {
           return;
         if (!pageValid(r)) return;
         updateWrappers(r.wrappers, [segments[i]], s.settings);
+        for (const { wrapper } of r.wrappers) {
+          wrapper.setAttribute(
+            "data-bntrans-source-language",
+            s.settings.targetLanguageCode || "en"
+          );
+          wrapper.setAttribute(
+            "data-bntrans-target-language",
+            s.settings.nativeLanguageCode || "vi"
+          );
+        }
         r.status = "done";
       });
     });
