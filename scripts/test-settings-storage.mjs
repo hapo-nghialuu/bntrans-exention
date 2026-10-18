@@ -33,6 +33,11 @@ test("settings defaults and storage work without service-worker messages", async
   assert.ok(defaults.providers.some((p) => p.id === "google-translate"));
   assert.ok(defaults.providers.some((p) => p.id === "builtin"));
   assert.deepEqual(defaults.labFeatures, {
+    corrections: false,
+    ask: false,
+    image: false,
+    compare: false,
+    readalong: false,
     learning: false,
     writing: false,
     media: false,
@@ -51,9 +56,23 @@ test("settings defaults and storage work without service-worker messages", async
   assert.deepEqual(await readSettings(), stored);
 
   stored = { labFeatures: { writing: true }, activeProviderId: "builtin" };
-  assert.deepEqual((await readSettings()).labFeatures, { writing: true });
+  const readingDefaults = {
+    corrections: false,
+    ask: false,
+    image: false,
+    compare: false,
+    readalong: false
+  };
+  assert.deepEqual((await readSettings()).labFeatures, {
+    ...readingDefaults,
+    writing: true
+  });
   await writeSettings({ labFeatures: { privacy: true } });
-  assert.deepEqual(stored.labFeatures, { writing: true, privacy: true });
+  assert.deepEqual(stored.labFeatures, {
+    ...readingDefaults,
+    writing: true,
+    privacy: true
+  });
   assert.equal(stored.activeProviderId, "builtin");
 
   stored = null;

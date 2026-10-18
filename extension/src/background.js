@@ -4,6 +4,7 @@ import {
   updateSettings
 } from "./common/settings-storage.js";
 import { AIProviderService } from "./services/ai-providers.js";
+import { registerImageHandlers } from "./experimental/background-images.js";
 import {
   createCorrectionStore,
   correctionScope
@@ -313,6 +314,12 @@ async function handleTranslate(payload, sender) {
   let settings = await readSettings();
   const feature = payload.labFeature;
   if (feature !== undefined) {
+    if (
+      sender.id !== chrome.runtime.id ||
+      sender.tab ||
+      !sender.url?.startsWith(chrome.runtime.getURL("pages/"))
+    )
+      throw new Error("Reading requests require an extension page");
     if (!["ask", "image", "compare", "readalong"].includes(feature))
       throw new Error("Unknown reading feature");
     if (settings.enabled === false || settings.labFeatures?.[feature] !== true)
@@ -871,6 +878,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // --- Context menus ---------------------------------------------------------
+
+registerImageHandlers();
 
 const SCREENSHOT_MENU_ID = "bntrans-screenshot-area";
 const SELECTION_MENU_ID = "bntrans-translate-selection";

@@ -11,7 +11,10 @@ import {
   tick
 } from "./test-labs-provider-harness.mjs";
 
-const sender = { url: "chrome-extension://synthetic/pages/labs.html" };
+const sender = {
+  id: "synthetic",
+  url: "chrome-extension://synthetic/pages/labs.html"
+};
 const flags = {
   ask: true,
   image: true,

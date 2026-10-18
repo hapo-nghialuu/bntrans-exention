@@ -574,6 +574,7 @@ test("real background VM honors exact two model overrides without history/cache/
     send: async (type, payload) => {
       assert.equal(type, "translate");
       const response = await w.translate(payload, {
+        id: "synthetic",
         url: "chrome-extension://synthetic/pages/labs.html"
       });
       if (!response.ok) throw new Error(response.error);
@@ -618,7 +619,10 @@ test("real background VM rejects cloud Local-only and provider pin conflicts wit
   w.context.chrome.tabs = {
     get: async (id) => ({ id, url: "https://source.test/article" })
   };
-  const sender = { url: "chrome-extension://synthetic/pages/labs.html" };
+  const sender = {
+    id: "synthetic",
+    url: "chrome-extension://synthetic/pages/labs.html"
+  };
   const local = await w.translate(
     {
       ...comparisonOptions("en", "vi"),
@@ -669,7 +673,7 @@ async function uiFixture(options = {}) {
   const f = fixture(options);
   const dom = new JSDOM(
     '<select id="lab-target"><option value="7">Synthetic tab</option></select><main></main>',
-    { url: "chrome-extension://synthetic/pages/labs.html" }
+    { id: "synthetic", url: "chrome-extension://synthetic/pages/labs.html" }
   );
   const { document } = dom.window;
   const copied = [];

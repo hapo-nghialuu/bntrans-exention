@@ -79,7 +79,9 @@
         "src/experimental/learning-store.js",
         "src/experimental/learning-frequency.js",
         "src/experimental/learning-frequency-data.js",
-        "src/experimental/reading-context.js"
+        "src/experimental/reading-context.js",
+        "src/experimental/image-translation-utils.js",
+        "src/experimental/ocr-utils.js"
       ],
       "matches": ["<all_urls>"]
     }
