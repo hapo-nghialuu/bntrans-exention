@@ -5,6 +5,10 @@ import {
 } from "./common/settings-storage.js";
 import { AIProviderService } from "./services/ai-providers.js";
 import {
+  createCorrectionStore,
+  correctionScope
+} from "./experimental/correction-store.js";
+import {
   resolvePrivacy,
   assertProvider,
   assertDestination,
@@ -184,6 +188,127 @@ function recordHistory(settings, policy, entry) {
   });
 }
 
+let correctionMemory;
+function getCorrectionMemory() {
+  return (correctionMemory ||= createCorrectionStore({
+    settings: readSettings
+  }));
+}
+async function lookupCorrection(settings, policy, payload) {
+  if (
+    settings.labFeatures?.corrections !== true ||
+    payload.labFeature ||
+    (payload.task && payload.task !== "translate") ||
+    !policy.hostname
+  )
+    return null;
+  let scope;
+  try {
+    scope = correctionScope(payload.correctionSiteUrl);
+  } catch {
+    return null;
+  }
+  try {
+    return await getCorrectionMemory().lookup(
+      {
+        ...scope,
+        text: payload.text,
+        sourceLanguage: payload.sourceLanguage || "auto",
+        targetLanguage: payload.targetLanguage
+      },
+      policy
+    );
+  } catch {
+    return null;
+  }
+}
+async function handleCorrection(message, sender) {
+  const payload = message.payload || {};
+  const extensionPage =
+    sender.id === chrome.runtime.id &&
+    !sender.tab &&
+    sender.url?.startsWith(chrome.runtime.getURL(""));
+  const page =
+    sender.id === chrome.runtime.id && sender.tab && sender.frameId === 0;
+  if (!extensionPage && !(page && payload.command === "save"))
+    throw new Error("correction-sender");
+  if (payload.command === "clear" && extensionPage) {
+    await getCorrectionMemory().clear();
+    return { ok: true };
+  }
+  const settings = await readSettings();
+  let tab;
+  if (page) tab = sender.tab;
+  else if (Number.isInteger(payload.targetTabId))
+    tab = await chrome.tabs.get(payload.targetTabId);
+  if (tab && tab.url !== payload.url) throw new Error("correction-stale");
+  const policy = resolvePrivacy(
+    settings,
+    { ephemeral: payload.ephemeral === true },
+    tab ? { ...sender, tab } : sender
+  );
+  const store = getCorrectionMemory();
+  if (payload.command === "list")
+    return { ok: true, items: await store.list(policy) };
+  if (payload.command === "save") {
+    if (payload.explicitSave !== true)
+      throw new Error("correction-explicit-save-required");
+    if (page && (!tab || !payload.url)) throw new Error("correction-stale");
+    const entry = page
+      ? { ...payload.entry, ...correctionScope(tab.url) }
+      : payload.entry;
+    const validate = async () => {
+      if (!page) return true;
+      try {
+        const response = await chrome.tabs.sendMessage(
+          tab.id,
+          {
+            type: "labs-corrections-page",
+            payload: {
+              command: "validate-save",
+              token: payload.token,
+              url: payload.url
+            }
+          },
+          { frameId: 0 }
+        );
+        return response?.ok === true;
+      } catch {
+        return false;
+      }
+    };
+    return { ok: true, entry: await store.save(entry, policy, validate) };
+  }
+  if (payload.command === "delete") {
+    await store.delete(payload.entry, policy);
+    return { ok: true };
+  }
+  if (payload.command === "import") {
+    return { ok: true, count: await store.import(payload.value, policy) };
+  }
+  throw new Error("correction-command");
+}
+chrome.storage.onChanged?.addListener((changes, area) => {
+  const settings = changes.translatorSettings?.newValue;
+  if (
+    area === "local" &&
+    settings &&
+    (correctionMemory ||
+      changes.translatorSettings?.oldValue?.labFeatures?.corrections ===
+        true) &&
+    (settings.enabled === false ||
+      settings.labFeatures?.corrections !== true ||
+      settings.retentionEnabled === false ||
+      settings.historyEnabled === false ||
+      settings.cacheEnabled === false ||
+      ttlMillis(settings, "history") === 0 ||
+      ttlMillis(settings, "cache") === 0)
+  )
+    void getCorrectionMemory()
+      .clear()
+      .catch(() => {});
+});
+
 async function handleTranslate(payload, sender) {
   let settings = await readSettings();
   const feature = payload.labFeature;
@@ -207,6 +332,78 @@ async function handleTranslate(payload, sender) {
     throw new Error("Model override requires a reading feature");
   }
   const policy = resolvePrivacy(settings, payload, sender);
+  const correctionPayload = {
+    ...payload,
+    correctionSiteUrl: sender.tab?.url || payload.siteUrl || ""
+  };
+  const remembered = await lookupCorrection(
+    settings,
+    policy,
+    correctionPayload
+  );
+  if (remembered)
+    return {
+      ok: true,
+      result: {
+        translation: remembered.translation,
+        providerName: "Correction memory",
+        providerType: "correction",
+        sourceLanguage: remembered.sourceLanguage,
+        targetLanguage: remembered.targetLanguage,
+        correction: true
+      }
+    };
+  if (
+    settings.labFeatures?.corrections === true &&
+    !feature &&
+    (!payload.task || payload.task === "translate") &&
+    Array.isArray(payload.correctionSegments) &&
+    payload.correctionSegments.length > 1 &&
+    payload.correctionSegments.length <= 40 &&
+    payload.correctionSegments.join(" ||| ") === payload.text
+  ) {
+    const entries = await Promise.all(
+      payload.correctionSegments.map((text) =>
+        lookupCorrection(settings, policy, { ...correctionPayload, text })
+      )
+    );
+    if (entries.some(Boolean)) {
+      const parts = [];
+      for (let i = 0; i < entries.length; i++) {
+        if (entries[i]) parts.push(entries[i].translation);
+        else {
+          const result = await handleTranslate(
+            {
+              ...payload,
+              text: payload.correctionSegments[i],
+              correctionSegments: undefined,
+              skipHistory: true
+            },
+            sender
+          );
+          parts.push(result.result.translation);
+        }
+      }
+      for (let i = 0; i < entries.length; i++) {
+        if (!entries[i]) continue;
+        const current = await lookupCorrection(await readSettings(), policy, {
+          ...correctionPayload,
+          text: payload.correctionSegments[i]
+        });
+        if (current?.translation !== entries[i].translation)
+          throw new Error("correction-stale");
+      }
+      return {
+        ok: true,
+        result: {
+          translation: parts.join(" ||| "),
+          providerName: "Correction memory",
+          providerType: "correction",
+          correction: true
+        }
+      };
+    }
+  }
   const ensureReadingRequest = async () => {
     if (!feature) return;
     const current = await readSettings();
@@ -445,6 +642,12 @@ async function handleTranslate(payload, sender) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "labs-corrections") {
+    handleCorrection(message, sender)
+      .then(sendResponse)
+      .catch((error) => sendResponse(privacyResponse(error)));
+    return true;
+  }
   if (message?.type === "ping") {
     sendResponse({ ok: true });
     return true;
@@ -456,7 +659,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   if (message?.type === "set-settings") {
-    writeSettings(message.settings)
+    const patch = message.settings || {};
+    const disabled =
+      patch.enabled === false ||
+      patch.labFeatures?.corrections === false ||
+      patch.retentionEnabled === false ||
+      patch.historyEnabled === false ||
+      patch.cacheEnabled === false ||
+      (patch.historyTTLHours !== undefined &&
+        ttlMillis(patch, "history") === 0) ||
+      (patch.cacheTTLHours !== undefined && ttlMillis(patch, "cache") === 0);
+    readSettings()
+      .then((current) =>
+        disabled &&
+        (correctionMemory || current.labFeatures?.corrections === true)
+          ? getCorrectionMemory().clear()
+          : undefined
+      )
+      .then(() => writeSettings(message.settings))
       .then((settings) => sendResponse({ ok: true, settings }))
       .catch((e) => sendResponse(privacyResponse(e)));
     return true;
