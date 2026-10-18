@@ -189,6 +189,32 @@ export function createLocalEngine({
     await job("initialize", { langs: "eng", oem: 1, config: {} });
   };
   return {
+    async recognizeLayout(pngBytes, language = "eng") {
+      if (language !== "eng") throw new Error("unsupported-language");
+      if (!(pngBytes instanceof Uint8Array)) throw new Error("image-format");
+      if (!pngBytes.length || pngBytes.length > OCR_LIMITS.encodedBytes)
+        throw new Error("file-limit");
+      ready ||= initialize();
+      await ready;
+      const result = await job("recognize", {
+        image: pngBytes,
+        options: {},
+        output: { text: true, blocks: true, hocr: false, tsv: false }
+      });
+      const lines = (result.blocks || []).flatMap((block) =>
+        (block.paragraphs || []).flatMap((paragraph) =>
+          (paragraph.lines || []).map((line) => ({
+            text: String(line.text || ""),
+            bbox: line.bbox,
+            words: (line.words || []).map((word) => ({
+              text: String(word.text || ""),
+              bbox: word.bbox
+            }))
+          }))
+        )
+      );
+      return { text: String(result.text || ""), lines };
+    },
     async recognize(pngBytes, language = "eng") {
       if (language !== "eng") throw new Error("unsupported-language");
       if (!(pngBytes instanceof Uint8Array)) throw new Error("image-format");
