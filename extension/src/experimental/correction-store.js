@@ -96,7 +96,7 @@ export function createCorrectionStore({
       throw new Error("correction-disabled-or-private");
     return current;
   }
-  async function load(current) {
+  async function load(current, policy, token) {
     const stored = (await storage.get(CORRECTIONS_KEY))[CORRECTIONS_KEY];
     if (stored?.schemaVersion !== 1) return [];
     const ttl = Math.min(
@@ -117,13 +117,15 @@ export function createCorrectionStore({
         /* Corrupt storage is never a match. */
       }
     }
+    if (JSON.stringify(stored.items) !== JSON.stringify(values))
+      await persist(values, policy, token);
     return values;
   }
   function transaction(policy, action) {
     const token = epoch;
     return serial(async () => {
       const current = await allowed(policy, token);
-      const items = await load(current);
+      const items = await load(current, policy, token);
       await allowed(policy, token);
       return action(items, token);
     });

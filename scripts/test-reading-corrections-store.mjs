@@ -158,6 +158,7 @@ test("retention expires at shorter TTL, corrupt/future/versioned entries never m
   await f.store.save(input());
   f.advance(2 * 3600000);
   assert.equal(await f.store.lookup(input()), null);
+  assert.deepEqual(f.state[CORRECTIONS_KEY].items, []);
   f.state[CORRECTIONS_KEY] = {
     schemaVersion: 1,
     items: [
