@@ -3,6 +3,51 @@ import { readSettings } from "../common/settings-storage.js";
 
 const modules = [
   {
+    id: "corrections",
+    en: "Corrections",
+    vi: "Sửa bản dịch",
+    subEn: "Review · explicitly save edits",
+    subVi: "Xem lại · chủ động lưu cách sửa",
+    file: "corrections.js",
+    count: "01"
+  },
+  {
+    id: "ask",
+    en: "Ask sources",
+    vi: "Hỏi nguồn đã chọn",
+    subEn: "Website · PDF · cited answers",
+    subVi: "Website · PDF · trả lời có nguồn",
+    file: "ask.js",
+    count: "01"
+  },
+  {
+    id: "image",
+    en: "Image translation",
+    vi: "Dịch ảnh trên trang",
+    subEn: "Local OCR · positioned text",
+    subVi: "OCR local · giữ vị trí chữ",
+    file: "image-translation.js",
+    count: "01"
+  },
+  {
+    id: "compare",
+    en: "Compare models",
+    vi: "So sánh model",
+    subEn: "Two providers · one explicit request",
+    subVi: "Hai provider · chủ động so sánh",
+    file: "compare.js",
+    count: "01"
+  },
+  {
+    id: "readalong",
+    en: "Read along",
+    vi: "Đọc song ngữ",
+    subEn: "Sentences · synchronized highlights",
+    subVi: "Theo câu · highlight đồng bộ",
+    file: "readalong.js",
+    count: "01"
+  },
+  {
     id: "page",
     en: "Reading",
     vi: "Đọc trang",

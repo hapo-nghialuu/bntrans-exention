@@ -185,8 +185,49 @@ function recordHistory(settings, policy, entry) {
 }
 
 async function handleTranslate(payload, sender) {
-  const settings = await readSettings();
+  let settings = await readSettings();
+  const feature = payload.labFeature;
+  if (feature !== undefined) {
+    if (!["ask", "image", "compare", "readalong"].includes(feature))
+      throw new Error("Unknown reading feature");
+    if (settings.enabled === false || settings.labFeatures?.[feature] !== true)
+      throw new Error("Reading feature is disabled");
+    payload = { ...payload, ephemeral: true, skipHistory: true };
+    if (!sender.tab && payload.siteUrl !== "") {
+      if (!Number.isInteger(payload.targetTabId))
+        throw new Error("Choose a website tab for this reading request");
+      const tab = await chrome.tabs.get(payload.targetTabId);
+      if (!tab || !/^(https?|file):/i.test(tab.url || ""))
+        throw new Error("Reading target tab is unavailable");
+      if (payload.siteUrl && payload.siteUrl !== tab.url)
+        throw new Error("Reading source is stale; capture it again");
+      payload = { ...payload, siteUrl: tab.url };
+    }
+  } else if (payload.model !== undefined) {
+    throw new Error("Model override requires a reading feature");
+  }
   const policy = resolvePrivacy(settings, payload, sender);
+  const ensureReadingRequest = async () => {
+    if (!feature) return;
+    const current = await readSettings();
+    if (current.enabled === false || current.labFeatures?.[feature] !== true)
+      throw new Error("Reading feature is disabled");
+    const tabId = sender.tab?.id ?? payload.targetTabId;
+    if (Number.isInteger(tabId) && (sender.tab || payload.siteUrl !== "")) {
+      const tab = await chrome.tabs.get(tabId);
+      if (tab?.url !== (sender.tab?.url || payload.siteUrl))
+        throw new Error("Reading source is stale; capture it again");
+    }
+  };
+  if (
+    feature &&
+    payload.providerId &&
+    policy.providerId &&
+    payload.providerId !== policy.providerId
+  )
+    throw new Error(
+      "Selected provider conflicts with this site's privacy rule"
+    );
   const {
     text,
     targetLanguage: targetLang,
@@ -195,12 +236,53 @@ async function handleTranslate(payload, sender) {
     task
   } = payload;
   let sourceLang = payload.sourceLanguage || "auto";
-  const service = new AIProviderService(settings, policy);
   const providerId = policy.providerId || payload.providerId;
-  const usedProvider = providerId
+  let service = new AIProviderService(settings, policy);
+  let usedProvider = providerId
     ? settings.providers?.find((p) => p.id === providerId)
     : service.activeProvider;
   if (!usedProvider) throw new Error("Selected provider is not configured");
+  if (payload.model !== undefined) {
+    if (
+      !settings.providers?.some(
+        (provider) => provider.id === usedProvider.id
+      ) ||
+      ![
+        "gemini",
+        "openai",
+        "openrouter",
+        "groq",
+        "claude",
+        "ollama",
+        "codex",
+        "custom"
+      ].includes(usedProvider.type)
+    )
+      throw new Error("This provider does not support model overrides");
+    if (
+      typeof payload.model !== "string" ||
+      !payload.model.trim() ||
+      payload.model.length > 200 ||
+      [...payload.model].some(
+        (char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127
+      )
+    )
+      throw new Error("Invalid model override");
+    usedProvider = {
+      ...usedProvider,
+      config: {
+        ...usedProvider.config,
+        model: payload.model.trim()
+      }
+    };
+    settings = {
+      ...settings,
+      providers: settings.providers.map((provider) =>
+        provider.id === usedProvider.id ? usedProvider : provider
+      )
+    };
+    service = new AIProviderService(settings, policy);
+  }
   assertProvider(policy, usedProvider);
   if (
     task &&
@@ -220,6 +302,7 @@ async function handleTranslate(payload, sender) {
         detected.split("-")[0].toLowerCase() ===
           String(targetLang).split("-")[0].toLowerCase()
       ) {
+        await ensureReadingRequest();
         return {
           ok: true,
           result: {
@@ -269,7 +352,9 @@ async function handleTranslate(payload, sender) {
   }
   let providerCompleted = false;
   try {
-    const formatted = shouldConvertFormat(text);
+    await ensureReadingRequest();
+    const formatted =
+      (!task || task === "translate") && shouldConvertFormat(text);
     const input = formatted ? htmlToMarkdown(text) : text;
     let result = await service.translate(
       input,
@@ -310,6 +395,7 @@ async function handleTranslate(payload, sender) {
       targetLanguage: targetLang
     };
     providerCompleted = true;
+    await ensureReadingRequest();
     await saveHistory(resultObj);
     await cacheAccess(cacheKey, settings, policy, resultObj);
     return { ok: true, result: resultObj };
@@ -318,6 +404,7 @@ async function handleTranslate(payload, sender) {
     // Task-specific work must not be replaced by a plain Google translation.
     if (
       usedProvider?.type !== "google-translate" &&
+      !feature &&
       settings.allowCloudFallback === true &&
       (!task || task === "translate")
     ) {
