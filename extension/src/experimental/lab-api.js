@@ -135,6 +135,7 @@ export function createLabApi({ language = "en", selectedTab, onStatus } = {}) {
         ...options,
         text,
         sourceLanguage: options.sourceLanguage || "auto",
+        languageOverride: true,
         targetLanguage:
           options.targetLanguage || settings.nativeLanguageCode || "vi",
         skipHistory: options.skipHistory !== false,

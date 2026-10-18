@@ -2,6 +2,8 @@ import { i18n } from "./common/i18n.js";
 import { tts } from "./services/tts.js";
 import { enhanceSelects } from "./common/custom-select.js";
 import { readSettings, writeSettings } from "./common/settings-storage.js";
+import { mountProductivitySettings } from "./common/productivity-settings.js";
+import { qualityWarningText } from "./common/translation-quality.js";
 import {
   createSettingsBackup,
   prepareSettingsImport
@@ -1140,6 +1142,7 @@ function updateShortcutPreview() {
 
 async function loadSettings() {
   const res = { ok: true, settings: await readSettings() };
+  await mountProductivitySettings(document.querySelector("#tab-general"));
 
   populateSelects();
 
@@ -1925,7 +1928,12 @@ async function runQuickTranslate() {
 
     if (res?.ok && res.result?.translation) {
       quickResultText.textContent = res.result.translation;
-      quickProvider.textContent = res.result.providerName || "";
+      quickProvider.textContent = [
+        res.result.providerName,
+        qualityWarningText(res.result.qualityWarnings, i18n.language)
+      ]
+        .filter(Boolean)
+        .join(" · ");
     } else {
       quickResultText.textContent = `${i18n.t("popup.translateFailed")}: ${res?.error || "Unknown error"}`;
       quickProvider.textContent = "";

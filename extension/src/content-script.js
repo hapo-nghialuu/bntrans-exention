@@ -656,6 +656,7 @@ async function handleAutoTranslation(element, parsed) {
           text: cleanSourceValue,
           nativeLanguageCode: settings.nativeLanguageCode || "en",
           targetLanguage: targetCode,
+          languageOverride: parsed.languageRaw !== "t",
           useAutoDetect: settings.useAutoDetect === true
         });
       } catch (e) {
@@ -685,6 +686,7 @@ async function handleAutoTranslation(element, parsed) {
         text: cleanSourceValue,
         nativeLanguageCode: settings.nativeLanguageCode || "en",
         targetLanguage: targetCode,
+        languageOverride: parsed.languageRaw !== "t",
         useAutoDetect: settings.useAutoDetect === true
       });
     } catch (e) {
@@ -2384,6 +2386,7 @@ async function showTranslationPopup(selectionRect, text, iconPosition) {
     popup
       .querySelector(".bt-selection-source-select")
       .addEventListener("change", (e) => {
+        popup._languageOverride = true;
         const providerSelect = popup.querySelector(
           ".bt-selection-provider-select"
         );
@@ -2419,6 +2422,7 @@ async function showTranslationPopup(selectionRect, text, iconPosition) {
     popup
       .querySelector(".bt-selection-target-select")
       .addEventListener("change", (e) => {
+        popup._languageOverride = true;
         const providerSelect = popup.querySelector(
           ".bt-selection-provider-select"
         );
@@ -2586,9 +2590,14 @@ async function translateSelectionWithSource(
 
   translatedDiv.textContent = i18n.t("dialog.translating");
   translatedDiv.classList.add("bt-loading-text");
+  popup.querySelector(".bt-quality-warning")?.remove();
 
   // If source and target are the same, return original text immediately
-  if (sourceLang !== "auto" && sourceLang === targetLang) {
+  if (
+    sourceLang !== "auto" &&
+    sourceLang === targetLang &&
+    (popup._languageOverride === true || !settings.websiteProfiles?.length)
+  ) {
     translatedDiv.textContent = text;
     translatedDiv.classList.remove("bt-loading-text");
     // Readjust popup position after content change
@@ -2602,6 +2611,7 @@ async function translateSelectionWithSource(
       nativeLanguageCode: nativeLang,
       targetLanguage: targetLang,
       sourceLanguage: sourceLang, // Pass explicit source language
+      languageOverride: popup._languageOverride === true,
       useAutoDetect:
         sourceLang === "auto" ? true : settings.useAutoDetect === true,
       providerId: providerId // Pass provider override
@@ -2610,6 +2620,28 @@ async function translateSelectionWithSource(
     if (res?.ok && res.result?.translation) {
       translatedDiv.textContent = res.result.translation;
       translatedDiv.classList.remove("bt-loading-text");
+      if (!popup._languageOverride) {
+        const sourceSelect = popup.querySelector(".bt-selection-source-select");
+        const targetSelect = popup.querySelector(".bt-selection-target-select");
+        if (res.result.siteProfile && sourceSelect && targetSelect) {
+          sourceSelect.value = res.result.sourceLanguage;
+          targetSelect.value = res.result.targetLanguage;
+        }
+      }
+      popup.querySelector(".bt-quality-warning")?.remove();
+      if (res.result.qualityWarnings?.length) {
+        const { qualityWarningText } = await import(
+          chrome.runtime.getURL("src/common/translation-quality.js")
+        );
+        const warning = document.createElement("p");
+        warning.className = "bt-quality-warning";
+        warning.setAttribute("role", "status");
+        warning.textContent = qualityWarningText(
+          res.result.qualityWarnings,
+          settings.interfaceLanguage
+        );
+        translatedDiv.after(warning);
+      }
     } else {
       // Show actual error message from background/provider
       translatedDiv.textContent =
@@ -3182,6 +3214,10 @@ function findTranslatableElement(target) {
 }
 
 async function handleHoverTranslate(element, settings) {
+  // Site-aware results use the background cache's effective language/style key.
+  const cache = settings.websiteProfiles?.length
+    ? { has: () => false, get: () => undefined, set: () => {} }
+    : tmCache;
   if (
     isSensitiveElement(element) ||
     Array.from(element.querySelectorAll("input, [autocomplete]")).some(
@@ -3221,7 +3257,7 @@ async function handleHoverTranslate(element, settings) {
       createHoverPlaceholder,
       updateHoverContent,
       requestTranslation,
-      tmCache,
+      cache,
       clearAllHoverTranslations
     );
   } else if (granularity === "sentence") {
@@ -3232,7 +3268,7 @@ async function handleHoverTranslate(element, settings) {
       createHoverPlaceholder,
       updateHoverContent,
       requestTranslation,
-      tmCache,
+      cache,
       clearAllHoverTranslations
     );
   }
@@ -3243,8 +3279,8 @@ async function handleHoverTranslate(element, settings) {
 
   // Include providerId in cache key to support provider switching
   const cacheKey = `${text}-${settings.nativeLanguageCode}-${settings.activeProviderId}`;
-  if (tmCache.has(cacheKey)) {
-    updateHoverContent(placeholder, tmCache.get(cacheKey), settings);
+  if (cache.has(cacheKey)) {
+    updateHoverContent(placeholder, cache.get(cacheKey), settings);
     return;
   }
 
@@ -3260,7 +3296,7 @@ async function handleHoverTranslate(element, settings) {
 
     if (res?.ok && res.result?.translation) {
       const translation = res.result.translation;
-      tmCache.set(cacheKey, translation);
+      cache.set(cacheKey, translation);
       updateHoverContent(placeholder, translation, settings);
     } else {
       // Show error inline instead of removing
@@ -4292,6 +4328,7 @@ function registerScreenshotTranslate() {
       inflight: s.inflight,
       maxRequests: options.maxRequests,
       maxChars: options.maxChars,
+      qualityWarnings: s.qualityWarnings || 0,
       error: s.error || "",
       capped: s.capped
     };
@@ -4305,6 +4342,9 @@ function registerScreenshotTranslate() {
       stats.complete + "/" + stats.units,
       stats.requests + "/" + stats.maxRequests + " requests",
       stats.sentChars + "/" + stats.maxChars + " chars",
+      stats.qualityWarnings
+        ? `${stats.qualityWarnings} ${s.settings.interfaceLanguage === "vi" ? "bản dịch cần kiểm tra" : "translations need review"}`
+        : "",
       s.error
     ]
       .filter(Boolean)
@@ -4544,6 +4584,8 @@ function registerScreenshotTranslate() {
         })
       ]);
       if (!current()) throw pageError("cancelled", "Translation cancelled");
+      if (response?.result?.qualityWarnings?.length)
+        s.qualityWarnings = (s.qualityWarnings || 0) + 1;
       return response;
     } finally {
       clearTimeout(timeout);

@@ -1,3 +1,21 @@
+.bt-productivity {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--bt-color-border);
+}
+.bt-productivity p {
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.bt-productivity .bt-profile-row {
+  margin: 12px 0;
+  padding: 4px 12px 12px;
+  border-left: 2px solid var(--bt-color-blue);
+}
+.bt-productivity .bt-btn {
+  margin: 4px 6px 4px 0;
+}
 /* Options page — full-window layout: left sidebar nav + content column.
    Overrides the popup card styles from popup.css for pages/options.html only. */
 
