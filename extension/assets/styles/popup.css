@@ -1385,6 +1385,13 @@ textarea.bt-input:focus {
   color: var(--bt-color-primary-background);
 }
 
+.bt-quick-action-text {
+  width: auto;
+  padding: 0 7px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 .bt-quick-result-text {
   max-height: 160px;
   padding: 10px 12px;

@@ -81,16 +81,15 @@ function populateLangs() {
 
 async function loadSettings() {
   try {
-    const res = await chrome.runtime.sendMessage({ type: "get-settings" });
-    if (!res?.ok) return;
-    applyTheme(res.settings.theme || "auto");
-    i18n.setLanguage(res.settings.interfaceLanguage || "en");
+    const { translatorSettings: s = {} } =
+      await chrome.storage.local.get("translatorSettings");
+    applyTheme(s.theme || "auto");
+    i18n.setLanguage(s.interfaceLanguage || "en");
     populateLangs();
     translateUI();
     // Same default direction as the selection popup: fixed mode goes
     // target→native; auto-detect keeps the configured target. Last-used
     // picks win when present.
-    const s = res.settings;
     let defaultSource, defaultTarget;
     if (!s.useAutoDetect) {
       defaultSource = s.targetLanguageCode || "en";
@@ -104,8 +103,8 @@ async function loadSettings() {
     quickSource.value = defaultSource;
     quickTarget.value = defaultTarget;
     activeProviderId = s.activeProviderId || activeProviderId;
-  } catch {
-    // background not ready
+  } catch (err) {
+    console.error("BNTrans: Could not load popup settings", err);
   }
 }
 
@@ -190,8 +189,44 @@ quickCopy?.addEventListener("click", async () => {
 quickSpeak?.addEventListener("click", async () => {
   const text = quickResultText.textContent;
   if (!text || text === i18n.t("dialog.translating")) return;
-  await tts.play(text, quickTarget.value);
+  try {
+    await tts.play(text, quickTarget.value);
+    setSpeechStatus("");
+  } catch (error) {
+    setSpeechStatus(`${i18n.t("popup.speechError")}: ${error.message}`);
+  }
 });
+
+function setSpeechStatus(message) {
+  let output = document.getElementById("quick-speech-status");
+  if (!output) {
+    output = document.createElement("p");
+    output.id = "quick-speech-status";
+    output.setAttribute("role", "status");
+    quickResult?.append(output);
+  }
+  output.textContent = message;
+  output.hidden = !message;
+}
+
+if (quickSpeak) {
+  const stop = document.createElement("button");
+  stop.type = "button";
+  stop.className = "bt-quick-action bt-quick-action-text";
+  stop.dataset.i18n = "popup.stopSpeech";
+  stop.textContent = i18n.t("popup.stopSpeech");
+  stop.addEventListener("click", async () => {
+    try {
+      const response = await tts.stop();
+      if (!response?.ok)
+        throw new Error(response?.error || i18n.t("popup.speechError"));
+      setSpeechStatus("");
+    } catch (error) {
+      setSpeechStatus(`${i18n.t("popup.speechError")}: ${error.message}`);
+    }
+  });
+  quickSpeak.after(stop);
+}
 
 openOptionsBtn?.addEventListener("click", () => {
   chrome.runtime.openOptionsPage();

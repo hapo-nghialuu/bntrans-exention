@@ -1,6 +1,11 @@
 import { i18n } from "./common/i18n.js";
 import { tts } from "./services/tts.js";
 import { enhanceSelects } from "./common/custom-select.js";
+import { readSettings, writeSettings } from "./common/settings-storage.js";
+import {
+  createSettingsBackup,
+  prepareSettingsImport
+} from "./common/settings-backup.js";
 
 enhanceSelects(document.body);
 
@@ -231,48 +236,58 @@ function populateSelects() {
   if (currentTarget) targetSelect.value = currentTarget;
 }
 
-function renderAliases() {
-  aliasListEl.innerHTML = "";
-  Object.entries(currentAliases).forEach(([key, value]) => {
+function renderTextMap(list, values, buttonClass, onRemove) {
+  list.replaceChildren();
+  if (!values || typeof values !== "object" || Array.isArray(values)) return;
+  Object.entries(values).forEach(([key, value]) => {
+    if (typeof value !== "string") return;
     const item = document.createElement("div");
     item.className = "bt-alias-item";
-    item.innerHTML = `
-      <span><b>${key}</b> → ${value}</span>
-      <button data-key="${key}" class="bt-remove-alias">×</button>
-    `;
-    aliasListEl.appendChild(item);
+    const label = document.createElement("span");
+    const term = document.createElement("b");
+    term.textContent = key;
+    label.append(term, document.createTextNode(` → ${value}`));
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = buttonClass;
+    button.dataset.key = key;
+    button.textContent = "×";
+    button.addEventListener("click", () => onRemove(key));
+    item.append(label, button);
+    list.appendChild(item);
   });
+}
 
-  document.querySelectorAll(".bt-remove-alias").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      const key = e.target.dataset.key;
-      delete currentAliases[key];
-      renderAliases();
-      saveSettings();
-    });
+function renderAliases() {
+  renderTextMap(aliasListEl, currentAliases, "bt-remove-alias", (key) => {
+    delete currentAliases[key];
+    renderAliases();
+    saveSettings();
   });
 }
 
 function renderGlossary() {
   if (!glossaryListEl) return;
-  glossaryListEl.innerHTML = "";
-  Object.entries(currentGlossary).forEach(([key, value]) => {
-    const item = document.createElement("div");
-    item.className = "bt-alias-item";
-    item.innerHTML = `
-      <span><b>${key}</b> → ${value}</span>
-      <button data-key="${key}" class="bt-remove-glossary">×</button>
-    `;
-    glossaryListEl.appendChild(item);
-  });
-
-  glossaryListEl.querySelectorAll(".bt-remove-glossary").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      delete currentGlossary[e.target.dataset.key];
+  renderTextMap(
+    glossaryListEl,
+    currentGlossary,
+    "bt-remove-glossary",
+    (key) => {
+      delete currentGlossary[key];
       renderGlossary();
       saveSettings();
-    });
-  });
+    }
+  );
+}
+
+function escapeSettingsText(value) {
+  return String(value ?? "").replace(
+    /[&<>"']/g,
+    (character) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        character
+      ]
+  );
 }
 
 function renderDomains() {
@@ -285,7 +300,7 @@ function renderDomains() {
     const position = item.position || "auto"; // Default to 'auto'
     div.innerHTML = `
       <input type="checkbox" ${item.enabled ? "checked" : ""} data-index="${index}" />
-      <span class="bt-domain-name">${item.domain}</span>
+      <span class="bt-domain-name">${escapeSettingsText(item.domain)}</span>
       <select class="bt-position-select" data-index="${index}">
         <option value="auto" ${position === "auto" ? "selected" : ""}>Auto</option>
         <option value="bottom" ${position === "bottom" ? "selected" : ""}>Bottom</option>
@@ -339,19 +354,19 @@ function renderProviderList() {
     if (isActive) {
       actionsHtml += `<span class="bt-badge-active">${i18n.t("popup.active")}</span>`;
     } else {
-      actionsHtml += `<button class="bt-btn-text btn-set-active" data-id="${p.id}">${i18n.t("popup.use")}</button>`;
+      actionsHtml += `<button class="bt-btn-text btn-set-active" data-id="${escapeSettingsText(p.id)}">${i18n.t("popup.use")}</button>`;
     }
 
     // Only allow edit/delete for non-default providers
     if (!isDefaultProvider) {
-      actionsHtml += `<button class="bt-btn-text btn-edit" data-id="${p.id}">${i18n.t("popup.edit")}</button>`;
-      actionsHtml += `<button class="bt-btn-text btn-delete" data-id="${p.id}">${i18n.t("popup.delete")}</button>`;
+      actionsHtml += `<button class="bt-btn-text btn-edit" data-id="${escapeSettingsText(p.id)}">${i18n.t("popup.edit")}</button>`;
+      actionsHtml += `<button class="bt-btn-text btn-delete" data-id="${escapeSettingsText(p.id)}">${i18n.t("popup.delete")}</button>`;
     }
 
     el.innerHTML = `
       <div class="bt-provider-info">
-        <div class="bt-provider-name">${p.name}</div>
-        <div class="bt-provider-type">${p.type}</div>
+        <div class="bt-provider-name">${escapeSettingsText(p.name)}</div>
+        <div class="bt-provider-type">${escapeSettingsText(p.type)}</div>
       </div>
       <div class="bt-provider-actions">
         ${actionsHtml}
@@ -538,7 +553,7 @@ async function loadModelsIntoDatalist() {
     datalist.innerHTML = orderSuggested(models, suggested)
       .map((m) => {
         const label = suggested.includes(m) ? `${m} · ${tag}` : m;
-        return `<option value="${m}" label="${label}"></option>`;
+        return `<option value="${escapeSettingsText(m)}" label="${escapeSettingsText(label)}"></option>`;
       })
       .join("");
     if (hint) {
@@ -563,15 +578,20 @@ function modelFieldHtml(model, placeholder, hint = "") {
       <div class="bt-field">
         <label>Model</label>
         <div class="bt-model-row">
-          <input type="text" id="field-model" class="bt-input" list="model-datalist" value="${model}" placeholder="${placeholder}" />
+          <input type="text" id="field-model" class="bt-input" list="model-datalist" value="${escapeSettingsText(model)}" placeholder="${escapeSettingsText(placeholder)}" />
           <button type="button" id="btn-load-models" class="bt-button-small" title="Load available models">↻</button>
         </div>
         <datalist id="model-datalist"></datalist>
-        <small id="model-load-hint" class="bt-hint">${hint}</small>
+        <small id="model-load-hint" class="bt-hint">${escapeSettingsText(hint)}</small>
       </div>`;
 }
 
 function renderFormFields(type, config = {}) {
+  config = {
+    ...config,
+    apiKey: escapeSettingsText(config.apiKey),
+    baseUrl: escapeSettingsText(config.baseUrl)
+  };
   formDynamicFields.innerHTML = "";
 
   // Info Link
@@ -789,6 +809,18 @@ formType.addEventListener("change", () => renderFormFields(formType.value));
 // page text / provider output.
 function renderHistory(history = []) {
   if (!historyListEl) return;
+  history = Array.isArray(history)
+    ? history.filter(
+        (entry) =>
+          entry &&
+          typeof entry.text === "string" &&
+          typeof entry.translation === "string" &&
+          (!Object.hasOwn(entry, "ts") || Number.isFinite(entry.ts)) &&
+          ["sourceLanguage", "targetLanguage", "providerName"].every(
+            (key) => entry[key] == null || typeof entry[key] === "string"
+          )
+      )
+    : [];
   historyListEl.innerHTML = "";
   if (historyEmptyEl) historyEmptyEl.hidden = history.length > 0;
   setNavBadge("nav-badge-history", history.length);
@@ -841,7 +873,7 @@ clearHistoryBtn?.addEventListener("click", async () => {
   if (res?.ok) renderHistory([]);
 });
 
-// Backup: export/import the whole settings object
+// Backup settings without credentials; keep local keys for matching providers.
 function flashSaveStatus(key) {
   if (!saveStatus) return;
   saveStatus.textContent = `✓ ${i18n.t(key)}`;
@@ -854,11 +886,13 @@ function flashSaveStatus(key) {
 }
 
 exportSettingsBtn?.addEventListener("click", async () => {
-  const res = await chrome.runtime.sendMessage({ type: "get-settings" });
-  if (!res?.ok) return;
-  const blob = new Blob([JSON.stringify(res.settings, null, 2)], {
-    type: "application/json"
-  });
+  const settings = await readSettings();
+  const blob = new Blob(
+    [JSON.stringify(createSettingsBackup(settings), null, 2)],
+    {
+      type: "application/json"
+    }
+  );
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `bntrans-settings-${new Date().toISOString().slice(0, 10)}.json`;
@@ -878,7 +912,7 @@ function renderAutoTranslateDomains() {
     div.className = "bt-domain-item";
     div.innerHTML = `
       <input type="checkbox" ${item.enabled ? "checked" : ""} data-index="${index}" />
-      <span class="bt-domain-name">${item.domain}</span>
+      <span class="bt-domain-name">${escapeSettingsText(item.domain)}</span>
       <button class="bt-remove-alias" data-index="${index}">×</button>
     `;
     autoDomainListEl.appendChild(div);
@@ -916,15 +950,9 @@ importFileInput?.addEventListener("change", async (e) => {
   e.target.value = "";
   if (!file) return;
   try {
-    const data = JSON.parse(await file.text());
-    if (!data || typeof data !== "object" || Array.isArray(data)) {
-      throw new Error("invalid settings file");
-    }
-    const res = await chrome.runtime.sendMessage({
-      type: "set-settings",
-      settings: data
-    });
-    if (!res?.ok) throw new Error("import rejected");
+    const current = await readSettings();
+    const data = prepareSettingsImport(JSON.parse(await file.text()), current);
+    await writeSettings(data);
     flashSaveStatus("popup.importDone");
     loadSettings();
   } catch {
@@ -972,17 +1000,17 @@ function renderTTSProviderList() {
     if (isActive) {
       actionsHtml += `<span class="bt-badge-active">${i18n.t("popup.active")}</span>`;
     } else {
-      actionsHtml += `<button class="bt-btn-text btn-set-active-tts" data-id="${p.id}">${i18n.t("popup.use")}</button>`;
+      actionsHtml += `<button class="bt-btn-text btn-set-active-tts" data-id="${escapeSettingsText(p.id)}">${i18n.t("popup.use")}</button>`;
     }
 
     if (!p.readonly) {
-      actionsHtml += `<button class="bt-btn-text btn-edit-tts" data-id="${p.id}">${i18n.t("popup.edit")}</button>`;
-      actionsHtml += `<button class="bt-btn-text btn-delete-tts" data-id="${p.id}">${i18n.t("popup.delete")}</button>`;
+      actionsHtml += `<button class="bt-btn-text btn-edit-tts" data-id="${escapeSettingsText(p.id)}">${i18n.t("popup.edit")}</button>`;
+      actionsHtml += `<button class="bt-btn-text btn-delete-tts" data-id="${escapeSettingsText(p.id)}">${i18n.t("popup.delete")}</button>`;
     }
 
     el.innerHTML = `
       <div class="bt-provider-info">
-        <div class="bt-provider-name">${p.name}</div>
+        <div class="bt-provider-name">${escapeSettingsText(p.name)}</div>
         <div class="bt-provider-type">${p.type === "google" ? "Standard" : "Custom URL"}</div>
       </div>
       <div class="bt-provider-actions">
@@ -1111,7 +1139,7 @@ function updateShortcutPreview() {
 }
 
 async function loadSettings() {
-  const res = await chrome.runtime.sendMessage({ type: "get-settings" });
+  const res = { ok: true, settings: await readSettings() };
 
   populateSelects();
 
@@ -1834,7 +1862,7 @@ function renderHoverDomainList(domains) {
     item.className = "bt-domain-item";
     item.innerHTML = `
       <div class="bt-domain-info">
-        <span class="bt-domain-name">${d.domain}</span>
+        <span class="bt-domain-name">${escapeSettingsText(d.domain)}</span>
       </div>
       <div class="bt-domain-actions">
         <label class="bt-domain-toggle">
@@ -1896,7 +1924,7 @@ async function runQuickTranslate() {
     });
 
     if (res?.ok && res.result?.translation) {
-      quickResultText.innerHTML = res.result.translation;
+      quickResultText.textContent = res.result.translation;
       quickProvider.textContent = res.result.providerName || "";
     } else {
       quickResultText.textContent = `${i18n.t("popup.translateFailed")}: ${res?.error || "Unknown error"}`;

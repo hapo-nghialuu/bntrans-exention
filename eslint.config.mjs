@@ -16,7 +16,12 @@ const compat = new FlatCompat({
 });
 
 export default defineConfig([
-  globalIgnores(["**/node_modules/", "**/dist/", "**/build/"]),
+  globalIgnores([
+    "**/node_modules/",
+    "**/dist/",
+    "**/build/",
+    "extension/assets/vendor/**"
+  ]),
   {
     extends: compat.extends(
       "eslint:recommended",

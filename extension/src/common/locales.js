@@ -2,6 +2,8 @@ export const locales = {
   en: {
     // Popup
     "popup.title": "BNTrans",
+    "popup.stopSpeech": "Stop speech",
+    "popup.speechError": "Speech unavailable",
     "popup.subtitle": "Instant AI-powered translation (Open source)",
     "popup.nativeLanguage": "Native Language",
     "popup.defaultTarget": "Default Target",
@@ -59,7 +61,8 @@ export const locales = {
     "popup.groupBackup": "Backup",
     "popup.exportSettings": "Export settings",
     "popup.importSettings": "Import settings",
-    "popup.backupHint": "Export file includes API keys — keep it private.",
+    "popup.backupHint":
+      "API keys are excluded. Import keeps local keys for matching providers. History and prompts may still contain private text.",
     "popup.importDone": "Settings imported",
     "popup.importInvalid": "Invalid settings file",
     "popup.groupAutoTranslate": "Auto-translate pages",
@@ -248,6 +251,8 @@ export const locales = {
   vi: {
     // Popup
     "popup.title": "BNTrans",
+    "popup.stopSpeech": "Dừng đọc",
+    "popup.speechError": "Không thể đọc nội dung",
     "popup.subtitle": "Dịch thuật tức thì bằng AI (Mã nguồn mở)",
     "popup.nativeLanguage": "Ngôn ngữ của bạn",
     "popup.defaultTarget": "Ngôn ngữ cần dịch",
@@ -302,7 +307,8 @@ export const locales = {
     "popup.groupBackup": "Sao lưu",
     "popup.exportSettings": "Xuất cài đặt",
     "popup.importSettings": "Nhập cài đặt",
-    "popup.backupHint": "File xuất ra có chứa API key — giữ kỹ, đừng chia sẻ.",
+    "popup.backupHint":
+      "Không xuất API key. Khi nhập, giữ key cục bộ của provider trùng khớp. Lịch sử và prompt vẫn có thể chứa nội dung riêng tư.",
     "popup.importDone": "Đã nhập cài đặt",
     "popup.importInvalid": "File cài đặt không hợp lệ",
     "popup.groupAutoTranslate": "Tự dịch trang",
