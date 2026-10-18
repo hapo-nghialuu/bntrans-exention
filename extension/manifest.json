@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "BNTrans - Power Inline Translate Kit",
   "version": "1.0.0",
-  "version_name": "1.0.0-labs.1",
+  "version_name": "1.0.0-labs.2",
   "description": "Brings instant, AI-powered translation directly to your input fields. No more switching tabs or copy-pasting—just type translate",
   "author": "BNTrans",
   "icons": {
@@ -49,7 +49,11 @@
       "js": [
         "src/experimental/content-learning.js",
         "src/experimental/content-writing.js",
-        "src/experimental/content-media.js"
+        "src/experimental/content-media.js",
+        "src/experimental/content-reading.js",
+        "src/experimental/content-corrections.js",
+        "src/experimental/content-images.js",
+        "src/experimental/content-readalong.js"
       ],
       "run_at": "document_idle",
       "all_frames": false
@@ -74,7 +78,10 @@
         "src/*",
         "src/experimental/learning-store.js",
         "src/experimental/learning-frequency.js",
-        "src/experimental/learning-frequency-data.js"
+        "src/experimental/learning-frequency-data.js",
+        "src/experimental/reading-context.js",
+        "src/experimental/image-translation-utils.js",
+        "src/experimental/ocr-utils.js"
       ],
       "matches": ["<all_urls>"]
     }

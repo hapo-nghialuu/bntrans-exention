@@ -55,8 +55,13 @@ export function createLabApi({ language = "en", selectedTab, onStatus } = {}) {
     settings: readSettings,
     updateSettings: async (patch) =>
       (await send("set-settings", patch)).settings,
-    async sendToTab(type, payload = {}) {
-      const tab = await activeTab();
+    async sendToTab(type, payload = {}, targetTabId) {
+      const tab =
+        targetTabId === undefined
+          ? await activeTab()
+          : await chrome.tabs.get(targetTabId);
+      if (!/^(https?|file):/i.test(tab?.url || ""))
+        throw new Error(t("This tab is not supported", "Không hỗ trợ tab này"));
       let response;
       try {
         response = await chrome.tabs.sendMessage(
@@ -98,8 +103,12 @@ export function createLabApi({ language = "en", selectedTab, onStatus } = {}) {
         throw new Error(t("Enter some text first", "Nhập nội dung trước"));
       }
       const settings = await readSettings();
-      const tab = await activeTab().catch(() => null);
-      const siteUrl = options.siteUrl || tab?.url || "";
+      const explicitSite = Object.hasOwn(options, "siteUrl");
+      const tab =
+        explicitSite && options.siteUrl === ""
+          ? null
+          : await activeTab().catch(() => null);
+      const siteUrl = explicitSite ? options.siteUrl : tab?.url || "";
       let hostname = "";
       try {
         hostname = new URL(siteUrl).hostname;
@@ -139,6 +148,7 @@ export function createLabApi({ language = "en", selectedTab, onStatus } = {}) {
           options.targetLanguage || settings.nativeLanguageCode || "vi",
         skipHistory: options.skipHistory !== false,
         providerId,
+        ...(options.labFeature && tab ? { targetTabId: tab.id } : {}),
         siteUrl,
         privacyPolicy: mode,
         cloudConsent

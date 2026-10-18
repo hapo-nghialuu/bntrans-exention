@@ -1,4 +1,11 @@
 const SETTINGS_KEY = "translatorSettings";
+const READING_FLAGS = {
+  corrections: false,
+  ask: false,
+  image: false,
+  compare: false,
+  readalong: false
+};
 
 export async function readSettings() {
   const { translatorSettings } = await chrome.storage.local.get(SETTINGS_KEY);
@@ -113,6 +120,7 @@ export async function readSettings() {
   const ttl = Number(settings.historyTTLHours ?? 720) * 3600000;
   return {
     ...settings,
+    labFeatures: { ...READING_FLAGS, ...settings.labFeatures },
     translationHistory:
       settings.historyEnabled === false || settings.retentionEnabled === false
         ? []
