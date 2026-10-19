@@ -1,5 +1,5 @@
 /* global handleLineByLineTranslate, handleSentenceBySentenceTranslate */
-/* global getTranslationUnits, toMarkdown, injectUnitWrappers, requestSegmentTranslations, updateWrappers, markTranslationError */
+/* global getTranslationUnits, toMarkdown, injectUnitWrappers, requestSegmentTranslations, updateWrappers */
 let normalizeLanguageToCode;
 let i18n;
 let tts;
@@ -4246,6 +4246,31 @@ function registerScreenshotTranslate() {
   let pageTranslateActive = false;
   let pageSession = null;
 
+  function pageSkipSubtree(node) {
+    if (shouldSkipSubtree(node)) return true;
+    if (node.nodeType !== Node.ELEMENT_NODE) return false;
+    if (
+      ["header", "nav", "footer", "aside"].includes(node.tagName.toLowerCase())
+    )
+      return true;
+    if (
+      [
+        "navigation",
+        "banner",
+        "contentinfo",
+        "complementary",
+        "menu",
+        "menubar",
+        "toolbar",
+        "button",
+        "dialog"
+      ].includes(node.getAttribute("role"))
+    )
+      return true;
+    const position = window.getComputedStyle?.(node).position;
+    return position === "fixed" || position === "sticky";
+  }
+
   function pageOptions(settings) {
     const config =
       settings.labFeatures?.page === true ? settings.labPage || {} : {};
@@ -4408,10 +4433,10 @@ function registerScreenshotTranslate() {
       ancestor;
       ancestor = ancestor.parentNode
     ) {
-      if (shouldSkipSubtree(ancestor)) return false;
+      if (pageSkipSubtree(ancestor)) return false;
     }
     // A newly protected descendant must remain visible, even if its text is empty.
-    const units = getTranslationUnits(w.originalSpan);
+    const units = getTranslationUnits(w.originalSpan, pageSkipSubtree);
     return (
       units.length === 1 &&
       units[0].nodes.length === record.unit.nodes.length &&
@@ -4489,7 +4514,7 @@ function registerScreenshotTranslate() {
         }
       }
       s.records = s.records.filter((r) => r.status !== "stale");
-      for (const unit of getTranslationUnits(document.body)) {
+      for (const unit of getTranslationUnits(document.body, pageSkipSubtree)) {
         const key = unit.nodes[0];
         const md = toMarkdown(unit.nodes);
         if (!md.trim() || s.identity.has(key)) continue;
@@ -4682,14 +4707,12 @@ function registerScreenshotTranslate() {
             s.state = error.code === "budget" ? "budget" : "paused";
             pageCancelEpoch(s);
           } else {
-            pageOwnMutation(s, () =>
-              markTranslationError(
-                batch
-                  .filter((r) => r.status !== "done")
-                  .flatMap((r) => r.wrappers),
-                error
-              )
-            );
+            pageOwnMutation(s, () => {
+              for (const record of batch.filter((r) => r.status !== "done")) {
+                record.wrappers.forEach((w) => pageUnwrap(w.wrapper));
+                record.wrappers = [];
+              }
+            });
           }
         }
         batch.forEach((r) => {
@@ -4811,7 +4834,10 @@ function registerScreenshotTranslate() {
     )
       throw new Error("Unknown page command");
     if (command === "estimate") {
-      const units = getTranslationUnits(document.body).slice(0, PAGE_MAX_UNITS);
+      const units = getTranslationUnits(document.body, pageSkipSubtree).slice(
+        0,
+        PAGE_MAX_UNITS
+      );
       return {
         ok: true,
         units: units.length,
@@ -4954,6 +4980,7 @@ function registerScreenshotTranslate() {
       }
     } else if (message?.type === "toggle-page-translation") {
       togglePageTranslation();
+      sendResponse(pageSnapshot());
     } else if (message?.type === "translate-editable") {
       translateEditableSelection();
     }

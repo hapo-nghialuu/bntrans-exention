@@ -603,7 +603,7 @@ test("zero retries reports delimiter capability failure rather than fake transla
   assert.match(h.pageSnapshot().error, /Delimiter mismatch/);
 });
 
-test("unchanged output after retry stays visible as a provider failure", async (t) => {
+test("unchanged output after retry reports failure outside the original page content", async (t) => {
   const h = createHarness({
     count: 1,
     provider: (payload) => ({ ok: true, result: { translation: payload.text } })
@@ -613,8 +613,13 @@ test("unchanged output after retry stays visible as a provider failure", async (
   assert.equal(h.requests.length, 2);
   assert.equal(h.pageSnapshot().complete, 0);
   assert.match(h.pageSnapshot().error, /unchanged text/);
+  assert.equal(
+    h.document.querySelectorAll("[data-bntrans-translation]").length,
+    0
+  );
+  assert.equal(h.paragraphs[0].textContent, "Synthetic 0");
   assert.match(
-    h.document.querySelectorAll("[data-bntrans-translation]")[0].textContent,
+    h.document.getElementById("bntrans-page-progress").textContent,
     /unchanged text/
   );
 });

@@ -11,6 +11,16 @@ const source = readFileSync(
 );
 const start = source.indexOf("  const PAGE_MAX_UNITS =");
 const end = source.indexOf("  // --- Translate & replace", start);
+const nativeStart = source.indexOf(
+  "  chrome.runtime.onMessage.addListener",
+  source.indexOf(
+    "// Triggered from the extension context menu / quick popup button"
+  )
+);
+const nativeEnd = source.indexOf(
+  "  // --- Language-detect banner",
+  nativeStart
+);
 
 export function createHarness({
   count = 0,
@@ -296,6 +306,7 @@ export function createHarness({
     granular +
       "\n" +
       source.slice(start, end) +
+      source.slice(nativeStart, nativeEnd) +
       `
     globalThis.api = {runPageTranslation, removePageTranslation, pageCommand, pageSnapshot,
       getTranslationUnits, toMarkdown, injectUnitWrappers, updateWrappers, requestSegmentTranslations, pageOptions};`,
@@ -313,6 +324,10 @@ export function createHarness({
     listeners,
     dispatch: (message) =>
       new Promise((resolve) => runtimeListeners[0](message, {}, resolve)),
+    toggle: () =>
+      new Promise((resolve) =>
+        runtimeListeners[1]({ type: "toggle-page-translation" }, {}, resolve)
+      ),
     ...context.api,
     setSettings: (next, notifyChange = false) => {
       currentSettings = next;

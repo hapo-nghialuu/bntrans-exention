@@ -699,12 +699,12 @@ chrome.runtime.onStartup.addListener(registerContextMenus);
 // dev reload clears them, so register eagerly too (remove+create is safe).
 registerContextMenus();
 
-// Keep the page-translate menu title in sync with the tab's state.
-// NOTE: context menus are global, so the title reflects whichever tab
-// reported last — acceptable since the click still toggles correctly.
-chrome.runtime.onMessage.addListener((message) => {
+// Page translation is scoped to the top frame, not embedded documents.
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type !== "page-translation-state") return;
-  readSettings()
+  if (sender.frameId > 0) return;
+  registerContextMenus()
+    .then(() => readSettings())
     .then((settings) => {
       const vi = (settings.interfaceLanguage || "en") === "vi";
       const title = message.active
@@ -714,13 +714,16 @@ chrome.runtime.onMessage.addListener((message) => {
         : vi
           ? "Dịch trang này (song ngữ)"
           : "Translate page (bilingual)";
-      chrome.contextMenus.update(
-        PAGE_TRANSLATE_MENU_ID,
-        { title },
-        () => void chrome.runtime.lastError
+      return new Promise((resolve) =>
+        chrome.contextMenus.update(PAGE_TRANSLATE_MENU_ID, { title }, () => {
+          void chrome.runtime.lastError;
+          resolve();
+        })
       );
     })
-    .catch(() => {});
+    .then(() => sendResponse({ ok: true }))
+    .catch(() => sendResponse({ ok: false }));
+  return true;
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
@@ -740,7 +743,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       .catch(() => {});
   } else if (info.menuItemId === PAGE_TRANSLATE_MENU_ID) {
     chrome.tabs
-      .sendMessage(tab.id, { type: "toggle-page-translation" })
+      .sendMessage(tab.id, { type: "toggle-page-translation" }, { frameId: 0 })
       .catch(() => {});
   } else if (info.menuItemId === EDITABLE_MENU_ID) {
     chrome.tabs
