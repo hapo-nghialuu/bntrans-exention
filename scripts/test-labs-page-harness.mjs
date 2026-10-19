@@ -28,6 +28,7 @@ export function createHarness({
   settings = {},
   settingsError,
   provider,
+  document: suppliedDocument,
   fastClock = true
 } = {}) {
   const observers = new Set();
@@ -191,16 +192,18 @@ export function createHarness({
         : this.rect;
     }
   }
-  const document = {
+  const document = suppliedDocument || {
     createElement: (tag) => new MockNode(tag),
     createTextNode: (text) => new MockNode(null, text),
     getElementById: (id) => document.documentElement.querySelector("#" + id),
     querySelectorAll: (selector) =>
       document.documentElement.querySelectorAll(selector)
   };
-  document.documentElement = new MockNode("html");
-  document.body = new MockNode("body");
-  document.documentElement.appendChild(document.body);
+  if (!suppliedDocument) {
+    document.documentElement = new MockNode("html");
+    document.body = new MockNode("body");
+    document.documentElement.appendChild(document.body);
+  }
   const appendParagraph = (text, visibleHere = false) => {
     const p = document.createElement("p");
     if (visibleHere) p.rect = { top: 100, bottom: 150, left: 0, right: 800 };

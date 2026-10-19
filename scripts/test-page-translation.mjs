@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
+import { JSDOM } from "jsdom";
 import { createHarness, deferred, until } from "./test-labs-page-harness.mjs";
 
 const ids = (batch) =>
@@ -204,6 +205,70 @@ test("native page toggle acknowledges restore during an in-flight request and pr
     false
   );
   assert.deepEqual(h.stateMessages, [true, false]);
+});
+
+test("real table DOM retains row groups, rows, cell relationships and original nodes during translation and restore", async (t) => {
+  const dom = new JSDOM(`<table>
+    <caption>Specification table</caption>
+    <colgroup><col></colgroup>
+    <thead><tr><th scope="col">Specification</th></tr></thead>
+    <tbody><tr><td><a href="https://example.test/spec">ECMAScript 2027 specification</a> for <code>Array.prototype.map</code></td></tr></tbody>
+    <tfoot><tr><td>Additional reference</td></tr></tfoot>
+  </table>`);
+  const h = createHarness({ document: dom.window.document });
+  t.after(() => {
+    h.dispose();
+    dom.window.close();
+  });
+  const table = h.document.querySelector("table");
+  const originalChildren = [...table.childNodes];
+  const original = [
+    ...table.querySelectorAll(
+      "caption,colgroup,col,thead,tbody,tfoot,tr,th,td,a,code"
+    )
+  ];
+  const parents = original.map((node) => node.parentNode);
+  const rows = [...table.rows];
+  const cells = [...table.rows].flatMap((row) => [...row.cells]);
+  assert.equal(rows.length, 3);
+  await h.runPageTranslation();
+  assert.equal(h.pageSnapshot().complete, 4);
+  assert.deepEqual([...table.rows], rows);
+  assert.deepEqual(
+    [...table.rows].flatMap((row) => [...row.cells]),
+    cells
+  );
+  assert.equal(
+    table.querySelector(
+      ":scope > [data-bntrans-wrapper], thead > [data-bntrans-wrapper], tbody > [data-bntrans-wrapper], tfoot > [data-bntrans-wrapper], tr > [data-bntrans-wrapper]"
+    ),
+    null
+  );
+  assert.deepEqual(
+    original.map((node) => node.parentNode),
+    parents.map((parent, i) => {
+      // Only inline content inside the cell moves into an original-text span.
+      return ["A", "CODE"].includes(original[i].tagName)
+        ? original[i].closest("[data-bntrans-original]")
+        : parent;
+    })
+  );
+  assert.equal(
+    table.querySelector("a").getAttribute("href"),
+    "https://example.test/spec"
+  );
+  assert.equal(
+    table.querySelector("[data-bntrans-original] code").textContent,
+    "Array.prototype.map"
+  );
+  h.dispose();
+  assert.deepEqual([...table.childNodes], originalChildren);
+  assert.deepEqual(
+    original.map((node) => node.parentNode),
+    parents
+  );
+  assert.equal(table.querySelector("[data-bntrans-wrapper]"), null);
+  assert.deepEqual([...table.rows], rows);
 });
 
 test("page context menu targets only frame zero and ignores iframe state during menu registration", async () => {

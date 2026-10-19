@@ -605,9 +605,8 @@ const PAGE_TRANSLATE_MENU_ID = "bntrans-page-translate";
 const EDITABLE_MENU_ID = "bntrans-translate-editable";
 
 let contextMenuPromise = null;
-// onInstalled + onStartup + the eager call below can all fire during one
-// service-worker boot; funnel them through a single remove→create so two
-// concurrent runs can't race into "duplicate id" on create().
+// Serialize lifecycle registration so concurrent remove→create runs cannot
+// race into duplicate IDs.
 function registerContextMenus() {
   if (!contextMenuPromise) {
     contextMenuPromise = (async () => {
