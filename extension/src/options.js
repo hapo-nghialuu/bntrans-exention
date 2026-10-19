@@ -381,10 +381,12 @@ function renderProviderList() {
 
   // Attach events
   providerListEl.querySelectorAll(".btn-set-active").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
+    btn.addEventListener("click", async (e) => {
+      const previousProviderId = activeProviderId;
       activeProviderId = e.target.dataset.id;
+      btn.disabled = true;
+      if (!(await saveSettings())) activeProviderId = previousProviderId;
       renderProviderList();
-      saveSettings();
     });
   });
 
@@ -1422,14 +1424,22 @@ async function saveSettings() {
     hoverTranslateDomains: currentHoverDomains || []
   };
 
-  const res = await chrome.runtime.sendMessage({
-    type: "set-settings",
-    settings
-  });
+  try {
+    await writeSettings(settings);
+    savedTargetLanguageCode = settings.targetLanguageCode;
+  } catch {
+    if (saveStatus) {
+      clearTimeout(saveStatus._timer);
+      saveStatus.textContent =
+        i18n.language === "vi"
+          ? "Không lưu được cài đặt. Hãy thử lại."
+          : "Settings were not saved. Please try again.";
+      saveStatus.classList.add("visible");
+    }
+    return false;
+  }
 
-  if (res?.ok) savedTargetLanguageCode = targetSelect.value;
-
-  if (res?.ok && saveStatus) {
+  if (saveStatus) {
     saveStatus.textContent = `✓ ${i18n.t("popup.saved")}`;
     saveStatus.classList.add("visible");
     clearTimeout(saveStatus._timer);
@@ -1438,6 +1448,7 @@ async function saveSettings() {
       1600
     );
   }
+  return true;
 }
 
 addAliasBtn.addEventListener("click", () => {
