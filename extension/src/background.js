@@ -695,15 +695,14 @@ function registerContextMenus() {
 
 chrome.runtime.onInstalled.addListener(registerContextMenus);
 chrome.runtime.onStartup.addListener(registerContextMenus);
-// MV3 service workers restart often; menu items persist per session but a
-// dev reload clears them, so register eagerly too (remove+create is safe).
-registerContextMenus();
+// Menus survive worker restarts. Recreating them on wake can delete the
+// item whose click woke this worker before onClicked is dispatched.
 
 // Page translation is scoped to the top frame, not embedded documents.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type !== "page-translation-state") return;
   if (sender.frameId > 0) return;
-  registerContextMenus()
+  Promise.resolve(contextMenuPromise)
     .then(() => readSettings())
     .then((settings) => {
       const vi = (settings.interfaceLanguage || "en") === "vi";

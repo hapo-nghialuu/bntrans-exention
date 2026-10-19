@@ -215,17 +215,22 @@ test("page context menu targets only frame zero and ignores iframe state during 
     updates = [],
     events = [],
     clicks = [],
-    stateListeners = [];
+    stateListeners = [],
+    installed = [],
+    startup = [];
   const context = vm.createContext({
     readSettings: async () => ({ interfaceLanguage: "en" }),
     chrome: {
       runtime: {
-        onInstalled: { addListener() {} },
-        onStartup: { addListener() {} },
+        onInstalled: { addListener: (fn) => installed.push(fn) },
+        onStartup: { addListener: (fn) => startup.push(fn) },
         onMessage: { addListener: (fn) => stateListeners.push(fn) }
       },
       contextMenus: {
-        remove: (_id, callback) => setImmediate(callback),
+        remove: (id, callback) => {
+          events.push("remove:" + id);
+          setImmediate(callback);
+        },
         create: (item, callback) => {
           events.push("create:" + item.id);
           callback();
@@ -248,6 +253,20 @@ test("page context menu targets only frame zero and ignores iframe state during 
     source.slice(source.indexOf("const SCREENSHOT_MENU_ID =")),
     context
   );
+  assert.deepEqual(
+    events,
+    [],
+    "waking a worker must not mutate persisted menus"
+  );
+  clicks[0]({ menuItemId: "bntrans-page-translate", frameId: 4 }, { id: 7 });
+  assert.deepEqual(
+    events,
+    [],
+    "a cold-start click must not delete its menu item"
+  );
+  assert.equal(installed.length, 1);
+  assert.equal(startup.length, 1);
+  const registration = installed[0]();
   const acknowledged = await new Promise((resolve) => {
     assert.equal(
       stateListeners[0](
@@ -267,6 +286,7 @@ test("page context menu targets only frame zero and ignores iframe state during 
     );
   });
   assert.equal(acknowledged.ok, true);
+  await registration;
   assert.deepEqual(updates, ["Restore original page"]);
   assert.ok(
     events.indexOf("update:bntrans-page-translate") >
