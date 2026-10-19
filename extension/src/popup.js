@@ -1,4 +1,5 @@
 import { i18n } from "./common/i18n.js";
+import { qualityWarningText } from "./common/translation-quality.js";
 import { tts } from "./services/tts.js";
 
 const quickInput = document.getElementById("quick-input");
@@ -131,7 +132,12 @@ async function runQuickTranslate() {
 
     if (res?.ok && res.result?.translation) {
       quickResultText.innerHTML = res.result.translation;
-      quickProvider.textContent = res.result.providerName || "";
+      quickProvider.textContent = [
+        res.result.providerName,
+        qualityWarningText(res.result.qualityWarnings, i18n.language)
+      ]
+        .filter(Boolean)
+        .join(" · ");
     } else {
       quickResultText.textContent = `${i18n.t("popup.translateFailed")}: ${res?.error || "Unknown error"}`;
     }

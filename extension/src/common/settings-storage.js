@@ -50,6 +50,7 @@ export async function readSettings() {
     activeProviderId: "google-translate",
     translationStyle: "natural",
     glossary: {},
+    websiteProfiles: [],
     providers: [
       {
         id: "google-translate",

@@ -4,6 +4,8 @@ import {
   updateSettings
 } from "./common/settings-storage.js";
 import { AIProviderService } from "./services/ai-providers.js";
+import { applySiteProfile } from "./common/site-profiles.js";
+import { checkTranslationQuality } from "./common/translation-quality.js";
 import {
   resolvePrivacy,
   assertProvider,
@@ -185,7 +187,9 @@ function recordHistory(settings, policy, entry) {
 }
 
 async function handleTranslate(payload, sender) {
-  const settings = await readSettings();
+  const applied = applySiteProfile(await readSettings(), payload, sender);
+  const settings = applied.settings;
+  payload = applied.payload;
   const policy = resolvePrivacy(settings, payload, sender);
   const {
     text,
@@ -228,7 +232,9 @@ async function handleTranslate(payload, sender) {
             providerType: "same-language",
             sourceLanguage: detected,
             targetLanguage: targetLang,
-            skippedSameLanguage: true
+            skippedSameLanguage: true,
+            siteProfile: applied.profile?.hostname || null,
+            qualityWarnings: []
           }
         };
       }
@@ -255,13 +261,26 @@ async function handleTranslate(payload, sender) {
         ts: Date.now()
       });
   };
+  const diagnostics = (result) => ({
+    ...result,
+    siteProfile: applied.profile?.hostname || null,
+    qualityWarnings:
+      !task || task === "translate"
+        ? checkTranslationQuality(
+            shouldConvertFormat(text) ? htmlToMarkdown(text) : text,
+            shouldConvertFormat(text)
+              ? htmlToMarkdown(result.translation)
+              : result.translation
+          )
+        : []
+  });
   const hit = await cacheAccess(cacheKey, settings, policy);
   if (hit) {
     await saveHistory(hit.result);
     return {
       ok: true,
       result: {
-        ...hit.result,
+        ...diagnostics(hit.result),
         providerName: `${hit.result.providerName || ""} ·cache`,
         cached: true
       }
@@ -312,7 +331,7 @@ async function handleTranslate(payload, sender) {
     providerCompleted = true;
     await saveHistory(resultObj);
     await cacheAccess(cacheKey, settings, policy, resultObj);
-    return { ok: true, result: resultObj };
+    return { ok: true, result: diagnostics(resultObj) };
   } catch (error) {
     if (providerCompleted || error?.code === "PRIVACY_BLOCKED") throw error;
     // Task-specific work must not be replaced by a plain Google translation.
@@ -341,13 +360,13 @@ async function handleTranslate(payload, sender) {
         );
         return {
           ok: true,
-          result: {
+          result: diagnostics({
             ...result,
             providerName: "Google Translate (fallback)",
             sourceLanguage: sourceLang,
             targetLanguage: targetLang,
             fellBackFrom: usedProvider?.name || usedProvider?.type
-          }
+          })
         };
       } catch (fallbackError) {
         if (fallbackError?.code === "PRIVACY_BLOCKED") throw fallbackError;
@@ -564,6 +583,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // --- Context menus ---------------------------------------------------------
+chrome.commands?.onCommand?.addListener(async (command) => {
+  if (command !== "quick-actions") return;
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id || !/^https?:\/\//i.test(tab.url || "")) return;
+  try {
+    await chrome.tabs.sendMessage(
+      tab.id,
+      { type: "open-quick-actions" },
+      { frameId: 0 }
+    );
+  } catch (error) {
+    console.warn("BNTrans Quick Actions:", error.message);
+  }
+});
 
 const SCREENSHOT_MENU_ID = "bntrans-screenshot-area";
 const SELECTION_MENU_ID = "bntrans-translate-selection";
@@ -572,9 +605,8 @@ const PAGE_TRANSLATE_MENU_ID = "bntrans-page-translate";
 const EDITABLE_MENU_ID = "bntrans-translate-editable";
 
 let contextMenuPromise = null;
-// onInstalled + onStartup + the eager call below can all fire during one
-// service-worker boot; funnel them through a single remove→create so two
-// concurrent runs can't race into "duplicate id" on create().
+// Serialize lifecycle registration so concurrent remove→create runs cannot
+// race into duplicate IDs.
 function registerContextMenus() {
   if (!contextMenuPromise) {
     contextMenuPromise = (async () => {
@@ -662,16 +694,15 @@ function registerContextMenus() {
 
 chrome.runtime.onInstalled.addListener(registerContextMenus);
 chrome.runtime.onStartup.addListener(registerContextMenus);
-// MV3 service workers restart often; menu items persist per session but a
-// dev reload clears them, so register eagerly too (remove+create is safe).
-registerContextMenus();
+// Menus survive worker restarts. Recreating them on wake can delete the
+// item whose click woke this worker before onClicked is dispatched.
 
-// Keep the page-translate menu title in sync with the tab's state.
-// NOTE: context menus are global, so the title reflects whichever tab
-// reported last — acceptable since the click still toggles correctly.
-chrome.runtime.onMessage.addListener((message) => {
+// Page translation is scoped to the top frame, not embedded documents.
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type !== "page-translation-state") return;
-  readSettings()
+  if (sender.frameId > 0) return;
+  Promise.resolve(contextMenuPromise)
+    .then(() => readSettings())
     .then((settings) => {
       const vi = (settings.interfaceLanguage || "en") === "vi";
       const title = message.active
@@ -681,13 +712,16 @@ chrome.runtime.onMessage.addListener((message) => {
         : vi
           ? "Dịch trang này (song ngữ)"
           : "Translate page (bilingual)";
-      chrome.contextMenus.update(
-        PAGE_TRANSLATE_MENU_ID,
-        { title },
-        () => void chrome.runtime.lastError
+      return new Promise((resolve) =>
+        chrome.contextMenus.update(PAGE_TRANSLATE_MENU_ID, { title }, () => {
+          void chrome.runtime.lastError;
+          resolve();
+        })
       );
     })
-    .catch(() => {});
+    .then(() => sendResponse({ ok: true }))
+    .catch(() => sendResponse({ ok: false }));
+  return true;
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
@@ -707,7 +741,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       .catch(() => {});
   } else if (info.menuItemId === PAGE_TRANSLATE_MENU_ID) {
     chrome.tabs
-      .sendMessage(tab.id, { type: "toggle-page-translation" })
+      .sendMessage(tab.id, { type: "toggle-page-translation" }, { frameId: 0 })
       .catch(() => {});
   } else if (info.menuItemId === EDITABLE_MENU_ID) {
     chrome.tabs

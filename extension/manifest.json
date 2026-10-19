@@ -21,6 +21,12 @@
       "128": "assets/icons/icon-128.png"
     }
   },
+  "commands": {
+    "quick-actions": {
+      "suggested_key": { "default": "Alt+Shift+K", "mac": "Command+Shift+K" },
+      "description": "BNTrans: quick actions for selected page text"
+    }
+  },
   "options_ui": {
     "page": "pages/options.html",
     "open_in_tab": true
@@ -47,6 +53,7 @@
     {
       "matches": ["<all_urls>"],
       "js": [
+        "src/content-quick-actions.js",
         "src/experimental/content-learning.js",
         "src/experimental/content-writing.js",
         "src/experimental/content-media.js"

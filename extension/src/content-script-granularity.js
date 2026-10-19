@@ -44,6 +44,9 @@ function isBlockNode(node) {
     "pre",
     "section",
     "table",
+    "caption",
+    "thead",
+    "tbody",
     "tfoot",
     "ul",
     "video",
@@ -101,9 +104,9 @@ function shouldSkipSubtree(node) {
   return false;
 }
 
-function hasProtectedDescendant(node) {
+function hasProtectedDescendant(node, skipSubtree = shouldSkipSubtree) {
   return Array.from(node.childNodes || []).some(
-    (child) => shouldSkipSubtree(child) || hasProtectedDescendant(child)
+    (child) => skipSubtree(child) || hasProtectedDescendant(child, skipSubtree)
   );
 }
 
@@ -112,8 +115,8 @@ function hasProtectedDescendant(node) {
  * @param {Element} root - Root element
  * @returns {Array<{nodes: Node[], text: string}>}
  */
-function getTranslationUnits(root) {
-  if (shouldSkipSubtree(root)) return [];
+function getTranslationUnits(root, skipSubtree = shouldSkipSubtree) {
+  if (skipSubtree(root)) return [];
   const units = [];
   let currentGroup = [];
 
@@ -143,19 +146,19 @@ function getTranslationUnits(root) {
     if (
       node.nodeType === Node.ELEMENT_NODE &&
       (["script", "style", "noscript"].includes(node.tagName.toLowerCase()) ||
-        shouldSkipSubtree(node))
+        skipSubtree(node))
     ) {
       flushGroup();
       continue;
     }
 
-    if (isBlockNode(node) || hasProtectedDescendant(node)) {
+    if (isBlockNode(node) || hasProtectedDescendant(node, skipSubtree)) {
       // Block element found: Flush current group
       flushGroup();
 
       // RECURSION: Dive into the block to find units inside it
       // This allows us to translate a whole list (UL) by processing its LIs
-      const childUnits = getTranslationUnits(node);
+      const childUnits = getTranslationUnits(node, skipSubtree);
       units.push(...childUnits);
     } else {
       // Inline node (Text, Span, A, Code, etc.)

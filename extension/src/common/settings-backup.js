@@ -1,3 +1,5 @@
+import { normalizeSiteProfiles } from "./site-profiles.js";
+
 const SECRET_FIELDS = new Set([
   "apikey",
   "xapikey",
@@ -64,6 +66,8 @@ function redact(value, key = "") {
 
 function validateSettings(settings) {
   if (!isObject(settings)) throw new Error("Invalid settings file");
+  if ("websiteProfiles" in settings)
+    normalizeSiteProfiles(settings.websiteProfiles);
   const invalid = (field) => {
     throw new Error(`Invalid ${field} in settings file`);
   };

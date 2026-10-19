@@ -117,6 +117,8 @@ export function worker({
     [
       source("common/settings-storage.js"),
       source("common/privacy-policy.js"),
+      source("common/site-profiles.js"),
+      source("common/translation-quality.js"),
       source("services/ai-providers.js"),
       background
     ].join("\n"),

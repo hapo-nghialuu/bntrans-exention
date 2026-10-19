@@ -1,3 +1,11 @@
+.bt-quality-warning {
+  margin: 10px 0 0;
+  padding-left: 10px;
+  border-left: 2px solid #a47733;
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+}
 @import url("./tokens.css");
 @import url("./common.css");
 
