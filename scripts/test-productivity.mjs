@@ -414,6 +414,84 @@ test("opening Quick Actions sends nothing, renders text safely and cleans up on 
   assert.equal(sent, 0);
 });
 
+test("Quick Actions survives history and bookkeeping writes but closes on configuration changes", async (t) => {
+  const old = globalThis.chrome;
+  t.after(() => {
+    globalThis.chrome = old;
+  });
+  for (const patch of [
+    { enabled: false },
+    { activeProviderId: "other" },
+    { privacyDefaultMode: "local-only" },
+    { privacyRules: [{ hostname: "example.test", mode: "ask" }] },
+    { websiteProfiles: [{ ...profile, targetLanguage: "fr" }] },
+    { labFeatures: { learning: false } },
+    { selectionLastTarget: "fr" },
+    null
+  ]) {
+    const dom = quickDom(),
+      listeners = new Set();
+    let settings = {
+      enabled: true,
+      websiteProfiles: [profile],
+      labFeatures: { learning: true },
+      translationHistory: [],
+      historyEpoch: 0,
+      cacheEpoch: 0
+    };
+    let sent = 0;
+    globalThis.chrome = {
+      runtime: {
+        sendMessage() {
+          sent++;
+        }
+      },
+      storage: {
+        local: { get: async () => ({ translatorSettings: settings }) },
+        onChanged: {
+          addListener: (fn) => listeners.add(fn),
+          removeListener: (fn) => listeners.delete(fn)
+        }
+      }
+    };
+    try {
+      await openQuickActions(dom.window.document);
+      const panel = dom.window.document.querySelector("[data-bntrans-quick]");
+      const update = (newValue, area = "local") => {
+        for (const fn of listeners)
+          fn({ translatorSettings: { oldValue: settings, newValue } }, area);
+        if (area === "local") settings = newValue;
+      };
+      update({ ...settings, enabled: false }, "sync");
+      for (const bookkeeping of [
+        {
+          translationHistory: [
+            { text: "Hello", translation: "Xin chào", ts: Date.now() }
+          ]
+        },
+        { translationHistory: [], historyEpoch: 1 },
+        { cacheEpoch: 1 }
+      ]) {
+        update({ ...settings, ...bookkeeping });
+        assert.equal(panel.isConnected, true);
+        assert.equal(listeners.size, 1);
+        assert.equal(
+          panel.shadowRoot.querySelectorAll("nav button").length,
+          5
+        );
+      }
+      update(
+        patch ? { ...settings, ...patch, translationHistory: [] } : undefined
+      );
+      assert.equal(panel.isConnected, false);
+      assert.equal(listeners.size, 0);
+      assert.equal(sent, 0);
+    } finally {
+      dom.window.close();
+    }
+  }
+});
+
 test("Quick Actions never opens for focused password/OTP inputs or disabled extension", async (t) => {
   const dom = quickDom();
   const doc = dom.window.document;

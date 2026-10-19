@@ -113,7 +113,21 @@ export async function openQuickActions(doc = document) {
     if (!event.composedPath().includes(host)) close();
   };
   const changed = (changes, area) => {
-    if (area === "local" && changes.translatorSettings) close();
+    if (area !== "local" || !changes.translatorSettings) return;
+    const configuration = (value) =>
+      JSON.stringify(
+        Object.fromEntries(
+          Object.entries(value || {}).filter(
+            ([key]) =>
+              !["translationHistory", "historyEpoch", "cacheEpoch"].includes(
+                key
+              )
+          )
+        )
+      );
+    const { oldValue = settings, newValue } = changes.translatorSettings;
+    if (!newValue || configuration(oldValue) !== configuration(newValue))
+      close();
   };
   const button = (label, action, requiresSelection = true) => {
     const node = make("button", label);
