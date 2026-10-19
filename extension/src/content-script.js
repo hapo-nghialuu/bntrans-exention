@@ -4249,6 +4249,14 @@ function registerScreenshotTranslate() {
   function pageSkipSubtree(node) {
     if (shouldSkipSubtree(node)) return true;
     if (node.nodeType !== Node.ELEMENT_NODE) return false;
+    // Source viewers can render code as table cells instead of pre/code.
+    if (
+      node.hasAttribute("data-code-marker") ||
+      ["blob-code", "blob-num", "js-blob-wrapper", "diff-table"].some((name) =>
+        node.classList?.contains(name)
+      )
+    )
+      return true;
     if (
       ["header", "nav", "footer", "aside"].includes(node.tagName.toLowerCase())
     )
@@ -4263,7 +4271,8 @@ function registerScreenshotTranslate() {
         "menubar",
         "toolbar",
         "button",
-        "dialog"
+        "dialog",
+        "code"
       ].includes(node.getAttribute("role"))
     )
       return true;

@@ -271,6 +271,100 @@ test("real table DOM retains row groups, rows, cell relationships and original n
   assert.deepEqual([...table.rows], rows);
 });
 
+test("GitHub source diff cells remain unchanged and unwrapped during page translation and restore", async (t) => {
+  const dom = new JSDOM(`<p>Review the changes</p>
+    <div class="data highlight js-blob-wrapper">
+      <deferred-diff-lines data-catalyst>
+        <table class="diff-table js-diff-table tab-size" data-tab-size="4" data-paste-markdown-skip>
+          <tbody><tr class="show-top-border" data-hunk="1">
+            <td class="blob-num blob-num-addition" data-line-number="1">1</td>
+            <td class="blob-code blob-code-addition js-file-line"><span class="blob-code-inner blob-code-marker" data-code-marker="+"><span class="pl-c1">margin-top</span><span class="pl-kos">:</span> 28px;</span></td>
+          </tr></tbody>
+        </table>
+      </deferred-diff-lines>
+    </div>
+    <p>Read the <a href="https://example.test/discussion">discussion</a></p>`);
+  const h = createHarness({ document: dom.window.document });
+  t.after(() => {
+    h.dispose();
+    dom.window.close();
+  });
+  const source = h.document.querySelector(".js-blob-wrapper");
+  const html = source.outerHTML;
+  const nodes = [source, ...source.querySelectorAll("*")];
+  const children = nodes.map((node) => [...node.childNodes]);
+  const parents = nodes.map((node) => node.parentNode);
+  await h.runPageTranslation();
+  assert.equal(h.pageSnapshot().complete, 2);
+  assert.ok(
+    h.requests.every((request) => !request.text.includes("margin-top"))
+  );
+  assert.equal(source.querySelector("[data-bntrans-wrapper]"), null);
+  assert.equal(source.outerHTML, html);
+  assert.deepEqual(
+    nodes.map((node) => [...node.childNodes]),
+    children
+  );
+  assert.deepEqual(
+    nodes.map((node) => node.parentNode),
+    parents
+  );
+  assert.equal(
+    h.document.querySelector("a").href,
+    "https://example.test/discussion"
+  );
+  await h.toggle();
+  assert.equal(h.document.querySelector("[data-bntrans-wrapper]"), null);
+  assert.equal(source.outerHTML, html);
+  assert.deepEqual(
+    nodes.map((node) => [...node.childNodes]),
+    children
+  );
+  assert.deepEqual(
+    nodes.map((node) => node.parentNode),
+    parents
+  );
+});
+
+for (const marker of [
+  'class="diff-table"',
+  'class="js-blob-wrapper"',
+  'class="blob-code"',
+  'class="blob-num"',
+  'data-code-marker="+"',
+  'role="code"'
+]) {
+  test(`page translation excludes source marker ${marker} even inside prose`, async (t) => {
+    const dom = new JSDOM(
+      `<p>Review this <span ${marker}><span>margin-top: 28px;</span></span> before publishing.</p>`
+    );
+    const h = createHarness({ document: dom.window.document });
+    t.after(() => {
+      h.dispose();
+      dom.window.close();
+    });
+    const source = h.document.querySelector("p > span");
+    const html = source.outerHTML;
+    const parent = source.parentNode;
+    const child = source.firstChild;
+    await h.runPageTranslation();
+    assert.equal(h.pageSnapshot().complete, 2);
+    assert.ok(
+      h.requests.every((request) => !request.text.includes("margin-top"))
+    );
+    assert.equal(source.closest("[data-bntrans-wrapper]"), null);
+    assert.equal(source.querySelector("[data-bntrans-wrapper]"), null);
+    assert.equal(source.outerHTML, html);
+    assert.equal(source.parentNode, parent);
+    assert.equal(source.firstChild, child);
+    await h.toggle();
+    assert.equal(h.document.querySelector("[data-bntrans-wrapper]"), null);
+    assert.equal(source.outerHTML, html);
+    assert.equal(source.parentNode, parent);
+    assert.equal(source.firstChild, child);
+  });
+}
+
 test("page context menu targets only frame zero and ignores iframe state during menu registration", async () => {
   const source = readFileSync(
     new URL("../extension/src/background.js", import.meta.url),
